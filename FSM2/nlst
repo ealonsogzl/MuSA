@@ -1,0 +1,18 @@
+&params
+/
+&gridpnts
+/
+&gridlevs
+/
+&drive
+  met_file = 'input.txt'
+  dt=3600
+/
+&veg
+/
+&initial
+  start_file = 'out_dump'
+/
+&outputs
+  runid = 'out_'
+/
