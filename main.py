@@ -99,7 +99,7 @@ def MuSA():
 
         elif cfg.parallelization == "PBS.array":
 
-            pbs_task_id = int(os.getenv("PBS_ARRAY_INDEX"))
+            pbs_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
             pbs_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
 
