@@ -444,6 +444,35 @@ def tidy_predictions(predicted, mask):
     return predicted
 
 
+def get_posterior_vars(list_state, var_to_assim, wgth):
+
+    predicted = get_predicitons(list_state, var_to_assim)
+    posterior = []
+    for n in range(len(var_to_assim)):
+
+        posterior_tmp = np.vstack(predicted[n])
+        posterior_tmp = np.average(posterior_tmp, axis=0, weights=wgth)
+        posterior.append(posterior_tmp)
+
+    return posterior
+
+
+def get_OL_vars(Ensemble, var_to_assim):
+
+    OL = []
+
+    OL_state = Ensemble.origin_state.copy()
+
+    for var in var_to_assim:
+
+        assim_idx = fsm.get_var_state_position(var)
+        OL_tmp = OL_state.iloc[:, assim_idx].to_numpy()
+
+        OL.append(OL_tmp)
+
+    return OL
+
+
 def implement_assimilation(Ensemble, observations_sbst,
                            step, forcing_sbst):
     """
@@ -509,6 +538,10 @@ def implement_assimilation(Ensemble, observations_sbst,
             SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
             SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
 
+            # Get openloop, and posterior assimilated vars
+
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -516,7 +549,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
         else:
 
             predicted = get_predicitons(list_state, var_to_assim)
@@ -532,6 +566,10 @@ def implement_assimilation(Ensemble, observations_sbst,
             SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
             SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
 
+            # Get openloop, and posterior assimilated vars
+
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -539,7 +577,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
 
     elif assimilation_strategy == "filtering" and filter_algorithm == "PBS":
         if np.isnan(observations_sbst).all():
@@ -555,6 +594,10 @@ def implement_assimilation(Ensemble, observations_sbst,
             if cfg.redraw_prior:
                 Ensemble.wgth = wgth
 
+            # Get openloop, and posterior assimilated vars
+
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -562,7 +605,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
         else:
 
             predicted = get_predicitons(list_state, var_to_assim)
@@ -583,6 +627,9 @@ def implement_assimilation(Ensemble, observations_sbst,
             if cfg.redraw_prior:
                 Ensemble.wgth = wgth
 
+            # Get openloop, and posterior assimilated vars
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -591,6 +638,7 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
                       "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars,
                       "resampled_particles": resampled_particles}
 
     elif assimilation_strategy == "filtering" and filter_algorithm == "Kalman":
@@ -607,6 +655,10 @@ def implement_assimilation(Ensemble, observations_sbst,
             Ensemble.kalman_update(forcing_sbst, step, updated_pars=None,
                                    create=False, iteration=None)
 
+            list_state = Ensemble.state_membres
+
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -614,7 +666,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
         else:
             for j in range(Kalman_iterations):
 
@@ -681,6 +734,8 @@ def implement_assimilation(Ensemble, observations_sbst,
             SWE_assim_sd = np.std(SWE_ens_updated, axis=0)
             SD_assim_sd = np.std(SD_ens_updated, axis=0)
 
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -688,7 +743,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
 
     elif assimilation_strategy == "smoothing" and filter_algorithm == "Kalman":
 
@@ -705,6 +761,10 @@ def implement_assimilation(Ensemble, observations_sbst,
             Ensemble.kalman_update(forcing_sbst, step, updated_pars=None,
                                    create=False, iteration=None)
 
+            list_state = Ensemble.state_membres
+
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -712,7 +772,8 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
         else:
             for j in range(Kalman_iterations):
 
@@ -780,6 +841,8 @@ def implement_assimilation(Ensemble, observations_sbst,
             SWE_assim_sd = np.std(SWE_ens_updated, axis=0)
             SD_assim_sd = np.std(SD_ens_updated, axis=0)
 
+            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
+
             Result = {"SWE_ens_mean": SWE_ens_mean,
                       "SD_ens_mean": SD_ens_mean,
                       "SWE_ens_sd": SWE_ens_sd,
@@ -787,7 +850,9 @@ def implement_assimilation(Ensemble, observations_sbst,
                       "SWE_assim_mean": SWE_assim_mean,
                       "SD_assim_mean": SD_assim_mean,
                       "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd}
+                      "SD_assim_sd": SD_assim_sd,
+                      "post_vars": post_vars}
+
     elif assimilation_strategy == "direct_insertion":
         # raise Exception("direct_insertion not implemented yet")
 

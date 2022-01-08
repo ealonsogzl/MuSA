@@ -67,7 +67,7 @@ UA_DECOR = 8.2
 forcing_offset = {"SW": 0,
                   "LW": 0,
                   "Prec": 0,
-                  "Ta": 0,
+                  "Ta": KELVING_CONVER,
                   "RH": 0,
                   "Ua": 0,
                   "Ps": 0}

@@ -385,6 +385,28 @@ def simulation_steps(observations):
             "Assimilaiton_steps": assimilation_steps}
 
 
+def estore_OL_vars(Result_df, Ensemble):
+
+    var_to_assim = cfg.var_to_assim
+
+    # Store SWE and SD
+    Result_df.loc[:, "SWE_origin"] =\
+        Ensemble.origin_state.iloc[:, 5].to_numpy()
+    Result_df.loc[:, "SD_origin"] =\
+        Ensemble.origin_state.iloc[:, 4].to_numpy()
+
+    # Store OL vars
+
+    OL_state = Ensemble.origin_state.copy()
+
+    for var in var_to_assim:
+
+        assim_idx = fsm.get_var_state_position(var)
+        OL_tmp = OL_state.iloc[:, assim_idx].to_numpy()
+
+        Result_df.loc[:, var + "_ol"] = OL_tmp
+
+
 def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
 
     vars_to_perturbate = cfg.vars_to_perturbate
@@ -416,6 +438,13 @@ def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
         Result_df.loc[rowIndex, var_p +
                       "_noise_sd"] = step_results[var_p + "_noise_sd"]
 
+    # Add posterior assimilated vars
+    post_vars = step_results["post_vars"]
+
+    for count, var_p in enumerate(var_to_assim):
+        Result_df.loc[rowIndex, var_p +
+                      "_posterior"] = post_vars[count]
+
 
 def init_result(del_t):
 
@@ -423,12 +452,15 @@ def init_result(del_t):
     vars_to_perturbate = cfg.vars_to_perturbate
     vars_to_perturbate = [x + "_noise" for x in vars_to_perturbate]
 
+    posterior_vars = [x + "_posterior" for x in var_to_assim]
+    ol_vars = [x + "_ol" for x in var_to_assim]
     # Concatenate
     col_names = ["Date", "SWE_ens_mean",
                  "SD_ens_mean", "SWE_ens_sd", "SD_ens_sd",
                  "SWE_assim_mean", "SD_assim_mean",
                  "SWE_assim_sd", "SD_assim_sd",
-                 "SWE_origin", "SD_origin"] + var_to_assim + vars_to_perturbate
+                 "SWE_origin", "SD_origin"] + var_to_assim + ol_vars +\
+        posterior_vars + vars_to_perturbate
 
     # Create results dataframe
     Results = pd.DataFrame(np.nan, index=range(len(del_t)), columns=col_names)
@@ -525,9 +557,9 @@ def cell_assimilation(lon_idx, lat_idx):
             result_to_df(Results, step_results, observations_sbst,
                          time_dict, step)
 
-    # Store open loop simulation in results and observations
-    Results.loc[:, "SWE_origin"] = Ensemble.origin_state.iloc[:, 5].to_numpy()
-    Results.loc[:, "SD_origin"] = Ensemble.origin_state.iloc[:, 4].to_numpy()
+    # Store open loop SWE, SD and assimilated vars
+    estore_OL_vars(Results, Ensemble)
+
     # TODO: create a write function with NCDF support
     Results.to_csv(filename, sep=",", header=True, index=False,
                    float_format="%.3f")

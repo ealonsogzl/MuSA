@@ -10,13 +10,13 @@ Note that not all the options will be used in all the experimental setups.
 # Directories
 # -----------------------------------
 
-nc_obs_path = "./DATA/Obs/"
+nc_obs_path = "./DATA/new_obs/"
 nc_forcing_path = "./DATA/Forcing/"
 nc_maks_path = "./DATA/mask/"
 fsm_src_path = "./FSM2"
 intermediate_path = "./INTERMEDIATE/"
 output_path = "./RESULTS/"
-tmp_path = None
+tmp_path = "/mnt/ramdisk/"
 
 
 # -----------------------------------
@@ -26,19 +26,18 @@ tmp_path = None
 # assimilation_strategy from "filtering" or "smoothing"
 assimilation_strategy = "smoothing"
 
-# filter_algorithm from "PBS" or "Kalman"
+# filter_algorithm from "Kalman" or "PBS"
 filter_algorithm = "PBS"
 redraw_prior = True
-Kalman_iterations = 1
-
+Kalman_iterations = 4
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample or systematic_resample
 resampling_algorithm = "bootstrapping"
-ensemble_members = 100
-r_cov = [0.15]
+ensemble_members = 10
+r_cov = [50, 0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA"
-var_to_assim = ["snd"]
+var_to_assim = ["Tsrf", "fSCA"]
 
 # fSCA_implementation from "Noah", "linear" or "asymptotic"
 fSCA_implementation = "asymptotic"
@@ -87,26 +86,33 @@ season_ini_day = 1
 # Note 2: dates_obs supports list indentation to not have to write many dates
 # in very long runs.
 
-dates_obs = ["2019-02-21 12:00",
-             "2019-03-26 12:00",
-             "2019-05-05 12:00",
-             "2019-05-09 12:00",
-             "2019-05-23 12:00",
-             "2019-05-30 12:00",
-             "2020-01-14 12:00",
-             "2020-02-03 12:00",
-             "2020-02-24 12:00",
-             "2020-03-11 12:00",
-             "2020-04-29 12:00",
-             "2020-05-03 12:00",
-             "2020-05-12 12:00",
-             "2020-05-19 12:00",
-             "2020-05-26 12:00",
-             "2020-06-02 12:00",
-             "2020-06-10 12:00",
-             "2020-06-21 12:00"]
+import datetime as dt
+start = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
+end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
+dates_obs = [(start + dt.timedelta(days=x)).strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
 
-obs_var_names = ["HS"]
+# =============================================================================
+# dates_obs = ["2019-02-21 12:00",
+#              "2019-03-26 12:00",
+#              "2019-05-05 12:00",
+#              "2019-05-09 12:00",
+#              "2019-05-23 12:00",
+#              "2019-05-30 12:00",
+#              "2020-01-14 12:00",
+#              "2020-02-03 12:00",
+#              "2020-02-24 12:00",
+#              "2020-03-11 12:00",
+#              "2020-04-29 12:00",
+#              "2020-05-03 12:00",
+#              "2020-05-12 12:00",
+#              "2020-05-19 12:00",
+#              "2020-05-26 12:00",
+#              "2020-06-02 12:00",
+#              "2020-06-10 12:00",
+#              "2020-06-21 12:00"]
+# =============================================================================
+
+obs_var_names = ["LST", "fSCA"]
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 

@@ -25,7 +25,9 @@ else:
 def MuSA():
     """
     This is the main function. Here the parallelization scheme and the
-    implementation is selected.
+    implementation is selected. This function is just a wrapper of the real
+    assimilation process, which is encapsulated in the ifn.cell_assimilation
+    function.
 
     Raises
     ------
@@ -107,7 +109,7 @@ def MuSA():
             ids = ids % pbs_task_number == pbs_task_id
 
             print("Running MuSA: Distributed (PBS.array) from job: " +
-                  str(pbs_task_id) + " in " + str(nprocess) + "cores")
+                  str(pbs_task_id) + " in " + str(nprocess) + " cores")
 
             pool = mp.Pool(processes=nprocess)
             pool.starmap(ifn.cell_assimilation,
@@ -118,7 +120,7 @@ def MuSA():
     elif cfg.implementation == "open_loop":
 
         grid = ifn.expand_grid()
-        np.random.shuffle(grid)
+
         print("Running FSM simulation: Distributed (multiprocessing)")
 
         if isinstance(cfg.nprocess, int):
