@@ -395,7 +395,7 @@ def get_predicitons(list_state, var_to_assim):
         predicted_tmp = [list_state[x].iloc[:, assim_idx].to_numpy()
                          for x in range(len(list_state))]
         predicted_tmp = np.asarray(predicted_tmp)
-        predicted_tmp = np.squeeze(predicted_tmp)
+        # predicted_tmp = np.squeeze(predicted_tmp)
 
         predicted.append(predicted_tmp)
 

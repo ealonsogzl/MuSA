@@ -385,7 +385,7 @@ def simulation_steps(observations):
             "Assimilaiton_steps": assimilation_steps}
 
 
-def estore_OL_vars(Result_df, Ensemble):
+def store_OL_vars(Result_df, Ensemble):
 
     var_to_assim = cfg.var_to_assim
 
@@ -558,7 +558,7 @@ def cell_assimilation(lon_idx, lat_idx):
                          time_dict, step)
 
     # Store open loop SWE, SD and assimilated vars
-    estore_OL_vars(Results, Ensemble)
+    store_OL_vars(Results, Ensemble)
 
     # TODO: create a write function with NCDF support
     Results.to_csv(filename, sep=",", header=True, index=False,

@@ -24,7 +24,7 @@ tmp_path = "/mnt/ramdisk/"
 # -----------------------------------
 
 # assimilation_strategy from "filtering" or "smoothing"
-assimilation_strategy = "smoothing"
+assimilation_strategy = "filtering"
 
 # filter_algorithm from "Kalman" or "PBS"
 filter_algorithm = "PBS"
@@ -34,10 +34,10 @@ Kalman_iterations = 4
 # stratified_resample or systematic_resample
 resampling_algorithm = "bootstrapping"
 ensemble_members = 10
-r_cov = [50, 0.15]
+r_cov = [10]#[50, 0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA"
-var_to_assim = ["Tsrf", "fSCA"]
+var_to_assim = ["Tsrf"]#["Tsrf", "fSCA"]
 
 # fSCA_implementation from "Noah", "linear" or "asymptotic"
 fSCA_implementation = "asymptotic"
@@ -73,7 +73,7 @@ aws_lon = 710701.28
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
-season_ini_month = 10
+season_ini_month = 300
 season_ini_day = 1
 
 
@@ -112,7 +112,7 @@ dates_obs = [(start + dt.timedelta(days=x)).strftime('%Y-%m-%d %H:%M') for x in 
 #              "2020-06-21 12:00"]
 # =============================================================================
 
-obs_var_names = ["LST", "fSCA"]
+obs_var_names = ["LST"]#["LST", "fSCA"]
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 
