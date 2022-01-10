@@ -27,17 +27,17 @@ tmp_path = "/mnt/ramdisk/"
 assimilation_strategy = "filtering"
 
 # filter_algorithm from "Kalman" or "PBS"
-filter_algorithm = "PBS"
+filter_algorithm = "Kalman"
 redraw_prior = True
-Kalman_iterations = 4
+Kalman_iterations = 6
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample or systematic_resample
 resampling_algorithm = "bootstrapping"
-ensemble_members = 10
-r_cov = [10]#[50, 0.15]
+ensemble_members = 400
+r_cov = [1, 0.15]#[50, 0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA"
-var_to_assim = ["Tsrf"]#["Tsrf", "fSCA"]
+var_to_assim = ["Tsrf", "fSCA"]# ["fSCA"]#["Tsrf", "fSCA"]
 
 # fSCA_implementation from "Noah", "linear" or "asymptotic"
 fSCA_implementation = "asymptotic"
@@ -112,7 +112,7 @@ dates_obs = [(start + dt.timedelta(days=x)).strftime('%Y-%m-%d %H:%M') for x in 
 #              "2020-06-21 12:00"]
 # =============================================================================
 
-obs_var_names = ["LST"]#["LST", "fSCA"]
+obs_var_names = ["LST", "fSCA"]#["fSCA"]#
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 

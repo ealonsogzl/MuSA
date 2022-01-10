@@ -202,6 +202,12 @@ class SnowEnsemble:
 
                 state_tmp, dump_tmp = fsm.fsm_read_output(self.temp_dest)
 
+                if "fSCA" in cfg.var_to_assim:
+                    state_tmp["fSCA"] = met.fSCA(state_tmp)
+
+                    if "SCA" in cfg.var_to_assim:
+                        state_tmp["SCA"] = met.SCA(state_tmp)
+
                 self.state_membres[mbr] = state_tmp.copy()
 
                 self.noise_kalman[mbr] = noise_k_tmp.copy()

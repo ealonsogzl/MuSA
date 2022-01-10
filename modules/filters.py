@@ -695,7 +695,9 @@ def implement_assimilation(Ensemble, observations_sbst,
                                    for x in range(len(list_state))]
                     var_tmp = np.asarray(var_tmp)
                     var_tmp = np.squeeze(var_tmp)
-                    var_tmp = np.squeeze(var_tmp[:, mask])
+                    # HACK: next lines have to be modified with time varying
+                    # perturbations
+                    # var_tmp = np.squeeze(var_tmp[:, mask])
                     prior[cont, :] = var_tmp
 
                 # translate lognormal variables to normal distribution
@@ -802,7 +804,9 @@ def implement_assimilation(Ensemble, observations_sbst,
                                    for x in range(len(list_state))]
                     var_tmp = np.asarray(var_tmp)
                     var_tmp = np.squeeze(var_tmp)
-                    var_tmp = np.squeeze(var_tmp[:, mask])
+                    # HACK: next lines have to be modified with time varying
+                    # perturbations
+                    # var_tmp = np.squeeze(var_tmp[:, mask])
                     prior[cont, :] = var_tmp[:, 0]
 
                 # translate lognormal variables to normal distribution
