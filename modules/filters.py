@@ -698,7 +698,13 @@ def implement_assimilation(Ensemble, observations_sbst,
                     # HACK: next lines have to be modified with time varying
                     # perturbations
                     # var_tmp = np.squeeze(var_tmp[:, mask])
-                    prior[cont, :] = var_tmp
+
+                    # Trick to handle shape of the noise when there is an
+                    # observation in the first timestep
+                    if var_tmp.ndim == 1:
+                        prior[cont, :] = var_tmp
+                    else:
+                        prior[cont, :] = var_tmp[:, 0]
 
                 # translate lognormal variables to normal distribution
                 for cont, var in enumerate(perturbation_strategy):
