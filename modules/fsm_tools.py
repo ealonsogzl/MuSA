@@ -222,7 +222,7 @@ def fsm_forcing_wrt(forcing_df, temp_dest):
 def write_init(fsm_path):
 
     # Init vars ("0" string necesary to allow int and float values)
-    d = {"0": [0.2, 0, "0", 0, 0, 0, 0, -999, 285, 273.15, 284, 277,
+    d = {"0": [0.8, 0, "0", 0, 0, 0, 0, -999, 285, 273.15, 284, 285,
                -999, 0.2],
          "1": [float("NAN"), 0, float("NAN"), float("NAN"), 0, 0, 0,
                float("NAN"), float("NAN"), 273.15, 285, float("NAN"),
@@ -245,8 +245,6 @@ def write_init(fsm_path):
 
 def write_dump(dump, fsm_path):
     """
-
-
     Parameters
     ----------
     dump : TYPE
@@ -268,9 +266,7 @@ def write_dump(dump, fsm_path):
 
 def get_var_state_position(var):
 
-    state_columns = ("year", "month", "day", "hour", "snd", "SWE", "Sveg",
-                     "1Tsoil", "2Tsoil", "3Tsoil", "4Tsoil", "Tsrf", "Tveg",
-                     "fSCA", "SCA")
+    state_columns = ("year", "month", "day", "hour", "snd", "SWE","Tsrf","alb", "fSCA", "SCA")
 
     return state_columns.index(var)
 

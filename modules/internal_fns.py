@@ -379,6 +379,7 @@ def simulation_steps(observations):
     lng_del_t = np.asarray(len(del_t))
     assimilation_steps = np.append(0, assimilation_steps)
     assimilation_steps = np.append(assimilation_steps, lng_del_t)
+    assimilation_steps = np.unique(assimilation_steps)
 
     return {"del_t": del_t,
             "obs_idx": obs_idx,
@@ -449,8 +450,8 @@ def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
 def init_result(del_t):
 
     var_to_assim = cfg.var_to_assim
-    vars_to_perturbate = cfg.vars_to_perturbate
-    vars_to_perturbate = [x + "_noise" for x in vars_to_perturbate]
+
+    # vars_to_perturbate = [x + "_noise" for x in vars_to_perturbate]
 
     posterior_vars = [x + "_posterior" for x in var_to_assim]
     ol_vars = [x + "_ol" for x in var_to_assim]
@@ -460,7 +461,7 @@ def init_result(del_t):
                  "SWE_assim_mean", "SD_assim_mean",
                  "SWE_assim_sd", "SD_assim_sd",
                  "SWE_origin", "SD_origin"] + var_to_assim + ol_vars +\
-        posterior_vars + vars_to_perturbate
+        posterior_vars
 
     # Create results dataframe
     Results = pd.DataFrame(np.nan, index=range(len(del_t)), columns=col_names)
