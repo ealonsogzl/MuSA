@@ -56,7 +56,7 @@ real, intent(in) :: &
 
 ! State outputs
 !write(usta,100) year,month,day,hour,snd,snw,svg,Tsoil,Tsnow,Tsrf,Tveg
-write(usta,100) year,month,day,hour,snd,snw,Tsrf,albs
+write(usta,100) year,month,day,hour,snd,snw,Tsrf,albs,Tsnow
 
 100 format(3(i4),f8.3,*(e14.6))
 

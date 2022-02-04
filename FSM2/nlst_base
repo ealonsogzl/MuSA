@@ -1,10 +1,10 @@
 &params
 /
 &gridpnts
- Nsmax = 3
+ Nsmax = pyNSMAX
 /
 &gridlevs
-  Dzsnow = 0.1, 0.2, 0.4
+  Dzsnow = pyDZSNOW
 /
 &drive
   met_file = 'input.txt'

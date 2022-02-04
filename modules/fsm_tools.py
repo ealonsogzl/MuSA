@@ -58,10 +58,34 @@ def fsm_copy(x_id, y_id):
 
     return final_directory
 
+def write_nlst():
 
+    fsm_path = cfg.fsm_src_path
+    Dzsnow = cfg.Dzsnow
+    Nsmax = len(Dzsnow)
+    
+    Dzsnow = [str(element) for element in Dzsnow]
+    Dzsnow = ", ".join(Dzsnow)
+    
+    
+    # Read in the file
+    with open(os.path.join(fsm_path, "nlst_base"), "r") as file :
+      filedata = file.read()
+    
+    # Replace temperateure layers
+    filedata = filedata.replace('pyNSMAX', str(Nsmax))
+    filedata = filedata.replace('pyDZSNOW', Dzsnow)
+
+    # Write the file out again
+    with open(os.path.join(fsm_path, "nlst"), 'w') as file:
+      file.write(filedata)
+
+    
 def fsm_compile():
 
     fsm_path = cfg.fsm_src_path
+    
+    write_nlst()
 
     if sys.platform == "linux":
         bash_command = "./compil.sh"

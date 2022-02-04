@@ -27,14 +27,14 @@ tmp_path = "/mnt/ramdisk/"
 assimilation_strategy = "smoothing"
 
 # filter_algorithm from "Kalman" or "PBS"
-filter_algorithm = "Kalman"
+filter_algorithm = "PBS"
 redraw_prior = True
 Kalman_iterations = 4
 
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample or systematic_resample
 resampling_algorithm = "bootstrapping"
-ensemble_members = 100
+ensemble_members = 2
 r_cov = [0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
@@ -135,3 +135,11 @@ frocing_var_names = {"SW_var_name": "SW",
 forcing_dim_names = {"lat_forz_var_name": "latitude",
                      "lon_forz_var_name": "longitude",
                      "time_forz_var_name": "time"}
+
+#-----------------------------------
+# FSM configuration
+#-----------------------------------
+
+Dzsnow = [0.1, 0.2, 0.4]
+
+
