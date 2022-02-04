@@ -504,53 +504,19 @@ def implement_assimilation(Ensemble, observations_sbst,
     var_to_assim = cfg.var_to_assim
     r_cov = cfg.r_cov
 
+    Result = {}  # initialice results dict
     # Avoid to create ensemblestatistics if direct insertion
     if assimilation_strategy != "direct_insertion":
 
         list_state = Ensemble.state_membres
-
-        # Retrieve ensemble SWE/SD mean, standar deviation and members
-
-        SWE_ens = [list_state[x].iloc[:, 5].to_numpy()
-                   for x in range(len(list_state))]
-        SD_ens = [list_state[x].iloc[:, 4].to_numpy()
-                  for x in range(len(list_state))]
-
-        SD_ens = np.vstack(SD_ens)
-        SWE_ens = np.vstack(SWE_ens)
-
-        SWE_ens_mean = np.average(SWE_ens, axis=0)
-        SD_ens_mean = np.average(SD_ens, axis=0)
-
-        SWE_ens_sd = np.std(SWE_ens, axis=0)
-        SD_ens_sd = np.std(SD_ens, axis=0)
 
     # implement assimilation
     if assimilation_strategy == "smoothing" and filter_algorithm == "PBS":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(observations_sbst).all():
 
-            wgth = np.ones(len(list_state))
+            pass
 
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
-
-            # Get openloop, and posterior assimilated vars
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
         else:
 
             predicted = get_predicitons(list_state, var_to_assim)
@@ -560,53 +526,13 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             wgth = pbs(observations_sbst_masked, predicted, r_cov)
 
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
-
-            # Get openloop, and posterior assimilated vars
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
+            Ensemble.wgth = wgth
 
     elif assimilation_strategy == "filtering" and filter_algorithm == "PBS":
         if np.isnan(observations_sbst).all():
 
-            wgth = np.ones(len(list_state))
+            pass
 
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
-
-            if cfg.redraw_prior:
-                Ensemble.wgth = wgth
-
-            # Get openloop, and posterior assimilated vars
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
         else:
 
             predicted = get_predicitons(list_state, var_to_assim)
@@ -616,64 +542,20 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             wgth = pbs(observations_sbst_masked, predicted, r_cov)
 
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
+            Ensemble.wgth = wgth
 
             resampled_particles = resampled_indexes(wgth)
 
-            if cfg.redraw_prior:
-                Ensemble.wgth = wgth
-
-            # Get openloop, and posterior assimilated vars
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars,
-                      "resampled_particles": resampled_particles}
+            Result["resampled_particles"] = resampled_particles
 
     elif assimilation_strategy == "filtering" and filter_algorithm == "Kalman":
         if np.isnan(observations_sbst).all():
+            pass
 
-            wgth = np.ones(len(list_state))
-
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
-
-            Ensemble.kalman_update(forcing_sbst, step, updated_pars=None,
-                                   create=False, iteration=None)
-
-            list_state = Ensemble.state_membres
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
         else:
             for j in range(Kalman_iterations):
 
                 list_state = Ensemble.state_membres
-
-                wgth = np.ones(len(list_state))
 
                 # Get ensemble of predictions
                 predicted = get_predicitons(list_state, var_to_assim)
@@ -724,70 +606,16 @@ def implement_assimilation(Ensemble, observations_sbst,
                 Ensemble.kalman_update(forcing_sbst, step, updated_pars,
                                        create=True, iteration=j)
 
-            # Retrieve the updated SWE and SD
-            # get new list state
-            list_state = Ensemble.state_membres
-
-            SWE_ens_updated = [list_state[x].iloc[:, 5].to_numpy()
-                               for x in range(len(list_state))]
-            SD_ens_updated = [list_state[x].iloc[:, 4].to_numpy()
-                              for x in range(len(list_state))]
-
-            SD_ens_updated = np.vstack(SD_ens_updated)
-            SWE_ens_updated = np.vstack(SWE_ens_updated)
-
-            SWE_assim_mean = np.average(SWE_ens_updated, axis=0)
-            SD_assim_mean = np.average(SD_ens_updated, axis=0)
-
-            SWE_assim_sd = np.std(SWE_ens_updated, axis=0)
-            SD_assim_sd = np.std(SD_ens_updated, axis=0)
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
-
     elif assimilation_strategy == "smoothing" and filter_algorithm == "Kalman":
 
         if np.isnan(observations_sbst).all():
 
-            wgth = np.ones(len(list_state))
+            pass
 
-            SWE_assim_mean = np.average(SWE_ens, axis=0, weights=wgth)
-            SD_assim_mean = np.average(SD_ens, axis=0, weights=wgth)
-
-            SWE_assim_sd = weighted_std(SWE_ens, axis=0, weights=wgth)
-            SD_assim_sd = weighted_std(SD_ens, axis=0, weights=wgth)
-
-            Ensemble.kalman_update(forcing_sbst, step, updated_pars=None,
-                                   create=False, iteration=None)
-
-            list_state = Ensemble.state_membres
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
         else:
             for j in range(Kalman_iterations):
 
                 list_state = Ensemble.state_membres
-
-                wgth = np.ones(len(list_state))
 
                 # Get ensemble of predictions
                 predicted = get_predicitons(list_state, var_to_assim)
@@ -832,36 +660,6 @@ def implement_assimilation(Ensemble, observations_sbst,
 
                 Ensemble.kalman_update(forcing_sbst, step, updated_pars,
                                        create=True, iteration=j)
-
-            # Retrieve the updated SWE and SD
-            # get new list state
-            list_state = Ensemble.state_membres
-
-            SWE_ens_updated = [list_state[x].iloc[:, 5].to_numpy()
-                               for x in range(len(list_state))]
-            SD_ens_updated = [list_state[x].iloc[:, 4].to_numpy()
-                              for x in range(len(list_state))]
-
-            SD_ens_updated = np.vstack(SD_ens_updated)
-            SWE_ens_updated = np.vstack(SWE_ens_updated)
-
-            SWE_assim_mean = np.average(SWE_ens_updated, axis=0)
-            SD_assim_mean = np.average(SD_ens_updated, axis=0)
-
-            SWE_assim_sd = np.std(SWE_ens_updated, axis=0)
-            SD_assim_sd = np.std(SD_ens_updated, axis=0)
-
-            post_vars = get_posterior_vars(list_state, var_to_assim, wgth)
-
-            Result = {"SWE_ens_mean": SWE_ens_mean,
-                      "SD_ens_mean": SD_ens_mean,
-                      "SWE_ens_sd": SWE_ens_sd,
-                      "SD_ens_sd": SD_ens_sd,
-                      "SWE_assim_mean": SWE_assim_mean,
-                      "SD_assim_mean": SD_assim_mean,
-                      "SWE_assim_sd": SWE_assim_sd,
-                      "SD_assim_sd": SD_assim_sd,
-                      "post_vars": post_vars}
 
     elif assimilation_strategy == "direct_insertion":
         # raise Exception("direct_insertion not implemented yet")
@@ -941,7 +739,8 @@ def implement_assimilation(Ensemble, observations_sbst,
     else:
         raise Exception("Assim not implemented")
 
-    # Adding perturbing information to results
+    # get perturbations
+
     for cont, var_p in enumerate(vars_to_perturbate):
 
         # Get perturbation parameters"""
@@ -949,8 +748,10 @@ def implement_assimilation(Ensemble, observations_sbst,
                           for x in range(len(Ensemble.noise))]
         noise_ens_temp = np.vstack(noise_ens_temp)
 
-        noise_tmp_avg = np.average(noise_ens_temp, axis=0, weights=wgth)
-        noise_tmp_sd = weighted_std(noise_ens_temp, axis=0, weights=wgth)
+        noise_tmp_avg = np.average(noise_ens_temp, axis=0,
+                                   weights=Ensemble.wgth)
+        noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
+                                    weights=Ensemble.wgth)
 
         Result[var_p + "_noise_mean"] = noise_tmp_avg
         Result[var_p + "_noise_sd"] = noise_tmp_sd

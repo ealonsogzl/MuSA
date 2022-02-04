@@ -59,11 +59,8 @@ class SnowEnsemble:
             self.noise_kalman = [0 for i in range(self.members)]
             self.out_members_kalman = [0 for i in range(self.members)]
 
-        if (cfg.redraw_prior and
-            cfg.filter_algorithm == "PBS" and
-                cfg.assimilation_strategy == "filtering"):
-
-            self.wgth = [0 for i in range(self.members)]
+        # Inicialice prior weights = 1
+        self.wgth = np.ones(self.members)
 
         # Inicialice step value
         self.step = -1

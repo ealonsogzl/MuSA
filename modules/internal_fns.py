@@ -18,11 +18,11 @@ import modules.filters as flt
 from modules.internal_class import SnowEnsemble
 import config as cfg
 import constants as cnt
+import copy
 
 if cfg.save_ensemble:
     import pickle
     import lzma
-    import copy
 
 
 def obs_array(lat_idx, lon_idx):
@@ -386,29 +386,7 @@ def simulation_steps(observations):
             "Assimilaiton_steps": assimilation_steps}
 
 
-def store_OL_vars(Result_df, Ensemble):
-
-    var_to_assim = cfg.var_to_assim
-
-    # Store SWE and SD
-    Result_df.loc[:, "SWE_origin"] =\
-        Ensemble.origin_state.iloc[:, 5].to_numpy()
-    Result_df.loc[:, "SD_origin"] =\
-        Ensemble.origin_state.iloc[:, 4].to_numpy()
-
-    # Store OL vars
-
-    OL_state = Ensemble.origin_state.copy()
-
-    for var in var_to_assim:
-
-        assim_idx = fsm.get_var_state_position(var)
-        OL_tmp = OL_state.iloc[:, assim_idx].to_numpy()
-
-        Result_df.loc[:, var + "_ol"] = OL_tmp
-
-
-def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
+def storeDA(Result_df, step_results, observations_sbst, time_dict, step):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     var_to_assim = cfg.var_to_assim
@@ -423,15 +401,6 @@ def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
         var = var_to_assim[0]
         Result_df.loc[rowIndex, var] = observations_sbst
 
-    Result_df.loc[rowIndex, "SWE_ens_mean"] = step_results["SWE_ens_mean"]
-    Result_df.loc[rowIndex, "SD_ens_mean"] = step_results["SD_ens_mean"]
-    Result_df.loc[rowIndex, "SWE_ens_sd"] = step_results["SWE_ens_sd"]
-    Result_df.loc[rowIndex, "SD_ens_sd"] = step_results["SD_ens_sd"]
-    Result_df.loc[rowIndex, "SWE_assim_mean"] = step_results["SWE_assim_mean"]
-    Result_df.loc[rowIndex, "SD_assim_mean"] = step_results["SD_assim_mean"]
-    Result_df.loc[rowIndex, "SWE_assim_sd"] = step_results["SWE_assim_sd"]
-    Result_df.loc[rowIndex, "SD_assim_sd"] = step_results["SD_assim_sd"]
-
     # Add perturbation parameters to Results
     for var_p in vars_to_perturbate:
         Result_df.loc[rowIndex, var_p +
@@ -439,29 +408,54 @@ def result_to_df(Result_df, step_results, observations_sbst, time_dict, step):
         Result_df.loc[rowIndex, var_p +
                       "_noise_sd"] = step_results[var_p + "_noise_sd"]
 
-    # Add posterior assimilated vars
-    post_vars = step_results["post_vars"]
 
-    for count, var_p in enumerate(var_to_assim):
-        Result_df.loc[rowIndex, var_p +
-                      "_posterior"] = post_vars[count]
+def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
+
+    ol_data = Ensemble.origin_state.copy()
+
+    # remove time ids fomr FSM output
+    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
+    # TODO: modify directly FSM code to not to output time id's
+
+    # Store colums
+    for colm in range(len(ol_data.columns)):
+        OL_FSM.loc[:, colm+1] = ol_data.iloc[:, [colm]].to_numpy()
+
+
+def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
+                     time_dict, step):
+
+    list_state = copy.deepcopy(Ensemble.state_membres)
+    # remove time ids fomr FSM output
+    # TODO: modify directly FSM code to not to output time id's
+    for lst in range(len(list_state)):
+        data = list_state[lst]
+        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
+
+    rowIndex = updated_FSM.index[time_dict["Assimilaiton_steps"][step]:
+                                 time_dict["Assimilaiton_steps"][step + 1]]
+
+    # Get updated columns
+    n_colum = len(list_state[0].columns)
+    pesos = Ensemble.wgth
+
+    for n in range(n_colum):
+        # create matrix of colums
+        col_arr = [list_state[x].iloc[:, n].to_numpy()
+                   for x in range(len(list_state))]
+        col_arr = np.vstack(col_arr)
+
+        average_sim = np.average(col_arr, axis=0, weights=pesos)
+        sd_sim = flt.weighted_std(col_arr, axis=0, weights=pesos)
+
+        updated_FSM.loc[rowIndex, n+1] = average_sim
+        sd_FSM.loc[rowIndex, n+1] = sd_sim
 
 
 def init_result(del_t):
 
-    var_to_assim = cfg.var_to_assim
-
-    # vars_to_perturbate = [x + "_noise" for x in vars_to_perturbate]
-
-    posterior_vars = [x + "_posterior" for x in var_to_assim]
-    ol_vars = [x + "_ol" for x in var_to_assim]
     # Concatenate
-    col_names = ["Date", "SWE_ens_mean",
-                 "SD_ens_mean", "SWE_ens_sd", "SD_ens_sd",
-                 "SWE_assim_mean", "SD_assim_mean",
-                 "SWE_assim_sd", "SD_assim_sd",
-                 "SWE_origin", "SD_origin"] + var_to_assim + ol_vars +\
-        posterior_vars
+    col_names = ["Date"]
 
     # Create results dataframe
     Results = pd.DataFrame(np.nan, index=range(len(del_t)), columns=col_names)
@@ -489,11 +483,23 @@ def cell_assimilation(lon_idx, lat_idx):
 
     save_ensemble = cfg.save_ensemble
 
-    filename = ("Result_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
-    filename = os.path.join(cfg.output_path, filename)
+    # Create filenames
+    DA_filename = ("DA_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
+    updated_filename = ("updated_" + str(lon_idx) + "_" + str(lat_idx)
+                        + ".csv")
+    sd_filename = ("sd_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
+    OL_filename = ("OL_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
+
+    DA_filename = os.path.join(cfg.output_path, DA_filename)
+    updated_filename = os.path.join(cfg.output_path, updated_filename)
+    sd_filename = os.path.join(cfg.output_path, sd_filename)
+    OL_filename = os.path.join(cfg.output_path, OL_filename)
 
     # Check if file allready exist
-    if os.path.exists(filename):
+    if (os.path.exists(DA_filename) and
+        os.path.exists(updated_filename) and
+        os.path.exists(sd_filename) and
+            os.path.exists(OL_filename)):
         return None
 
     observations = obs_array(lat_idx, lon_idx)
@@ -515,10 +521,14 @@ def cell_assimilation(lon_idx, lat_idx):
 
     # If no obs in the cell, run openloop
     if np.isnan(observations).all():
-        run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename)
+        run_FSM_openloop(lon_idx, lat_idx, main_forcing,
+                         temp_dest, OL_filename)
 
-    # Inicialice results dataframe
-    Results = init_result(time_dict["del_t"])
+    # Inicialice results dataframes
+    DA_Results = init_result(time_dict["del_t"])   # DA parametesr
+    updated_FSM = init_result(time_dict["del_t"])  # posterior simulaiton
+    sd_FSM = init_result(time_dict["del_t"])       # posterios standar desv
+    OL_FSM = init_result(time_dict["del_t"])       # OL simulation
 
     # initialice Ensemble class
     Ensemble = SnowEnsemble(temp_dest)
@@ -548,22 +558,28 @@ def cell_assimilation(lon_idx, lat_idx):
             Ensemble_tmp = copy.deepcopy(Ensemble)
             ensemble_list.append(Ensemble_tmp)
 
+        # Store results in dataframes
+        storeDA(DA_Results, step_results, observations_sbst, time_dict, step)
+        store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
+                         time_dict, step)
+
         # Resample if filtering
         if(cfg.assimilation_strategy == "filtering" and
            "resampled_particles" in step_results):
             Ensemble.resample(step_results["resampled_particles"])
 
-        # Store values in Results in df ifnot direct insertion
-        if step_results is not None:
-            result_to_df(Results, step_results, observations_sbst,
-                         time_dict, step)
-
-    # Store open loop SWE, SD and assimilated vars
-    store_OL_vars(Results, Ensemble)
+    # Store OL
+    storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step)
 
     # TODO: create a write function with NCDF support
-    Results.to_csv(filename, sep=",", header=True, index=False,
-                   float_format="%.3f")
+    DA_Results.to_csv(DA_filename, sep=",", header=True, index=False,
+                      float_format="%.3f")
+    OL_FSM.to_csv(OL_filename, sep=",", header=True, index=False,
+                  float_format="%.3f")
+    updated_FSM.to_csv(updated_filename, sep=",", header=True, index=False,
+                       float_format="%.3f")
+    sd_FSM.to_csv(sd_filename, sep=",", header=True, index=False,
+                  float_format="%.3f")
 
     # Save ensemble
     if save_ensemble:
