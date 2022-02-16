@@ -550,6 +550,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
     elif assimilation_strategy == "filtering" and filter_algorithm == "Kalman":
         if np.isnan(observations_sbst).all():
+
+            Ensemble.kalman_update(create=False)
             pass
 
         else:
@@ -610,6 +612,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
         if np.isnan(observations_sbst).all():
 
+            Ensemble.kalman_update(forcing_sbst, step, updated_pars,
+                                   create=False, iteration=j)
             pass
 
         else:

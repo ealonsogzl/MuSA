@@ -58,34 +58,33 @@ def fsm_copy(x_id, y_id):
 
     return final_directory
 
-def write_nlst():
 
-    fsm_path = cfg.fsm_src_path
+def write_nlst(temp_dest):
+
     Dzsnow = cfg.Dzsnow
     Nsmax = len(Dzsnow)
-    
+
     Dzsnow = [str(element) for element in Dzsnow]
     Dzsnow = ", ".join(Dzsnow)
-    
-    
+
     # Read in the file
-    with open(os.path.join(fsm_path, "nlst_base"), "r") as file :
-      filedata = file.read()
-    
+    with open(os.path.join(temp_dest, "nlst_base"), "r") as file:
+        filedata = file.read()
+
     # Replace temperateure layers
     filedata = filedata.replace('pyNSMAX', str(Nsmax))
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
 
     # Write the file out again
-    with open(os.path.join(fsm_path, "nlst"), 'w') as file:
-      file.write(filedata)
+    with open(os.path.join(temp_dest, "nlst"), 'w') as file:
+        file.write(filedata)
 
-    
-def fsm_compile():
 
-    fsm_path = cfg.fsm_src_path
-    
-    write_nlst()
+def fsm_compile(temp_dest):
+
+    # fsm_path = cfg.fsm_src_path
+
+    write_nlst(temp_dest)
 
     if sys.platform == "linux":
         bash_command = "./compil.sh"
@@ -94,7 +93,7 @@ def fsm_compile():
     else:
         raise Exception(sys.platform, " is not supported by MuSA yet")
 
-    bash_command = "cd " + fsm_path + " && " + bash_command
+    bash_command = "cd " + temp_dest + " && " + bash_command
     subprocess.call(bash_command, shell=True)
 
 
@@ -145,6 +144,9 @@ def fsm_read_output(fsm_path, read_flux=False, read_dump=True):
     state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
 #    state.columns = ["year","month","day","hour","snd","SWE","Sveg",
 #                        "1Tsoil","2Tsoil","3Tsoil","4Tsoil","Tsrf","Tveg"]
+    if (state.isnull().values.any()):
+        raise Exception('''nan found in FSM2 output: check forcing or
+                        change FORTRAN compiler''')
 
     if read_flux:
         flux_dir = os.path.join(fsm_path, "out_flux.txt")

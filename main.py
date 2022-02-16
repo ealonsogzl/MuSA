@@ -5,7 +5,6 @@ Author: Esteban Alonso González - e.alonsogzl@gmail.com
 """
 
 import modules.internal_fns as ifn
-import modules.fsm_tools as fsm
 import config as cfg
 import numpy as np
 
@@ -42,9 +41,6 @@ def MuSA():
     None.
 
     """
-
-    # Compile FSM
-    fsm.fsm_compile()
 
     if cfg.implementation == "point_scale":
 
@@ -138,4 +134,5 @@ def MuSA():
 
 
 if __name__ == "__main__":
+
     MuSA()

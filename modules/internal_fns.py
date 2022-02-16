@@ -50,9 +50,6 @@ def obs_array(lat_idx, lon_idx):
     # TODO: let the user define the prefix of the observations
     files.sort()
 
-    if len(files) != len(dates_obs):  # check if num of dates == num of files
-        raise Exception("Number of dates different of number of obs files")
-
     mask = glob.glob(nc_maks_path + "*.nc")
 
     if mask:  # If mask exists, return string if masked
@@ -94,6 +91,10 @@ def obs_array(lat_idx, lon_idx):
 
     # Remove extra dimension when len(obs_var_names) == 1
     obs_matrix = np.squeeze(obs_matrix)
+
+    # check if num of dates == num of observations
+    if obs_matrix.shape[0] != len(dates_obs):
+        raise Exception("Number of dates different of number of obs files")
 
     return obs_matrix
 
@@ -508,6 +509,10 @@ def cell_assimilation(lon_idx, lat_idx):
         return None
 
     temp_dest = fsm.fsm_copy(lon_idx, lat_idx)
+
+    # Compile FSM
+    fsm.fsm_compile(temp_dest)
+    # TODO: think on how to compile it just once, but compatible with PBS
 
     main_forcing = forcing_table(lat_idx, lon_idx)
 

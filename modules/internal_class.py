@@ -175,8 +175,8 @@ class SnowEnsemble:
 
             self.noise[mbr] = noise_tmp.copy()
 
-    def kalman_update(self, forcing_sbst, step, updated_pars,
-                      create, iteration):
+    def kalman_update(self, forcing_sbst=None, step=None, updated_pars=None,
+                      create=None, iteration=None):
 
         if create:  # If there is observational data update the ensemble
             # Ensemble generator
