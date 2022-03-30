@@ -54,7 +54,7 @@ def obs_array(lat_idx, lon_idx):
 
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask[0])
-        mask_value = mask.variables['mask'][lat_idx, lon_idx]
+        mask_value = mask.variables['mask'][:, lat_idx, lon_idx]
         mask.close()
         if np.ma.is_masked(mask_value):
             array_obs = "Out_of_AOI"
@@ -93,8 +93,8 @@ def obs_array(lat_idx, lon_idx):
     obs_matrix = np.squeeze(obs_matrix)
 
     # check if num of dates == num of observations
-    if obs_matrix.shape[0] != len(dates_obs):
-        raise Exception("Number of dates different of number of obs files")
+#    if obs_matrix.shape[0] != len(dates_obs):
+#        raise Exception("Number of dates different of number of obs files")
 
     return obs_matrix
 
@@ -324,6 +324,7 @@ def expand_grid():
         mask = mask_value.flatten('C')
 
         grid = grid[~mask.mask]
+        grid = np.squeeze(grid)
 
     return grid
 

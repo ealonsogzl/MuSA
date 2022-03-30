@@ -66,7 +66,6 @@ def MuSA():
 
         elif cfg.parallelization == "multiprocessing":
 
-            np.random.shuffle(grid)
             print("Running MuSA: Distributed (multiprocessing)")
 
             if isinstance(cfg.nprocess, int):

@@ -10,12 +10,12 @@ Note that not all the options will be used in all the experimental setups.
 # Directories
 # -----------------------------------
 
-nc_obs_path = "./DATA/Obs/"
-nc_forcing_path = "./DATA/Forcing/"
-nc_maks_path = "./DATA/mask/"
-fsm_src_path = "./FSM2"
-intermediate_path = "./INTERMEDIATE/"
-output_path = "./RESULTS/"
+nc_obs_path = "/home/alonsoe/GIT/MuSA/DATA/Obs/"
+nc_forcing_path = "/home/alonsoe/GIT/MuSA/DATA/Forcing/"
+nc_maks_path = "/home/alonsoe/GIT/MuSA/DATA/mask/"
+fsm_src_path = "/home/alonsoe/GIT/MuSA/FSM2"
+intermediate_path = "/home/alonsoe/GIT/MuSA/DATA/INTERMEDIATE/"
+output_path = "/home/alonsoe/GIT/MuSA/DATA/RESULTS/"
 tmp_path = "/mnt/ramdisk/"
 
 
@@ -34,7 +34,7 @@ Kalman_iterations = 4
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample or systematic_resample
 resampling_algorithm = "bootstrapping"
-ensemble_members = 2
+ensemble_members = 100
 r_cov = [0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
@@ -66,7 +66,7 @@ implementation = "distributed"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
-nprocess = 7
+nprocess = None  # if None, the number of processes will be estimated
 aws_lat = 4735490.19
 aws_lon = 711249.00
 date_ini = "2018-09-01 00:00"
@@ -130,8 +130,8 @@ frocing_var_names = {"SW_var_name": "SW",
                      "Temp_var_name": "TEMP",
                      "Wind_var_name": "UA"}
 
-forcing_dim_names = {"lat_forz_var_name": "latitude",
-                     "lon_forz_var_name": "longitude",
+forcing_dim_names = {"lat_forz_var_name": "northing",
+                     "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
 
 # -----------------------------------
