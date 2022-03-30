@@ -10,12 +10,12 @@ Note that not all the options will be used in all the experimental setups.
 # Directories
 # -----------------------------------
 
-nc_obs_path = "/home/alonsoe/GIT/MuSA/DATA/Obs/"
-nc_forcing_path = "/home/alonsoe/GIT/MuSA/DATA/Forcing/"
-nc_maks_path = "/home/alonsoe/GIT/MuSA/DATA/mask/"
-fsm_src_path = "/home/alonsoe/GIT/MuSA/FSM2"
-intermediate_path = "/home/alonsoe/GIT/MuSA/DATA/INTERMEDIATE/"
-output_path = "/home/alonsoe/GIT/MuSA/DATA/RESULTS/"
+nc_obs_path = "./DATA/Obs/"
+nc_forcing_path = "./DATA/Forcing/"
+nc_maks_path = "./DATA/mask/"
+fsm_src_path = "./FSM2"
+intermediate_path = "./DATA/INTERMEDIATE/"
+output_path = "./DATA/RESULTS/"
 tmp_path = "/mnt/ramdisk/"
 
 
