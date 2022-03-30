@@ -359,7 +359,7 @@ def resampled_indexes(weights):
     if resampling_algorithm == "stratified_resample":
         indexes = stratified_resample(weights)
     elif resampling_algorithm == "residual_resample":
-        indexes = stratified_resample(weights)
+        indexes = residual_resample(weights)
     elif resampling_algorithm == "bootstrapping":
         indexes = bootstrapping(weights)
     elif resampling_algorithm == "systematic_resample":
@@ -369,7 +369,7 @@ def resampled_indexes(weights):
 
 def weighted_std(values, axis, weights):
     """
-    Return the weighted average and standard deviation.
+    Return the weighted  standard deviation.
 
     values, weights -- Numpy ndarrays with the same shape.
     """
@@ -438,9 +438,11 @@ def tidy_obs_pred_rcov(predicted, observations_sbst, r_cov, ret_mask=False):
 
 
 def tidy_predictions(predicted, mask):
+
     predicted = np.concatenate(predicted, axis=1)
     predicted = np.squeeze(predicted[:, mask])
     predicted = np.ndarray.transpose(predicted)
+
     return predicted
 
 
@@ -612,8 +614,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
         if np.isnan(observations_sbst).all():
 
-            Ensemble.kalman_update(forcing_sbst, step, updated_pars,
-                                   create=False, iteration=j)
+            Ensemble.kalman_update(create=False)
             pass
 
         else:

@@ -59,6 +59,7 @@ def MuSA():
             print("Running MuSA: Sequentially")
 
             for row in range(grid.shape[0]):
+
                 lon_idx = grid[row, 0]
                 lat_idx = grid[row, 1]
                 ifn.cell_assimilation(lon_idx, lat_idx)
@@ -75,6 +76,7 @@ def MuSA():
 
             print("Launching " + str(nprocess) + " processes in "
                   + str(mp.cpu_count()) + " processors")
+
             pool = mp.Pool(processes=nprocess)
             pool.starmap(ifn.cell_assimilation, zip(grid[:, 0], grid[:, 1]))
 
@@ -110,7 +112,9 @@ def MuSA():
             pool = mp.Pool(processes=nprocess)
             pool.starmap(ifn.cell_assimilation,
                          zip(grid[ids, 0], grid[ids, 1]))
+
         else:
+
             raise Exception("Choose an available paralelization scheme")
 
     elif cfg.implementation == "open_loop":
@@ -126,6 +130,7 @@ def MuSA():
 
         print("Launching " + str(nprocess) + " processes in " +
               str(mp.cpu_count()) + " processors")
+
         pool = mp.Pool(processes=nprocess)
         pool.starmap(ifn.open_loop_simulation, zip(grid[:, 0], grid[:, 1]))
 

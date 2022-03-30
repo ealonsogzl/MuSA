@@ -44,15 +44,11 @@ var_to_assim = ["snd"]
 fSCA_implementation = "Noah"
 
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
-vars_to_perturbate = ["SW", "LW", "Prec", "Ta", "RH", "Ua"]
+vars_to_perturbate = ["Prec", "Ta"]
 
 # perturbation_strategy from "constant_normal" or "constant_lognormal"
 perturbation_strategy = ["constant_lognormal",
-                         "constant_normal",
-                         "constant_lognormal",
-                         "constant_normal",
-                         "constant_normal",
-                         "constant_lognormal"]
+                         "constant_normal"]
 
 # precipitation_phase from "Harder" or "temp_thld"
 precipitation_phase = "Harder"
@@ -66,13 +62,13 @@ save_ensemble_path = "./ENSEMBLES/"
 # -----------------------------------
 
 # implementation from "point_scale" or "distributed"
-implementation = "point_scale"
+implementation = "distributed"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
-parallelization = "None"
+parallelization = "multiprocessing"
 nprocess = 7
-aws_lat = 4735490.19#4735225.54
-aws_lon = 711249.00#710701.28
+aws_lat = 4735490.19
+aws_lon = 711249.00
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
@@ -87,15 +83,17 @@ season_ini_day = 1
 # Note: Dates and obs files will be sorted internally. Ensure the alphabetical
 # order of the obs files fits the list of dates (dates_obs)
 # Note 2: dates_obs supports list indentation to not have to write many dates
-# in very long runs.
-
-import datetime as dt
+# in very long runs. example:
 # =============================================================================
+# import datetime as dt
+#
 # start = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
 # end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-# dates_obs = [(start + dt.timedelta(days=x) + dt.timedelta(hours=12)).strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
-# 
+# dates_obs = [(start + dt.timedelta(days=x) + dt.timedelta(hours=12)).
+#              strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
+#
 # =============================================================================
+
 dates_obs = ["2019-02-21 12:00",
              "2019-03-26 12:00",
              "2019-05-05 12:00",
@@ -115,7 +113,7 @@ dates_obs = ["2019-02-21 12:00",
              "2020-06-10 12:00",
              "2020-06-21 12:00"]
 
-obs_var_names = ["HS"]#["fSCA"]#
+obs_var_names = ["HS"]
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 
@@ -136,10 +134,7 @@ forcing_dim_names = {"lat_forz_var_name": "latitude",
                      "lon_forz_var_name": "longitude",
                      "time_forz_var_name": "time"}
 
-#-----------------------------------
+# -----------------------------------
 # FSM configuration
-#-----------------------------------
-
+# -----------------------------------
 Dzsnow = [0.1, 0.2, 0.4]
-
-
