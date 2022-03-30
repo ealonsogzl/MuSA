@@ -16,7 +16,7 @@ nc_maks_path = "./DATA/mask/"
 fsm_src_path = "./FSM2"
 intermediate_path = "./DATA/INTERMEDIATE/"
 output_path = "./DATA/RESULTS/"
-tmp_path = "/mnt/ramdisk/"
+tmp_path = None
 
 
 # -----------------------------------
