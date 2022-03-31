@@ -7,6 +7,7 @@ Author: Esteban Alonso González - e.alonsogzl@gmail.com
 import modules.internal_fns as ifn
 import config as cfg
 import numpy as np
+import sys
 
 if(cfg.parallelization == "multiprocessing" or
    cfg.implementation == "open_loop"):
