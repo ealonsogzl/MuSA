@@ -137,6 +137,15 @@ def MuSA():
         raise Exception("Choose an available implementation")
 
 
+def check_platform():
+
+    # TODO: provide full suport for wind32
+
+    if (sys.platform not in ("linux", "darwin")):
+        raise Exception(sys.platform + " is not supported by MuSA yet")
+
+
 if __name__ == "__main__":
 
+    check_platform()
     MuSA()

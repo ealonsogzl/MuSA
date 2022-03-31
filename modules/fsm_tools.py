@@ -83,7 +83,7 @@ def write_nlst(temp_dest):
 def fsm_compile(temp_dest):
 
     # fsm_path = cfg.fsm_src_path
-
+    # TODO: provide full suport for wind32
     write_nlst(temp_dest)
 
     if sys.platform == "linux":
