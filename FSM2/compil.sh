@@ -8,7 +8,7 @@
 # University of Edinburgh                                              #
 ########################################################################
 
-FC=gfortran
+FC=ifort
 cd src
 
 cat > OPTS.h << EOF
