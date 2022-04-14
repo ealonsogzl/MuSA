@@ -6,7 +6,7 @@ The Multiscale Snow Assimilation System (MuSA), is a flexible data  assimilation
 <em> Figure 1: Comparison between open loop and updated simulation after assimilating UAV snow depth retrievals at 5m resolution </em>
 ### Inputs  
   
-The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be probided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. In this version, the meteorological forcing must be provided in an hourlly basis. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
+The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be probided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. In this version, the meteorological forcing must be provided in an hourly timestep. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
 - Incident shortwave radiation (W m<sup>-2</sup>)
 - Incident longwave radiation ( W m<sup>-2</sup>)
 - Precipitation  (Kg<sup>-2</sup> m<sup>-2</sup> s<sup>-1</sup>) 
@@ -26,7 +26,7 @@ In its current version MuSA provides support for assimilating different  variabl
 The support of other variables like liquid water content, density, ice content etc.  could be relatively easily implemented on demand. 
   
 ### Data assimilation algorithms
-There several different data assimilation algortihms and resampling algorithms implemented in MuSA.  Some testing should be done when developing data assimilation experiments, as the performance may be different depending on the problem to solve, and regarding the litearature there is not a clear winner. Also, the computational cost will be different, and may be a strong conditioner in some situations.
+There are different different data assimilation algortihms and resampling algorithms implemented in MuSA.  Some testing should be done when developing data assimilation experiments, as the performance may be different depending on the problem to solve, and regarding the literature there is not a clear winner. Also, the computational cost will be different, and may be a strong conditioner in some situations.
 
 Filters:
 -   Particle Filter (PF (C))
@@ -49,7 +49,7 @@ Resampling (for particle filters only):
 The outputs of MuSA are composed by simple .csv files containing the following information:
 -  **OL_lonid_latid**: This file contains the open loop simulation (snow simulation without any assimilation).
 -  **updated_lonid_latid**: This file contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulaitons.
--  **sd_lonid_latid**: This file contains the weighted standar deviation of the ensemble after the assimilation.
+-  **sd_lonid_latid**: This file contains the weighted standard deviation of the ensemble after the assimilation.
 -  **DA_lonid_latid**: This fille contains information about the observed variables and perturbation parametesr used to generate the ensemble.
 
 **lonid** and **latid** are the longitude and latitude ids of each cell of the simulation.
@@ -58,14 +58,22 @@ Aditionaly it is possible to store the ensembles generated for each cell. This i
 
 ### Usage
 
-This version only works in GNU/Linux based platforms (and therefore in Mac). I guess it should be possible to run MuSA easilly in Windows using WSL, but we did not test this yet. MuSA depends on python3 with the regular scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. Also it will be necesary to have a fortran compiler such as gfortran in the path. The easiest way to go is through generating a dedicated conda environtment. Then, simply:
+This version only works on GNU/Linux (and therefore Mac) based platforms. I guess it should be possible to run MuSA easily on Windows using WSL, but we haven't tested it yet. MuSA relies on python3 with the usual scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. You will also need to have a fortran compiler like gfortran in the path. The easiest way to do this is to generate a dedicated conda environment. You can use the [MuSAenv.yml](https://github.com/ealonsogzl/MuSA/blob/master/MuSAenv.yml) file of the repository to create the conda environtment:
 
 ```
+conda env create --name MuSAenv --file=MuSAenv.yml
+```
+
+
+Then for running MuSA simply:
+
+```
+conda activate MuSAenv
 python main.py
 ```
 
 This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed by few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is posible to modify the way MuSA generates de ensemble by modifing the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
-An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS arrays.
+An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS (Portable Batch System, not Particle Batch Smoother :)) arrays.
 ### How to cite
 #### MuSA
 #### FSM2

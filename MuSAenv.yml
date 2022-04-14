@@ -1,0 +1,9 @@
+name: MuSAenv
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - netcdf4
+  - pandas
+  - scipy
+prefix: /home/alonsoe/anaconda3/envs/MuSAenv

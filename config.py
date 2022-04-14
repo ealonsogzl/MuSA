@@ -66,7 +66,7 @@ implementation = "distributed"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
-nprocess = None  # if None, the number of processes will be estimated
+nprocess = None  # if None, the number of processors will be estimated
 aws_lat = 4735490.19
 aws_lon = 711249.00
 date_ini = "2018-09-01 00:00"
