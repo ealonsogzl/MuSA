@@ -73,7 +73,7 @@ python main.py
 ```
 
 This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed by few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is posible to modify the way MuSA generates de ensemble by modifing the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
-An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS (Portable Batch System, not Particle Batch Smoother :)) arrays.
+An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS (Portable Batch System, not Particle Batch Smoother :wink:) arrays.
 ### How to cite
 #### MuSA
 #### FSM2
