@@ -55,7 +55,7 @@ precipitation_phase = "Harder"
 
 # Save ensembles as a pkl object
 save_ensemble = False
-save_ensemble_path = "./ENSEMBLES/"
+save_ensemble_path = "./DATA/ENSEMBLES/"
 
 # -----------------------------------
 # Domain
@@ -83,14 +83,14 @@ season_ini_day = 1
 # Note: Dates and obs files will be sorted internally. Ensure the alphabetical
 # order of the obs files fits the list of dates (dates_obs)
 # Note 2: dates_obs supports list indentation to not have to write many dates
-# in very long runs. example:
+# in very long runs. example for generating a list of dailly strings:
 # =============================================================================
 # import datetime as dt
 #
 # start = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
 # end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
 # dates_obs = [(start + dt.timedelta(days=x) + dt.timedelta(hours=12)).
-#              strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
+#             strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
 #
 # =============================================================================
 

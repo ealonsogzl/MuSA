@@ -50,18 +50,6 @@ sd_errors = {"SW": 0.1,
 
 
 # -----------------------------------
-# Time decorrelation
-# -----------------------------------
-
-T2_DECOR = 4.8
-RH_DECOR = 8.4
-SW_DECOR = 3.0
-LW_DECOR = 4.7
-PR_DECOR = 2.0
-UA_DECOR = 8.2
-
-
-# -----------------------------------
 # Unit conversions
 # -----------------------------------
 forcing_offset = {"SW": 0,
@@ -79,3 +67,4 @@ forcing_multiplier = {"SW": 1,
                       "RH": 1,
                       "Ua": 1,
                       "Ps": 1}
+

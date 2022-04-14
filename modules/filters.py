@@ -581,11 +581,11 @@ def implement_assimilation(Ensemble, observations_sbst,
                                    for x in range(len(list_state))]
                     var_tmp = np.asarray(var_tmp)
                     var_tmp = np.squeeze(var_tmp)
-                    # HACK: next lines have to be modified with time varying
-                    # perturbations
+                    # HACK: next lines have to be modified with if time varying
+                    # perturbations are implemented
                     # var_tmp = np.squeeze(var_tmp[:, mask])
 
-                    # Trick to handle shape of the noise when there is an
+                    # Trick to handle the shape of the noise when there is an
                     # observation in the first timestep
                     if var_tmp.ndim == 1:
                         prior[cont, :] = var_tmp
@@ -704,7 +704,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             return None
 
         else:   # if the number of layers is different.
-            # Guess mass and temperature, insert layers
+            # Guess mass and temperature, also insert layers
             # TODO : try to retrieve density and temperature from simulation
             # if any layers exist instead of overwrite with fixed values
             # TODO : Think on the albedo, if there is no snow in the simulation

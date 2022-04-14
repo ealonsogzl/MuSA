@@ -5,12 +5,12 @@ The Multiscale Snow Assimilation System (MuSA), is a flexible data  assimilation
 ### Inputs  
   
 The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be probided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. In this version, the meteorological forcing must be provided in an hourlly basis. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
-- Incident shortwave radiation (W m$^{-2}$) 
-- Incident longwave radiation (W m$^{-2}$) 
-- Precipitation (m$^{-2}$ s$^{-1}$) 
+- Incident shortwave radiation (W m<sup>-2</sup>)
+- Incident longwave radiation ( W m<sup>-2</sup>)
+- Precipitation  (Kg<sup>-2</sup> m<sup>-2</sup> s<sup>-1</sup>) 
 - Temperature (K) 
 - Relative Humidity (%) 
-- Wind speed (m s$^{-1}$) 
+- Wind speed  (m s<sup>-1</sup>) 
 - Atmospheric pressure (Pa) 
   
 In its current version MuSA provides support for assimilating different  variables. Note that it is possible to provide more than one of the  following variables at the same time, i.e. MuSA has support for joint  assimilation experiments. In its current version, MuSA is able to assimilate: 
@@ -62,8 +62,8 @@ This version only works in GNU/Linux based platforms (and therefore in Mac). I g
 python main.py
 ```
 
-This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed by few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the **config** file. Also it is posible to modify the way MuSA generates de ensemble by modifing the **constants** file.
-An [example](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS arrays.
+This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed by few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is posible to modify the way MuSA generates de ensemble by modifing the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
+An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.pbs) is also provided to run MuSA in distributed supercomputing facilitites using PBS arrays.
 ### How to cite
 #### MuSA
 #### FSM2
