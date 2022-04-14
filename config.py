@@ -23,7 +23,7 @@ tmp_path = None
 # Data Assim
 # -----------------------------------
 
-# assimilation_strategy from "filtering" or "smoothing"
+# assimilation_strategy from "filtering", "smoothing" or "direct_insertion"
 assimilation_strategy = "smoothing"
 
 # filter_algorithm from "Kalman" or "PBS"

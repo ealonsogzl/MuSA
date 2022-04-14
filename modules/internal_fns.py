@@ -485,6 +485,10 @@ def cell_assimilation(lon_idx, lat_idx):
 
     save_ensemble = cfg.save_ensemble
 
+    # Not alwais usefull
+    filename = (str(lon_idx) + "_" + str(lat_idx) + ".csv")
+    filename = os.path.join(cfg.output_path, filename)
+
     # Create filenames
     DA_filename = ("DA_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
     updated_filename = ("updated_" + str(lon_idx) + "_" + str(lat_idx)
@@ -559,6 +563,10 @@ def cell_assimilation(lon_idx, lat_idx):
 
         step_results = flt.implement_assimilation(Ensemble, observations_sbst,
                                                   step, forcing_sbst)
+
+        if cfg.assimilation_strategy == "direct_insertion":
+            continue
+
         if save_ensemble:
             # deepcopy necesary to not to change all
             Ensemble_tmp = copy.deepcopy(Ensemble)
@@ -573,6 +581,16 @@ def cell_assimilation(lon_idx, lat_idx):
         if(cfg.assimilation_strategy == "filtering" and
            "resampled_particles" in step_results):
             Ensemble.resample(step_results["resampled_particles"])
+
+    # Clean tmp directory
+    shutil.rmtree(temp_dest, ignore_errors=True)
+
+    # if direct insertion save file
+    if cfg.assimilation_strategy == "direct_insertion":
+
+        updated = Ensemble.origin_state
+        updated.to_csv(filename, sep=",", header=True, index=False)
+        return None
 
     # Store OL
     storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step)
@@ -594,8 +612,7 @@ def cell_assimilation(lon_idx, lat_idx):
         filehandler = lzma.open(name_ensemble, 'wb')
         pickle.dump(ensemble_list, filehandler)
 
-    # Clean tmp directory
-    shutil.rmtree(temp_dest, ignore_errors=True)
+
 
 
 def open_loop_simulation(lon_idx, lat_idx):

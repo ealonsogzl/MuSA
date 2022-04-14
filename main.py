@@ -15,7 +15,6 @@ if(cfg.parallelization == "multiprocessing" or
 elif cfg.parallelization == "MPI":
     from mpi4py import MPI
 elif cfg.parallelization == "PBS.array":
-    import sys
     import os
     import multiprocessing as mp
 else:
