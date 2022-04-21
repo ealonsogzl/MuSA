@@ -219,6 +219,10 @@ class SnowEnsemble:
 
     def resample(self, resampled_particles):
 
+        # avoid to resample if redraw is enabled
+        if (cfg.redraw_prior):
+            return None
+
         # Particles
         new_out = [self.out_members[x].copy() for x in resampled_particles]
         self.out_members = new_out.copy()

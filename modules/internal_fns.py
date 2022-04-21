@@ -613,8 +613,6 @@ def cell_assimilation(lon_idx, lat_idx):
         pickle.dump(ensemble_list, filehandler)
 
 
-
-
 def open_loop_simulation(lon_idx, lat_idx):
 
     nc_obs_path = cfg.nc_obs_path
