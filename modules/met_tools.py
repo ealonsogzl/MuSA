@@ -186,6 +186,10 @@ def get_shape_from_noise(noise_dict, wgth):
         mu = np.mean(np.average(var_temp, axis=0, weights=wgth))
         sigma = np.mean(flt.weighted_std(var_temp, axis=0, weights=wgth))
 
+        # Fix to recover from collapse through particle rejuvenation
+        if sigma == 0:
+            sigma = cnt.sd_errors[var] * cnt.sdfrac
+
         storage[count, 0] = mu
         storage[count, 1] = sigma
 

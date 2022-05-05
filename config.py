@@ -26,8 +26,8 @@ tmp_path = None
 # assimilation_strategy from "filtering", "smoothing" or "direct_insertion"
 assimilation_strategy = "smoothing"
 
-# filter_algorithm from "Kalman" or "PBS"
-filter_algorithm = "PBS"
+# da_method from "Kalman" or "Particle"
+da_method = "Particle"
 redraw_prior = True
 Kalman_iterations = 4
 

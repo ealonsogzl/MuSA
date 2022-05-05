@@ -140,7 +140,6 @@ def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
     # nc_data.close()
 
     array_nc = []
-    # TODO: preallocate the array and fill, array_obs = np.empty(len(array_nc))
 
     for ncfile in files:
         data_temp = nc.Dataset(ncfile)
@@ -517,7 +516,7 @@ def cell_assimilation(lon_idx, lat_idx):
 
     # Compile FSM
     fsm.fsm_compile(temp_dest)
-    # TODO: think on how to compile it just once, but compatible with PBS
+    # TODO: think on how to compile it just once, but compatible with PBS.array
 
     main_forcing = forcing_table(lat_idx, lon_idx)
 

@@ -22,7 +22,7 @@ Hfsn = 0.1                      # fSCA depth scale [m] (linear/asymptotic fSCA)
 SWEsca = 13                     # SWE where SCA=1 [mm] (Noah fSCA)
 Taf = 4                         # fSCA shape parameter [-] (Noah fSCA)
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
-
+sdfrac = 0.1                    # fraction of the sd_errors to use if collapse
 # -----------------------------------
 # Mean errors
 # -----------------------------------

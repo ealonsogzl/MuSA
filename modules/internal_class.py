@@ -55,7 +55,7 @@ class SnowEnsemble:
         self.out_members = [0 for i in range(self.members)]
         self.noise = [0 for i in range(self.members)]
 
-        if cfg.filter_algorithm == "Kalman":
+        if cfg.da_method == "Kalman":
             self.noise_kalman = [0 for i in range(self.members)]
             self.out_members_kalman = [0 for i in range(self.members)]
 
@@ -100,7 +100,7 @@ class SnowEnsemble:
             return None
 
         if (cfg.redraw_prior and
-            cfg.filter_algorithm == "PBS" and
+            cfg.da_method == "Particle" and
             cfg.assimilation_strategy == "filtering" and
                 step != 0):
 
@@ -115,9 +115,18 @@ class SnowEnsemble:
             else:
                 # if PBS/importance resampling is used, use the noise
                 # of the previous assimilation step or redraw.
-                if cfg.filter_algorithm == "PBS":
+                if cfg.da_method == "Particle":
                     if (cfg.redraw_prior and
                         step != 0 and
+
+                        # TODO: this redraw part is confusing, and ugly. Move
+                        # this to flt.resampled_indexes and return all the
+                        # indexes from the funciton when redraw. Remove the
+                        # condition in  self.resample to allow to resampling
+                        # and make everythign consistent.
+                        # Also, put redraw as an available option of
+                        # cfg.resampling_algorithm adn remove cfg.redraw_prior
+
                             cfg.assimilation_strategy == "filtering"):
 
                         # Create new perturbation parameters
@@ -152,7 +161,7 @@ class SnowEnsemble:
             if step == 0:
                 fsm.write_init(self.temp_dest)
             else:
-                if cfg.filter_algorithm == "PBS":
+                if cfg.da_method == "Particle":
                     fsm.write_dump(self.out_members[mbr], self.temp_dest)
                 else:  # if kalman, write updated dump
                     fsm.write_dump(self.out_members_kalman[mbr],

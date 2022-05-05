@@ -500,7 +500,7 @@ def implement_assimilation(Ensemble, observations_sbst,
     """
     vars_to_perturbate = cfg.vars_to_perturbate
     perturbation_strategy = cfg.perturbation_strategy
-    filter_algorithm = cfg.filter_algorithm
+    da_method = cfg.da_method
     assimilation_strategy = cfg.assimilation_strategy
     Kalman_iterations = cfg.Kalman_iterations
     var_to_assim = cfg.var_to_assim
@@ -513,7 +513,7 @@ def implement_assimilation(Ensemble, observations_sbst,
         list_state = Ensemble.state_membres
 
     # implement assimilation
-    if assimilation_strategy == "smoothing" and filter_algorithm == "PBS":
+    if assimilation_strategy == "smoothing" and da_method == "Particle":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(observations_sbst).all():
 
@@ -530,7 +530,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Ensemble.wgth = wgth
 
-    elif assimilation_strategy == "filtering" and filter_algorithm == "PBS":
+    elif assimilation_strategy == "filtering" and da_method == "Particle":
         if np.isnan(observations_sbst).all():
 
             pass
@@ -550,7 +550,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Result["resampled_particles"] = resampled_particles
 
-    elif assimilation_strategy == "filtering" and filter_algorithm == "Kalman":
+    elif assimilation_strategy == "filtering" and da_method == "Kalman":
         if np.isnan(observations_sbst).all():
 
             Ensemble.kalman_update(create=False)
@@ -610,7 +610,7 @@ def implement_assimilation(Ensemble, observations_sbst,
                 Ensemble.kalman_update(forcing_sbst, step, updated_pars,
                                        create=True, iteration=j)
 
-    elif assimilation_strategy == "smoothing" and filter_algorithm == "Kalman":
+    elif assimilation_strategy == "smoothing" and da_method == "Kalman":
 
         if np.isnan(observations_sbst).all():
 
