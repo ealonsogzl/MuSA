@@ -29,8 +29,7 @@ The support of other variables like liquid water content, density, ice content e
 There are different different data assimilation algortihms and resampling algorithms implemented in MuSA.  Some testing should be done when developing data assimilation experiments, as the performance may be different depending on the problem to solve, and regarding the literature there is not a clear winner. Also, the computational cost will be different, and may be a strong conditioner in some situations.
 
 Filters:
--   Particle Filter (PF (C))
--   Particle filter with varying perturbation parameters (PF (R))
+-   Particle Filter (PF)
 -   Ensemble Kalman filter (EnKF)
 -   Iterative ensemble Kalman filter (IEnKF)
 
@@ -44,6 +43,7 @@ Resampling (for particle filters only):
 -   Residual resampling
 -   Stratified resampling
 -   Systematic resampling
+-   Redraw from a normal approximation of the posterior
 
 ### Outputs
 The outputs of MuSA are composed by simple .csv files containing the following information:
