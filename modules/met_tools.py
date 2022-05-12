@@ -85,6 +85,9 @@ def pp_temp_thld_log(ta2, precc):
 
 def create_noise(perturbation_strategy, n_steps, mean, std_dev):
 
+    if(cfg.seed is not None):
+        np.random.seed(cfg.seed)
+
     if perturbation_strategy == "constant_normal":
         noise = np.random.normal(mean, std_dev, 1)
         noise = np.repeat(noise, n_steps)

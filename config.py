@@ -46,6 +46,9 @@ fSCA_implementation = "Noah"
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
 vars_to_perturbate = ["Prec", "Ta"]
 
+# seed to initialise the random number generator
+seed = None
+
 # perturbation_strategy from "constant_normal" or "constant_lognormal"
 perturbation_strategy = ["constant_lognormal",
                          "constant_normal"]
