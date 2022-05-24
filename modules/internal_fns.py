@@ -25,18 +25,33 @@ if cfg.save_ensemble:
     import lzma
 
 
-def obs_array(lat_idx, lon_idx):
+def get_dates_obs():
+
+    dates_obs = cfg.dates_obs
+
+    if type(dates_obs) == list:
+
+        dates_obs.sort()
+        dates_obs = np.asarray([dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+                                for date in dates_obs])
+    elif type(dates_obs) == str:
+
+        dates_obs = pd.read_csv(dates_obs)
+        dates_obs = dates_obs.iloc[:, 0].tolist()
+
+    else:
+        raise Exception('Bad obs date format')
+
+    return dates_obs
+
+
+def obs_array(dates_obs, lat_idx, lon_idx):
 
     nc_obs_path = cfg.nc_obs_path
     nc_maks_path = cfg.nc_maks_path
     obs_var_names = cfg.obs_var_names
-    dates_obs = cfg.dates_obs
     date_ini = cfg.date_ini
     date_end = cfg.date_end
-
-    dates_obs.sort()
-    dates_obs = np.asarray([dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
-                            for date in dates_obs])
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
@@ -328,21 +343,16 @@ def expand_grid():
     return grid
 
 
-def simulation_steps(observations):
+def simulation_steps(observations, dates_obs):
 
     date_ini = cfg.date_ini
     date_end = cfg.date_end
-    dates_obs = cfg.dates_obs
     season_ini_day = cfg.season_ini_day
     season_ini_month = cfg.season_ini_month,
     assimilation_strategy = cfg.assimilation_strategy
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-
-    dates_obs.sort()
-    dates_obs = [dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
-                 for date in dates_obs]
 
     del_t = np.asarray([date_ini + dt.timedelta(hours=x)
                         for x in range(int((date_end-date_ini).total_seconds()
@@ -507,7 +517,8 @@ def cell_assimilation(lon_idx, lat_idx):
             os.path.exists(OL_filename)):
         return None
 
-    observations = obs_array(lat_idx, lon_idx)
+    dates_obs = get_dates_obs()
+    observations = obs_array(dates_obs, lat_idx, lon_idx)
 
     if isinstance(observations, str):  # check if masked
         return None
@@ -526,7 +537,7 @@ def cell_assimilation(lon_idx, lat_idx):
 
     main_forcing = unit_conversion(main_forcing)
 
-    time_dict = simulation_steps(observations)
+    time_dict = simulation_steps(observations, dates_obs)
 
     # If no obs in the cell, run openloop
     if np.isnan(observations).all():
