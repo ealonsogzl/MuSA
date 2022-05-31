@@ -96,6 +96,9 @@ season_ini_day = 1
 #             strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
 #
 # =============================================================================
+# Note 3: A single column .cvs without headers with the dates in the
+# format "%Y-%m-%d %H:%M" is also accepted substituting:
+# dates_obs = '/path/to/file/dates.csv'
 
 dates_obs = ["2019-02-21 12:00",
              "2019-03-26 12:00",

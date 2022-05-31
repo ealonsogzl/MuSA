@@ -6,4 +6,3 @@ dependencies:
   - netcdf4
   - pandas
   - scipy
-prefix: /home/alonsoe/anaconda3/envs/MuSAenv

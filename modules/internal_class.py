@@ -83,12 +83,9 @@ class SnowEnsemble:
         origin_state_tmp, origin_dump_tmp =\
             fsm.fsm_read_output(self.temp_dest)
 
-        # add fSCA (or SCA) if it is in var_to_assim
-        if "fSCA" or "SCA" in cfg.var_to_assim:
-            origin_state_tmp["fSCA"] = met.fSCA(origin_state_tmp)
-
-            if "SCA" in cfg.var_to_assim:
-                origin_state_tmp["SCA"] = met.SCA(origin_state_tmp)
+        # add fSCA and SCA columns
+        origin_state_tmp["fSCA"] = met.fSCA(origin_state_tmp)
+        origin_state_tmp["SCA"] = met.SCA(origin_state_tmp)
 
         # Store FSM outputs
         self.origin_state = pd.concat([self.origin_state,
@@ -119,7 +116,7 @@ class SnowEnsemble:
                     if (cfg.redraw_prior and
                         step != 0 and
 
-                        # TODO: this redraw part is confusing, and ugly. Move
+                        # FIXME: this redraw part is confusing, and ugly. Move
                         # this to flt.resampled_indexes and return all the
                         # indexes from the funciton when redraw. Remove the
                         # condition in  self.resample to allow to resampling
@@ -171,11 +168,9 @@ class SnowEnsemble:
 
             state_tmp, dump_tmp = fsm.fsm_read_output(self.temp_dest)
 
-            if "fSCA" in cfg.var_to_assim:
-                state_tmp["fSCA"] = met.fSCA(state_tmp)
-
-                if "SCA" in cfg.var_to_assim:
-                    state_tmp["SCA"] = met.SCA(state_tmp)
+            # add fSCA and SCA columns
+            state_tmp["fSCA"] = met.fSCA(state_tmp)
+            state_tmp["SCA"] = met.SCA(state_tmp)
 
             # store FSM outputs and perturbation parameters
             self.state_membres[mbr] = state_tmp.copy()
@@ -208,11 +203,9 @@ class SnowEnsemble:
 
                 state_tmp, dump_tmp = fsm.fsm_read_output(self.temp_dest)
 
-                if "fSCA" in cfg.var_to_assim:
-                    state_tmp["fSCA"] = met.fSCA(state_tmp)
-
-                    if "SCA" in cfg.var_to_assim:
-                        state_tmp["SCA"] = met.SCA(state_tmp)
+                # add fSCA and SCA columns
+                state_tmp["fSCA"] = met.fSCA(state_tmp)
+                state_tmp["SCA"] = met.SCA(state_tmp)
 
                 self.state_membres[mbr] = state_tmp.copy()
 

@@ -431,8 +431,8 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
     # TODO: modify directly FSM code to not to output time id's
 
     # Store colums
-    for colm in range(len(ol_data.columns)):
-        OL_FSM.loc[:, colm+1] = ol_data.iloc[:, [colm]].to_numpy()
+    for n, name_col in enumerate(ol_data.columns):
+        OL_FSM.loc[:, name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
 def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
@@ -449,10 +449,10 @@ def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
     # Get updated columns
-    n_colum = len(list_state[0].columns)
+    colums = ["snd", "SWE", "Tsrf", "alb", "fSCA", "SCA"]
     pesos = Ensemble.wgth
 
-    for n in range(n_colum):
+    for n, name_col in enumerate(colums):
         # create matrix of colums
         col_arr = [list_state[x].iloc[:, n].to_numpy()
                    for x in range(len(list_state))]
@@ -461,21 +461,41 @@ def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
         average_sim = np.average(col_arr, axis=0, weights=pesos)
         sd_sim = flt.weighted_std(col_arr, axis=0, weights=pesos)
 
-        updated_FSM.loc[rowIndex, n+1] = average_sim
-        sd_FSM.loc[rowIndex, n+1] = sd_sim
+        updated_FSM.loc[rowIndex, name_col] = average_sim
+        sd_FSM.loc[rowIndex, name_col] = sd_sim
 
 
-def init_result(del_t):
+def init_result(del_t, DA=False):
 
-    # Concatenate
-    col_names = ["Date"]
+    if DA:
+        # Concatenate
+        col_names = ["Date"]
 
-    # Create results dataframe
-    Results = pd.DataFrame(np.nan, index=range(len(del_t)), columns=col_names)
+        # Create results dataframe
+        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
+                               columns=col_names)
 
-    Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        return Results
 
-    return Results
+    else:
+        # Concatenate
+        col_names = ["Date", "snd", "SWE", "Tsrf", "alb", "fSCA", "SCA"]
+
+        # Create results dataframe
+        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
+                               columns=col_names)
+
+        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+
+        Results["snd"] = [np.nan for x in del_t]
+        Results["SWE"] = [np.nan for x in del_t]
+        Results["Tsrf"] = [np.nan for x in del_t]
+        Results["alb"] = [np.nan for x in del_t]
+        Results["fSCA"] = [np.nan for x in del_t]
+        Results["SCA"] = [np.nan for x in del_t]
+
+        return Results
 
 
 def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
@@ -486,8 +506,8 @@ def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
     fsm.write_init(temp_dest)
     fsm.fsm_run(temp_dest)
     state = fsm.fsm_read_output(temp_dest, read_dump=False)
-    state.columns = ["year", "month", "day", "hour", "snd", "SWE", "Sveg",
-                     "1Tsoil", "2Tsoil", "3Tsoil", "4Tsoil", "Tsrf", "Tveg"]
+    state.columns = ["year", "month", "day", "hour", "snd", "SWE",
+                     "Tsrf", "alb"]
 
     state.to_csv(filename, sep=",", header=True, index=False)
 
@@ -547,7 +567,7 @@ def cell_assimilation(lon_idx, lat_idx):
                          temp_dest, OL_filename)
 
     # Inicialice results dataframes
-    DA_Results = init_result(time_dict["del_t"])   # DA parametesr
+    DA_Results = init_result(time_dict["del_t"], DA=True)   # DA parametesr
     updated_FSM = init_result(time_dict["del_t"])  # posterior simulaiton
     sd_FSM = init_result(time_dict["del_t"])       # posterios standar desv
     OL_FSM = init_result(time_dict["del_t"])       # OL simulation
@@ -608,6 +628,13 @@ def cell_assimilation(lon_idx, lat_idx):
     storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step)
 
     # TODO: create a write function with NCDF support
+    # NOTE: The binary SCA is removed form output, need to implemetn a binary
+    # weightedSD and average
+    OL_FSM.drop('SCA', axis=1, inplace=True)
+    updated_FSM.drop('SCA', axis=1, inplace=True)
+    sd_FSM.drop('SCA', axis=1, inplace=True)
+
+    # Write results
     DA_Results.to_csv(DA_filename, sep=",", header=True, index=False,
                       float_format="%.3f")
     OL_FSM.to_csv(OL_filename, sep=",", header=True, index=False,

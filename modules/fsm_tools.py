@@ -118,7 +118,7 @@ def fsm_run(fsm_path):
         raise Exception("FSM failed")
 
 
-def fsm_read_output(fsm_path, read_flux=False, read_dump=True):
+def fsm_read_output(fsm_path, read_dump=True):
     """
     Read FSM outputs and return it in a dataframe
 
@@ -127,45 +127,25 @@ def fsm_read_output(fsm_path, read_flux=False, read_dump=True):
     fsm_path : str
         Location of FSM outputs
 
-    Returns:
-
-    flux : pandas.DataFrame
-        Fluxes involved in the SEMB simulation
-    state : pandas.DataFrame
-        State variables of the snowpack
-    dump : pandas.DataFrame
-        Initial (final) values for each state variable at the end (beginning)
-        of the simulation
-
    """
     # HACK: column/index names and number of columns/index are hardcoded here
     # Potential incompatibility in future versions of FSM.
     state_dir = os.path.join(fsm_path, "out_stat.txt")
     state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
-#    state.columns = ["year","month","day","hour","snd","SWE","Sveg",
-#                        "1Tsoil","2Tsoil","3Tsoil","4Tsoil","Tsrf","Tveg"]
+    state.columns = ["year", "month", "day", "hour", "snd",
+                     "SWE", "Tsrf", "alb"]
     if (state.isnull().values.any()):
         raise Exception('''nan found in FSM2 output: check forcing or
                         change FORTRAN compiler''')
-
-    if read_flux:
-        flux_dir = os.path.join(fsm_path, "out_flux.txt")
-        flux = pd.read_csv(flux_dir, header=None, delim_whitespace=True)
-#        flux.columns = ["year", "month", "day", "hour", "H", "LE", "LWout",
-#                        "Melt", "Roff", "Subl", "SWout"]
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
         dump = pd.read_csv(dump_dir, header=None, delim_whitespace=True,
                            names=list(range(4)))
-#        dump.index=["albs","Dsnw","Nsnow","Qcan","Rgrn","Slice","Sliq",
-#                          "Sveg","Tcan","Tsnow","Tsoil","Tsrf","Tveg","Vsmc"]
+        dump.index = ["albs", "Dsnw", "Nsnow", "Qcan", "Rgrn", "Slice", "Sliq",
+                      "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]
 
-    if read_dump and read_flux:
-        return state, flux, dump
-    elif read_flux and not read_dump:
-        return state, flux
-    elif not read_flux and read_dump:
+    if read_dump:
         return state, dump
     else:
         return state
@@ -213,9 +193,34 @@ def write_input(fsm_path, fsm_input_data):
                           sep=' ', mode='w')
 
 
+def stable_forcing(forcing_df):
+
+    temp_forz_def = forcing_df.copy()
+
+    # Negative SW to 0
+    temp_forz_def["SW"].values[temp_forz_def["SW"].values < 0] = 0
+
+    # Negative LW to 0
+    temp_forz_def["LW"].values[temp_forz_def["LW"].values < 0] = 0
+
+    # Negative Prec to 0
+    temp_forz_def["Prec"].values[temp_forz_def["Prec"].values < 0] = 0
+
+    # Negative wind to 0
+    temp_forz_def["Ua"].values[temp_forz_def["Ua"].values < 0] = 0
+
+    # Not to allow HR values out of 1-100%
+    temp_forz_def["RH"].values[temp_forz_def["RH"].values > 100] = 100
+    # 1% of RH is actually almost impossible, increase?
+    temp_forz_def["RH"].values[temp_forz_def["RH"].values < 0] = 1
+
+    return temp_forz_def
+
+
 def fsm_forcing_wrt(forcing_df, temp_dest):
 
     temp_forz_def = forcing_df.copy()
+    temp_forz_def = stable_forcing(forcing_df)
 
     # Not to allow HR values out of 1-100%
     temp_forz_def["RH"].values[temp_forz_def["RH"].values > 100] = 100
