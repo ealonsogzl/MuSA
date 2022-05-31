@@ -23,13 +23,10 @@ tmp_path = None
 # Data Assim
 # -----------------------------------
 
-# assimilation_strategy from "filtering", "smoothing" or "direct_insertion"
-assimilation_strategy = "smoothing"
-
-# da_method from "Kalman" or "Particle"
-da_method = "Particle"
-redraw_prior = True
-Kalman_iterations = 4
+# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
+da_algorithm = 'PF'
+redraw_prior = True  # PF only
+Kalman_iterations = 4  # IEnKF and IES only
 
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample or systematic_resample

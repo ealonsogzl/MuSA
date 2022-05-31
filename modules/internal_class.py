@@ -55,7 +55,7 @@ class SnowEnsemble:
         self.out_members = [0 for i in range(self.members)]
         self.noise = [0 for i in range(self.members)]
 
-        if cfg.da_method == "Kalman":
+        if cfg.da_algorithm in ['EnKF', 'IEnKF', 'ES', 'IES']:
             self.noise_kalman = [0 for i in range(self.members)]
             self.out_members_kalman = [0 for i in range(self.members)]
 
@@ -93,12 +93,11 @@ class SnowEnsemble:
         self.origin_dump.append(origin_dump_tmp.copy())
 
         # Avoid ensemble generation if direct insertion
-        if cfg.assimilation_strategy == "direct_insertion":
+        if cfg.da_algorithm == "direct_insertion":
             return None
 
         if (cfg.redraw_prior and
-            cfg.da_method == "Particle" and
-            cfg.assimilation_strategy == "filtering" and
+            cfg.da_algorithm == "PF" and
                 step != 0):
 
             func_shape = met.get_shape_from_noise(self.noise, self.wgth)
@@ -112,19 +111,18 @@ class SnowEnsemble:
             else:
                 # if PBS/importance resampling is used, use the noise
                 # of the previous assimilation step or redraw.
-                if cfg.da_method == "Particle":
-                    if (cfg.redraw_prior and
-                        step != 0 and
+                if cfg.da_algorithm in ["PF", "PBS"]:
+                    if (cfg.da_algorithm == "PF" and
+                        cfg.redraw_prior and
+                            step != 0):
 
                         # FIXME: this redraw part is confusing, and ugly. Move
                         # this to flt.resampled_indexes and return all the
-                        # indexes from the funciton when redraw. Remove the
+                        # indexes from the funtion when redraw. Remove the
                         # condition in  self.resample to allow to resampling
                         # and make everythign consistent.
                         # Also, put redraw as an available option of
-                        # cfg.resampling_algorithm adn remove cfg.redraw_prior
-
-                            cfg.assimilation_strategy == "filtering"):
+                        # cfg.resampling_algorithm and remove cfg.redraw_prior
 
                         # Create new perturbation parameters
                         noise_tmp = met.redraw(func_shape.copy())
@@ -158,7 +156,7 @@ class SnowEnsemble:
             if step == 0:
                 fsm.write_init(self.temp_dest)
             else:
-                if cfg.da_method == "Particle":
+                if cfg.da_algorithm in ['PBS', 'PF']:
                     fsm.write_dump(self.out_members[mbr], self.temp_dest)
                 else:  # if kalman, write updated dump
                     fsm.write_dump(self.out_members_kalman[mbr],

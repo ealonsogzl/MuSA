@@ -351,7 +351,7 @@ def simulation_steps(observations, dates_obs):
     date_end = cfg.date_end
     season_ini_day = cfg.season_ini_day
     season_ini_month = cfg.season_ini_month,
-    assimilation_strategy = cfg.assimilation_strategy
+    da_algorithm = cfg.da_algorithm
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
@@ -380,10 +380,9 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if assimilation_strategy == "smoothing":
+    if da_algorithm in ['PBS', 'ES', 'IES']:
         assimilation_steps = season_ini_cuts[:, 0]
-    elif (assimilation_strategy == "filtering" or
-          assimilation_strategy == "direct_insertion"):
+    elif (da_algorithm in ['PF', 'EnKF', 'IEnKF', "direct_insertion"]):
         # HACK: I add one to easy the subset of the forcing
         assimilation_steps = obs_idx + 1
     else:
@@ -596,7 +595,7 @@ def cell_assimilation(lon_idx, lat_idx):
         step_results = flt.implement_assimilation(Ensemble, observations_sbst,
                                                   step, forcing_sbst)
 
-        if cfg.assimilation_strategy == "direct_insertion":
+        if cfg.da_algorithm == "direct_insertion":
             continue
 
         if save_ensemble:
@@ -610,7 +609,7 @@ def cell_assimilation(lon_idx, lat_idx):
                          time_dict, step)
 
         # Resample if filtering
-        if(cfg.assimilation_strategy == "filtering" and
+        if(cfg.da_algorithm == "PF" and
            "resampled_particles" in step_results):
             Ensemble.resample(step_results["resampled_particles"])
 
@@ -618,7 +617,7 @@ def cell_assimilation(lon_idx, lat_idx):
     shutil.rmtree(temp_dest, ignore_errors=True)
 
     # if direct insertion save file
-    if cfg.assimilation_strategy == "direct_insertion":
+    if cfg.da_algorithm == "direct_insertion":
 
         updated = Ensemble.origin_state
         updated.to_csv(filename, sep=",", header=True, index=False)

@@ -500,20 +500,19 @@ def implement_assimilation(Ensemble, observations_sbst,
     """
     vars_to_perturbate = cfg.vars_to_perturbate
     perturbation_strategy = cfg.perturbation_strategy
-    da_method = cfg.da_method
-    assimilation_strategy = cfg.assimilation_strategy
+    da_algorithm = cfg.da_algorithm
     Kalman_iterations = cfg.Kalman_iterations
     var_to_assim = cfg.var_to_assim
     r_cov = cfg.r_cov
 
     Result = {}  # initialice results dict
     # Avoid to create ensemblestatistics if direct insertion
-    if assimilation_strategy != "direct_insertion":
+    if da_algorithm != "direct_insertion":
 
         list_state = Ensemble.state_membres
 
     # implement assimilation
-    if assimilation_strategy == "smoothing" and da_method == "Particle":
+    if da_algorithm == "PBS":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(observations_sbst).all():
 
@@ -530,7 +529,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Ensemble.wgth = wgth
 
-    elif assimilation_strategy == "filtering" and da_method == "Particle":
+    elif da_algorithm == "PF":
         if np.isnan(observations_sbst).all():
 
             pass
@@ -550,7 +549,11 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Result["resampled_particles"] = resampled_particles
 
-    elif assimilation_strategy == "filtering" and da_method == "Kalman":
+    elif da_algorithm in ["EnKF", 'IEnKF']:
+        if da_algorithm == "EnKF":
+
+            Kalman_iterations = 1
+
         if np.isnan(observations_sbst).all():
 
             Ensemble.kalman_update(create=False)
@@ -610,7 +613,11 @@ def implement_assimilation(Ensemble, observations_sbst,
                 Ensemble.kalman_update(forcing_sbst, step, updated_pars,
                                        create=True, iteration=j)
 
-    elif assimilation_strategy == "smoothing" and da_method == "Kalman":
+    elif da_algorithm in ['ES', 'IES']:
+
+        if da_algorithm == "ES":
+
+            Kalman_iterations = 1
 
         if np.isnan(observations_sbst).all():
 
@@ -666,7 +673,7 @@ def implement_assimilation(Ensemble, observations_sbst,
                 Ensemble.kalman_update(forcing_sbst, step, updated_pars,
                                        create=True, iteration=j)
 
-    elif assimilation_strategy == "direct_insertion":
+    elif da_algorithm == "direct_insertion":
         # raise Exception("direct_insertion not implemented yet")
 
         if np.isnan(observations_sbst).all():
