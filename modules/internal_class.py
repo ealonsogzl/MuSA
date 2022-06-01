@@ -201,7 +201,8 @@ class SnowEnsemble:
 
                 self.noise_kalman[mbr] = noise_k_tmp.copy()
 
-                if iteration == (cfg.Kalman_iterations - 1):
+                if (iteration == cfg.Kalman_iterations - 1 or
+                        cfg.da_algorithm in ['EnKF', 'ES']):
 
                     self.out_members_kalman[mbr] = dump_tmp.copy()
 

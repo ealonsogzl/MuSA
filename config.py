@@ -24,15 +24,15 @@ tmp_path = None
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
-da_algorithm = "PBS"
-redraw_prior = False
+da_algorithm = 'PBS'
+redraw_prior = True  # PF only
 Kalman_iterations = 4  # IEnKF and IES only
 
-# resampling_algorithm from bootstrapping, residual_resample,
+# resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "bootstrapping"
 ensemble_members = 100
-r_cov = [0.15]
+r_cov = [0.04]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
 var_to_assim = ["snd"]
@@ -62,13 +62,13 @@ save_ensemble_path = "./DATA/ENSEMBLES/"
 # -----------------------------------
 
 # implementation from "point_scale" or "distributed"
-implementation = "point_scale"
+implementation = "distributed"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
 nprocess = None  # if None, the number of processors will be estimated
-aws_lat = 4735490.19
-aws_lon = 711249.00
+aws_lat = 4735311.06
+aws_lon = 710803.42
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
