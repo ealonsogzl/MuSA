@@ -364,6 +364,8 @@ def resampled_indexes(weights):
         indexes = bootstrapping(weights)
     elif resampling_algorithm == "systematic_resample":
         indexes = systematic_resample(weights)
+    elif resampling_algorithm == "no_resampling":
+        indexes = np.arange(0, len(weights), 1, dtype=int)
     return indexes
 
 
@@ -532,7 +534,7 @@ def implement_assimilation(Ensemble, observations_sbst,
     elif da_algorithm == "PF":
         if np.isnan(observations_sbst).all():
 
-            pass
+            Result["resampled_particles"] = np.arange(Ensemble.members)
 
         else:
 

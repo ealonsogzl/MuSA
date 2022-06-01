@@ -24,12 +24,12 @@ tmp_path = None
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
-da_algorithm = 'PF'
+da_algorithm = "PBS"
 redraw_prior = True  # PF only
 Kalman_iterations = 4  # IEnKF and IES only
 
-# resampling_algorithm from "bootstrapping", residual_resample,
-# stratified_resample or systematic_resample
+# resampling_algorithm from bootstrapping, residual_resample,
+# stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "bootstrapping"
 ensemble_members = 100
 r_cov = [0.15]

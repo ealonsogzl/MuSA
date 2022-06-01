@@ -65,6 +65,10 @@ class SnowEnsemble:
         # Inicialice step value
         self.step = -1
 
+        # Inicialice shape of function
+        if cfg.redraw_prior:
+            self.func_shape_arr = []
+
     def create(self, forcing_sbst, step):
 
         self.step = step
@@ -96,12 +100,6 @@ class SnowEnsemble:
         if cfg.da_algorithm == "direct_insertion":
             return None
 
-        if (cfg.redraw_prior and
-            cfg.da_algorithm == "PF" and
-                step != 0):
-
-            func_shape = met.get_shape_from_noise(self.noise, self.wgth)
-
         # Ensemble generator
         for mbr in range(self.members):
 
@@ -109,23 +107,13 @@ class SnowEnsemble:
                 member_forcing, noise_tmp = \
                     met.perturb_parameters(forcing_sbst)
             else:
-                # if PBS/importance resampling is used, use the noise
+                # if PBS/PF is used, use the noise
                 # of the previous assimilation step or redraw.
                 if cfg.da_algorithm in ["PF", "PBS"]:
                     if (cfg.da_algorithm == "PF" and
-                        cfg.redraw_prior and
-                            step != 0):
-
-                        # FIXME: this redraw part is confusing, and ugly. Move
-                        # this to flt.resampled_indexes and return all the
-                        # indexes from the funtion when redraw. Remove the
-                        # condition in  self.resample to allow to resampling
-                        # and make everythign consistent.
-                        # Also, put redraw as an available option of
-                        # cfg.resampling_algorithm and remove cfg.redraw_prior
-
-                        # Create new perturbation parameters
-                        noise_tmp = met.redraw(func_shape.copy())
+                            cfg.redraw_prior):
+                        # if redraw, generate new perturbations
+                        noise_tmp = met.redraw(self.func_shape_arr)
                         member_forcing, noise_tmp = \
                             met.perturb_parameters(forcing_sbst,
                                                    noise_tmp, update=True)
@@ -177,6 +165,11 @@ class SnowEnsemble:
 
             self.noise[mbr] = noise_tmp.copy()
 
+    def posterior_shape(self):
+        func_shape = met.get_shape_from_noise(self.noise, self.wgth)
+        self.func_shape_arr = func_shape
+        # Create new perturbation parameters
+
     def kalman_update(self, forcing_sbst=None, step=None, updated_pars=None,
                       create=None, iteration=None):
 
@@ -218,10 +211,6 @@ class SnowEnsemble:
             self.out_members_kalman = self.out_members.copy()
 
     def resample(self, resampled_particles):
-
-        # avoid to resample if redraw is enabled
-        if (cfg.redraw_prior):
-            return None
 
         # Particles
         new_out = [self.out_members[x].copy() for x in resampled_particles]

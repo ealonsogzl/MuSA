@@ -196,7 +196,7 @@ def get_shape_from_noise(noise_dict, wgth):
         storage[count, 0] = mu
         storage[count, 1] = sigma
 
-        return storage
+    return storage
 
 
 def redraw(func_shape):
