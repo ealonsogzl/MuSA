@@ -608,11 +608,13 @@ def cell_assimilation(lon_idx, lat_idx):
         store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
                          time_dict, step)
 
+        # If redraw, calculate the postrior shape
+        if cfg.redraw_prior:
+            
+            Ensemble.posterior_shape()
+            
         # Resample if filtering
         if(cfg.da_algorithm == "PF"):
-            if cfg.redraw_prior:
-                # If redraw, calculate the postrior shape
-                Ensemble.posterior_shape()
 
             Ensemble.resample(step_results["resampled_particles"])
 

@@ -110,8 +110,7 @@ class SnowEnsemble:
                 # if PBS/PF is used, use the noise
                 # of the previous assimilation step or redraw.
                 if cfg.da_algorithm in ["PF", "PBS"]:
-                    if (cfg.da_algorithm == "PF" and
-                            cfg.redraw_prior):
+                    if (cfg.redraw_prior):
                         # if redraw, generate new perturbations
                         noise_tmp = met.redraw(self.func_shape_arr)
                         member_forcing, noise_tmp = \

@@ -25,7 +25,7 @@ tmp_path = None
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
 da_algorithm = "PBS"
-redraw_prior = True  # PF only
+redraw_prior = False
 Kalman_iterations = 4  # IEnKF and IES only
 
 # resampling_algorithm from bootstrapping, residual_resample,
@@ -54,7 +54,7 @@ perturbation_strategy = ["constant_lognormal",
 precipitation_phase = "Harder"
 
 # Save ensembles as a pkl object
-save_ensemble = False
+save_ensemble = True
 save_ensemble_path = "./DATA/ENSEMBLES/"
 
 # -----------------------------------
@@ -62,7 +62,7 @@ save_ensemble_path = "./DATA/ENSEMBLES/"
 # -----------------------------------
 
 # implementation from "point_scale" or "distributed"
-implementation = "distributed"
+implementation = "point_scale"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
