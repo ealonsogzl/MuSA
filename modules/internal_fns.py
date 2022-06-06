@@ -71,7 +71,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask[0])
-        mask_value = mask.variables['mask'][:, lat_idx, lon_idx]
+        mask_value = mask.variables['mask'][lat_idx, lon_idx]
         mask.close()
         if np.ma.is_masked(mask_value):
             array_obs = "Out_of_AOI"

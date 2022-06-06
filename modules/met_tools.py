@@ -244,12 +244,11 @@ def fSCA(state):
         SWE = state.iloc[:, SWE_id].to_numpy()
 
         fSCA = 1 - (np.exp((-Taf*SWE)/SWEsca) - (SWE/SWEsca) * np.exp(-Taf))
-        fSCA[fSCA > 1] = 1
 
     else:
-        raise Exception("""Length of vars_to_perturbate different to
-                            perturbation_strategy""")
+        raise Exception("""Bad fSCA_implementation""")
 
+    fSCA[fSCA > 1] = 1
     return fSCA
 
 

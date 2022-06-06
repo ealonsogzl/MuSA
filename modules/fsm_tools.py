@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Some functions to interact with FSM.
-The whole module is a bit tricky, as it reads/writes the input/output files.
 
 Author: Esteban Alonso González - e.alonsogzl@gmail.com
 """
@@ -71,7 +70,7 @@ def write_nlst(temp_dest):
     with open(os.path.join(temp_dest, "nlst_base"), "r") as file:
         filedata = file.read()
 
-    # Replace temperateure layers
+    # Replace number of layers and thickness
     filedata = filedata.replace('pyNSMAX', str(Nsmax))
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
 
@@ -221,11 +220,6 @@ def fsm_forcing_wrt(forcing_df, temp_dest):
 
     temp_forz_def = forcing_df.copy()
     temp_forz_def = stable_forcing(forcing_df)
-
-    # Not to allow HR values out of 1-100%
-    temp_forz_def["RH"].values[temp_forz_def["RH"].values > 100] = 100
-    # 1% of RH is actually almost impossible, increase?
-    temp_forz_def["RH"].values[temp_forz_def["RH"].values < 0] = 1
 
     if cfg.precipitation_phase == "Harder":
 

@@ -34,7 +34,7 @@ Kalman_iterations = 4  # IEnKF and IES only
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
-r_cov = [0.1]
+r_cov = [0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
 var_to_assim = ["snd"]
