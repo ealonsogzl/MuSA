@@ -6,6 +6,7 @@ Note that not all the options will be used in all the experimental setups.
 
 """
 
+
 # -----------------------------------
 # Directories
 # -----------------------------------
@@ -18,21 +19,22 @@ intermediate_path = "./DATA/INTERMEDIATE/"
 output_path = "./DATA/RESULTS/"
 tmp_path = None
 
-
+# If restart_run is enabled, the outputs will not be overwritten
+restart_run = False
 # -----------------------------------
 # Data Assim
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
 da_algorithm = 'PBS'
-redraw_prior = True  # PF only
+redraw_prior = False  # PF and PBS only
 Kalman_iterations = 4  # IEnKF and IES only
 
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
-resampling_algorithm = "bootstrapping"
+resampling_algorithm = "no_resampling"
 ensemble_members = 100
-r_cov = [0.04]
+r_cov = [0.1]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
 var_to_assim = ["snd"]
@@ -54,8 +56,9 @@ perturbation_strategy = ["constant_lognormal",
 precipitation_phase = "Harder"
 
 # Save ensembles as a pkl object
-save_ensemble = True
+save_ensemble = False
 save_ensemble_path = "./DATA/ENSEMBLES/"
+
 
 # -----------------------------------
 # Domain
@@ -82,8 +85,10 @@ season_ini_day = 1
 
 # Note: Dates and obs files will be sorted internally. Ensure the alphabetical
 # order of the obs files fits the list of dates (dates_obs)
+
 # Note 2: dates_obs supports list indentation to not have to write many dates
 # in very long runs. example for generating a list of dailly strings:
+
 # =============================================================================
 # import datetime as dt
 #
@@ -93,6 +98,7 @@ season_ini_day = 1
 #             strftime('%Y-%m-%d %H:%M') for x in range(0, (end-start).days+1)]
 #
 # =============================================================================
+
 # Note 3: A single column .cvs without headers with the dates in the
 # format "%Y-%m-%d %H:%M" is also accepted substituting:
 # dates_obs = '/path/to/file/dates.csv'
@@ -136,6 +142,7 @@ frocing_var_names = {"SW_var_name": "SW",
 forcing_dim_names = {"lat_forz_var_name": "northing",
                      "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
+
 
 # -----------------------------------
 # FSM configuration

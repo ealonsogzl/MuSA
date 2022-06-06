@@ -23,6 +23,8 @@ SWEsca = 13                     # SWE where SCA=1 [mm] (Noah fSCA)
 Taf = 4                         # fSCA shape parameter [-] (Noah fSCA)
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
 sdfrac = 0.1                    # fraction of the sd_errors to use if collapse
+
+
 # -----------------------------------
 # Mean errors
 # -----------------------------------
@@ -52,6 +54,7 @@ sd_errors = {"SW": 0.1,
 # -----------------------------------
 # Unit conversions
 # -----------------------------------
+
 forcing_offset = {"SW": 0,
                   "LW": 0,
                   "Prec": 0,
@@ -67,4 +70,3 @@ forcing_multiplier = {"SW": 1,
                       "RH": 1,
                       "Ua": 1,
                       "Ps": 1}
-

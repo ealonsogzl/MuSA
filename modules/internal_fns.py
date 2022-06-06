@@ -531,8 +531,9 @@ def cell_assimilation(lon_idx, lat_idx):
     sd_filename = os.path.join(cfg.output_path, sd_filename)
     OL_filename = os.path.join(cfg.output_path, OL_filename)
 
-    # Check if file allready exist
-    if (os.path.exists(DA_filename) and
+    # Check if file allready exist if is a restart run
+    if (cfg.restart_run and
+        os.path.exists(DA_filename) and
         os.path.exists(updated_filename) and
         os.path.exists(sd_filename) and
             os.path.exists(OL_filename)):
@@ -610,9 +611,9 @@ def cell_assimilation(lon_idx, lat_idx):
 
         # If redraw, calculate the postrior shape
         if cfg.redraw_prior:
-            
+
             Ensemble.posterior_shape()
-            
+
         # Resample if filtering
         if(cfg.da_algorithm == "PF"):
 
