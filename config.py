@@ -70,13 +70,15 @@ implementation = "distributed"
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
 nprocess = None  # if None, the number of processors will be estimated
-aws_lat = 4735311.06
-aws_lon = 710803.42
+
+aws_lat = 4735311.06 #Latitude in case of point_scale
+aws_lon = 710803.42 #Longitude in case of point_scale
+
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
-season_ini_month = 9
-season_ini_day = 1
+season_ini_month = 9 #In smoothers, beginning of DA window (month)
+season_ini_day = 1   #In smoothers, beginning of DA window (day)
 
 
 # -----------------------------------

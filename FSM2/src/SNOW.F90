@@ -112,7 +112,7 @@ real :: &
   thetar(Nsmax),     &! Irreducible water content
   thetaw(Nsmax),     &! Volumetric liquid water content
   theta0(Nsmax),     &! Liquid water content at start of timestep
-  Qw(Nsmax+1)         ! Water flux at snow layer boundaruess (m/s)
+  Qw(Nsmax+1)         ! Water flux at snow layer boundaruess (m/s
 
 ! No snow
 Gsoil = Gsrf
@@ -418,6 +418,7 @@ if (snd > 0) then  ! Existing or new snowpack
   Qw(:) = 0
   Qw(1) = Rf/rho_wat
   Roff = 0
+  thetaw(:) = 0
   do k = 1, Nsnow
     ksat(k) = 0.31*(rho_wat*g/mu_wat)*Rgrn(k)**2*exp(-7.8*Sice(k)/(rho_wat*Dsnw(k)))
     phi(k) = 1 - Sice(k)/(rho_ice*Dsnw(k))
@@ -453,7 +454,7 @@ if (snd > 0) then  ! Existing or new snowpack
         dtheta(k) = - (a(k)*dtheta(k-1) + rhs(k))/b(k)
       end do 
       do k = 1, Nsnow
-        thetaw(k) = thetaw(k) + dtheta(k)
+        thetaw(k) = max(thetaw(k) + dtheta(k), 0.)
         if (thetaw(k) > phi(k)) then
           Qw(k+1) = Qw(k+1) + (thetaw(k) - phi(k))*Dsnw(k)/dth
           thetaw(k) = phi(k)
