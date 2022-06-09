@@ -448,7 +448,7 @@ def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
     # Get updated columns
-    colums = ["snd", "SWE", "Tsrf", "alb", "fSCA", "SCA"]
+    colums = ["snd", "SWE", "Tsrf", "fSCA", "alb", "SCA"]
     pesos = Ensemble.wgth
 
     for n, name_col in enumerate(colums):
@@ -479,7 +479,7 @@ def init_result(del_t, DA=False):
 
     else:
         # Concatenate
-        col_names = ["Date", "snd", "SWE", "Tsrf", "alb", "fSCA", "SCA"]
+        col_names = ["Date", "snd", "SWE", "Tsrf", "fSCA", "alb", "SCA"]
 
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
@@ -506,7 +506,7 @@ def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
     fsm.fsm_run(temp_dest)
     state = fsm.fsm_read_output(temp_dest, read_dump=False)
     state.columns = ["year", "month", "day", "hour", "snd", "SWE",
-                     "Tsrf", "alb"]
+                     "Tsrf", "fSCA", "alb"]
 
     state.to_csv(filename, sep=",", header=True, index=False)
 

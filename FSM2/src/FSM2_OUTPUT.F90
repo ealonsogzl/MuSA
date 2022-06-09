@@ -3,7 +3,7 @@
 !-----------------------------------------------------------------------
 subroutine FSM2_OUTPUT(Ncols,Nrows,year,month,day,hour,                &
                        H,LE,LWout,LWsub,Melt,Roff,snd,snw,subl,svg,    &
-                       SWout,SWsub,Tsoil,Tsnow,Tsrf,albs,Tveg,Usub,VAI)
+                       SWout,SWsub,Tsoil,Tsnow,Tsrf,Tveg,Usub,VAI,fsnow,asrf)
 
 #include "OPTS.h"
 
@@ -42,12 +42,13 @@ real, intent(in) :: &
   SWsub(Nrows,Ncols),       &! Subcanopy downward SW radiation (W/m^2)
   Tsoil(Nsoil,Nrows,Ncols), &! Soil layer temperatures (K)
   Tsnow(Nsmax,Nrows,Ncols), &! Snow layer temperatures (K)
-  albs(Nrows,Ncols),        &! Snow albedo
   Tsrf(Nrows,Ncols),        &! Snow/ground surface temperature (K)
   Tveg(Ncnpy,Nrows,Ncols),  &! Vegetation layer temperatures (K)
   Usub(Nrows,Ncols),        &! Subcanopy wind speed (m/s)
-  VAI(Nrows,Ncols)           ! Vegetation area index
-
+  VAI(Nrows,Ncols),         &! Vegetation area index
+  fsnow(Nrows,Ncols),       &! Ground snowcover fraction
+  asrf(Nrows,Ncols)          ! Snow/ground surface albedo
+  
 ! Subcanopy diagnostic outputs
 !if (maxval(VAI) > 0) write(ucan,100) year,month,day,hour,LWsub,SWsub,Usub
 
@@ -56,7 +57,7 @@ real, intent(in) :: &
 
 ! State outputs
 !write(usta,100) year,month,day,hour,snd,snw,svg,Tsoil,Tsnow,Tsrf,Tveg
-write(usta,100) year,month,day,hour,snd,snw,Tsrf,albs!,Tsnow
+write(usta,100) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf!,Tsnow
 
 100 format(3(i4),f8.3,*(e14.6))
 

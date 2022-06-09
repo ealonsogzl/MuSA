@@ -9,11 +9,13 @@
 &drive
   met_file = 'input.txt'
   dt=3600
+  SWEsca = pySWEsca
+  Taf = pyTaf
 /
 &veg
 /
 &initial
-  start_file = 'out_dump'
+  pyINIT
 /
 &outputs
   runid = 'out_'

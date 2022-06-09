@@ -72,7 +72,10 @@ real :: &
   elev,              &! Solar elevation (radians)
   hour,              &! Hour of day
   zT,                &! Temperature and humidity measurement height (m)
-  zU                  ! Wind speed measurement height (m)
+  zU,                &! Wind speed measurement height (m)
+  SWEsca,            &! SWE where SCA=1 [mm] (Noah fSCA)
+  Taf                 ! #fSCA shape parameter [-] (Noah fSCA)
+  
 real, allocatable :: &
   LW(:,:),           &! Incoming longwave radiation (W/m^2)
   Ps(:,:),           &! Surface pressure (Pa)
@@ -103,7 +106,8 @@ real, allocatable :: &
   Tveg(:,:,:),       &! Vegetation layer temperatures (K)
   Vsmc(:,:,:),       &! Volumetric moisture content of soil layers
   fsat(:),           &! Initial soil layer moisture/saturation
-  Tprf(:)             ! Initial soil layer temperatures (K)
+  Tprf(:)            ! Initial soil layer temperatures (K)
+
 
 ! Diagnostics
 real, allocatable :: &
@@ -120,7 +124,9 @@ real, allocatable :: &
   SWout(:,:),        &! Outgoing SW radiation (W/m^2)
   SWsub(:,:),        &! Subcanopy downward SW radiation (W/m^2)
   Usub(:,:),         &! Subcanopy wind speed (m/s)
-  Wflx(:,:,:)         ! Water flux into snow layer (kg/m^2/s)
+  Wflx(:,:,:),       &! Water flux into snow layer (kg/m^2/s)
+  fsnow(:,:),        &! Ground snowcover fraction
+  asrf(:,:)           ! Snow/ground surface albedo
 
 ! Vegetation characteristics
 character(len=70) :: &
@@ -153,7 +159,7 @@ integer :: &
   j,                 &! Grid column counter
   k                   ! Soil layer counter
 
-namelist    /drive/ met_file,dt,lat,noon,zT,zU
+namelist    /drive/ met_file,dt,lat,noon,zT,zU,SWEsca,Taf
 namelist /gridpnts/ Ncols,Nrows,Nsmax,Nsoil
 namelist /gridlevs/ Dzsnow,Dzsoil,fvg1,zsub
 namelist  /initial/ fsat,Tprf,start_file
@@ -194,6 +200,8 @@ lat = 0
 noon = 12
 zT = 2
 zU = 10
+SWEsca = 13
+Taf = 2.6
 read(5,drive)
 open(umet, file = met_file)
 read(umet,*) year,month,day,hour
@@ -244,6 +252,7 @@ hcon_soil = (hcon_air**Vsat) * ((hcon_clay**fcly)*(hcon_sand**(1 - fcly))**(1 - 
 allocate(albs(Ncols,Nrows))
 allocate(Nsnow(Ncols,Nrows))
 allocate(Tsrf(Ncols,Nrows))
+allocate(snw(Ncols,Nrows))
 allocate(Dsnw(Nsmax,Ncols,Nrows))
 allocate(Qcan(Ncnpy,Ncols,Nrows))
 allocate(Rgrn(Nsmax,Ncols,Nrows))
@@ -305,6 +314,7 @@ if (start_file /= 'none') then
   read(udmp,*) Tveg
   read(udmp,*) Vsmc
   close(udmp)
+  snw = sum(Sice) + sum(Sliq)
 end if
 
 ! Allocate diagnostic output arrays
@@ -315,15 +325,17 @@ allocate(LWsub(Ncols,Nrows))
 allocate(Melt(Ncols,Nrows))
 allocate(Roff(Ncols,Nrows))
 allocate(snd(Ncols,Nrows))
-allocate(snw(Ncols,Nrows))
+!allocate(snw(Ncols,Nrows))
 allocate(subl(Ncols,Nrows))
 allocate(svg(Ncols,Nrows))
 allocate(SWout(Ncols,Nrows))
 allocate(SWsub(Ncols,Nrows))
 allocate(Usub(Ncols,Nrows))
 allocate(Wflx(Nsmax,Ncols,Nrows))
+allocate(fsnow(Ncols,Nrows))
+allocate(asrf(Ncols,Nrows))
 
-! Output files
+! Output files 
 dump_file = 'dump'
 runid = 'none'
 read(5,outputs)
@@ -348,8 +360,8 @@ do
   do j = 1, Ncols
     call FSM2_TIMESTEP(                                                &
                        ! Driving variables                             &
-                       dt,elev,zT,zU,LW(j,i),Ps(j,i),Qa(j,i),          &
-                       Rf(j,i),Sdif(j,i),Sdir(j,i),Sf(j,i),            &
+                       dt,elev,zT,zU,SWEsca,Taf,LW(j,i),Ps(j,i),       &
+                       Qa(j,i),Rf(j,i),Sdif(j,i),Sdir(j,i),Sf(j,i),    &
                        Ta(j,i),trans(j,i),Ua(j,i),                     &
                        ! Vegetation characteristics                    &
                        alb0(j,i),vegh(j,i),VAI(j,i),                   &
@@ -363,7 +375,7 @@ do
                        H(j,i),LE(j,i),LWout(j,i),LWsub(j,i),           &
                        Melt(j,i),Roff(j,i),snd(j,i),snw(j,i),          &
                        subl(j,i),svg(j,i),SWout(j,i),SWsub(j,i),       &
-                       Usub(j,i),Wflx(:,j,i)                           )
+                       Usub(j,i),Wflx(:,j,i),fsnow(j,i), asrf(j,i)     )
   end do
   end do
 #if PROFNC == 1
@@ -373,9 +385,11 @@ do
                     Tsnow(:,1,1),Tsoil(:,1,1),Tsrf(1,1),varid,         &
                     Wflx(:,1,1),rec) 
 #else
+
   call FSM2_OUTPUT(Ncols,Nrows,year,month,day,hour,                    &
                    H,LE,LWout,LWsub,Melt,Roff,snd,snw,subl,svg,SWout,  &
-                   SWsub,Tsoil,Tsnow,Tsrf,albs,Tveg,Usub,VAI)
+                   SWsub,Tsoil,Tsnow,Tsrf,Tveg,Usub,VAI,fsnow,asrf)
+
 #endif
 end do
 1 continue

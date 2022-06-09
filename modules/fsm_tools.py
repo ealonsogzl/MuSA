@@ -8,7 +8,6 @@ Author: Esteban Alonso González - e.alonsogzl@gmail.com
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import pandas as pd
 import config as cfg
@@ -58,7 +57,7 @@ def fsm_copy(x_id, y_id):
     return final_directory
 
 
-def write_nlst(temp_dest):
+def write_nlst(temp_dest, step):
 
     Dzsnow = cfg.Dzsnow
     Nsmax = len(Dzsnow)
@@ -74,6 +73,15 @@ def write_nlst(temp_dest):
     filedata = filedata.replace('pyNSMAX', str(Nsmax))
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
 
+    # fSCA parameters
+    filedata = filedata.replace('pySWEsca', str(cfg.SWEsca))
+    filedata = filedata.replace('pyTaf', str(cfg.Taf))
+
+    if step == 0:
+        filedata = filedata.replace('pyINIT', "\n")
+    else:
+        filedata = filedata.replace('pyINIT', "start_file = 'out_dump'")
+
     # Write the file out again
     with open(os.path.join(temp_dest, "nlst"), 'w') as file:
         file.write(filedata)
@@ -83,20 +91,42 @@ def fsm_compile(temp_dest):
 
     # fsm_path = cfg.fsm_src_path
     # TODO: provide full suport for wind32
-    write_nlst(temp_dest)
+    with open(os.path.join(temp_dest, "compil_base.sh"), "r") as file:
+        filedata = file.read()
 
-    if sys.platform == "linux":
-        bash_command = "./compil.sh"
-    elif sys.platform == "win32":
-        bash_command = "./compil.bat"
-    else:
-        raise Exception(sys.platform, " is not supported by MuSA yet")
+    # Canopy options, to be updated if canopy module is enabled
+    filedata = filedata.replace('pyCANMOD', str(1))
+    filedata = filedata.replace('pyCANRAD', str(1))
 
-    bash_command = "cd " + temp_dest + " && " + bash_command
+    # Fortran compiler
+    filedata = filedata.replace('pyFC', cfg.FC)
+
+    # Parameterizations
+    filedata = filedata.replace('pyALBEDO', str(cfg.ALBEDO))
+    filedata = filedata.replace('pyCONDCT', str(cfg.CONDCT))
+    filedata = filedata.replace('pyDENSITY', str(cfg.DENSITY))
+    filedata = filedata.replace('pyEXCHNG', str(cfg.EXCHNG))
+    filedata = filedata.replace('pyHYDROL', str(cfg.HYDROL))
+    filedata = filedata.replace('pySNFRAC', str(cfg.SNFRAC))
+
+    compile_path = os.path.join(temp_dest, "compil.sh")
+
+    # Ensure the compile.sh file is not there
+    if (os.path.exists(compile_path)):
+        os.remove(compile_path)
+
+    # Write the file out again
+    with open(compile_path, "x") as file:
+        file.write(filedata)
+
+    # Forze executable permision
+    os.chmod(compile_path, 509)
+
+    bash_command = "cd " + temp_dest + " && " + "./compil.sh"
     subprocess.call(bash_command, shell=True)
 
 
-def fsm_run(fsm_path):
+def fsm_run(fsm_path, step=0):
     """
     Just run FSM in a directory
 
@@ -110,6 +140,8 @@ def fsm_run(fsm_path):
     [None]
 
    """
+    write_nlst(fsm_path, step)
+
     fsm_exe_dir = os.path.join(fsm_path, "FSM2")
     order = fsm_exe_dir + " < nlst"
     fsm_run_comand = subprocess.call(order, shell=True, cwd=fsm_path)
@@ -132,7 +164,7 @@ def fsm_read_output(fsm_path, read_dump=True):
     state_dir = os.path.join(fsm_path, "out_stat.txt")
     state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
     state.columns = ["year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "alb"]
+                     "SWE", "Tsrf", "fSCA", "alb"]
     if (state.isnull().values.any()):
         raise Exception('''nan found in FSM2 output: check forcing or
                         change FORTRAN compiler''')
@@ -244,30 +276,6 @@ def fsm_forcing_wrt(forcing_df, temp_dest):
     temp_forz_def.to_csv(file_name, sep="\t", header=False, index=False)
 
 
-def write_init(fsm_path):
-
-    # Init vars ("0" string necesary to allow int and float values)
-    d = {"0": [0.8, 0, "0", 0, 0, 0, 0, -999, 285, 273.15, 284, 285,
-               -999, 0.2],
-         "1": [float("NAN"), 0, float("NAN"), float("NAN"), 0, 0, 0,
-               float("NAN"), float("NAN"), 273.15, 285, float("NAN"),
-               float("NAN"), 0.2],
-         "2": [float("NAN"), 0, float("NAN"), float("NAN"), 0, 0, 0,
-               float("NAN"), float("NAN"), 273.15, 285, float("NAN"),
-               float("NAN"), 0.2],
-         "3": [float("NAN"), float("NAN"), float("NAN"), float("NAN"),
-               float("NAN"), float("NAN"), float("NAN"), float("NAN"),
-               float("NAN"), float("NAN"), 285, float("NAN"), float("NAN"),
-               0.2]}
-
-    dump = pd.DataFrame(data=d)
-#    dump.index=["albs","Dsnw","Nsnow","Qcan","Rgrn","Slice","Sliq",
-#               "Sveg","Tcan","Tsnow","Tsoil","Tsrf","Tveg","Vsmc"]
-
-    file_name = os.path.join(fsm_path, "out_dump")
-    dump.to_csv(file_name, header=None, index=None, sep=' ', mode='w')
-
-
 def write_dump(dump, fsm_path):
     """
     Parameters
@@ -292,7 +300,7 @@ def write_dump(dump, fsm_path):
 def get_var_state_position(var):
 
     state_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "alb", "fSCA", "SCA")
+                     "SWE", "Tsrf", "fSCA", "alb", "SCA")
 
     return state_columns.index(var)
 

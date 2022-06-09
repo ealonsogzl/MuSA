@@ -39,9 +39,6 @@ r_cov = [0.15]
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
 var_to_assim = ["snd"]
 
-# fSCA_implementation from "Noah", "linear" or "asymptotic"
-fSCA_implementation = "Noah"
-
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
 vars_to_perturbate = ["Prec", "Ta"]
 
@@ -71,15 +68,14 @@ implementation = "distributed"
 parallelization = "multiprocessing"
 nprocess = None  # if None, the number of processors will be estimated
 
-aws_lat = 4735311.06 #Latitude in case of point_scale
-aws_lon = 710803.42 #Longitude in case of point_scale
+aws_lat = 4735311.06  # Latitude in case of point_scale
+aws_lon = 710803.42   # Longitude in case of point_scale
 
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
-season_ini_month = 9 #In smoothers, beginning of DA window (month)
-season_ini_day = 1   #In smoothers, beginning of DA window (day)
-
+season_ini_month = 9  # In smoothers, beginning of DA window (month)
+season_ini_day = 1    # In smoothers, beginning of DA window (day)
 
 # -----------------------------------
 # Observations
@@ -147,6 +143,28 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
 
 
 # -----------------------------------
-# FSM configuration
+# FSM configuration (Namelist)
 # -----------------------------------
+
+# Number and thickness of snow layers
 Dzsnow = [0.1, 0.2, 0.4]
+
+# SWE threshold where SCA = 1 (SWEsca) and
+# shape of the fSCA (Taf). [SNFRAC = 3]
+SWEsca = 16
+Taf = 2.6
+
+# -----------------------------------
+# FSM configuration (Compilation)
+# -----------------------------------
+
+# Fortran compiler
+FC = 'ifort'
+
+# Parameterizations, see FSM2 documentation
+ALBEDO = 2
+CONDCT = 1
+DENSITY = 2
+EXCHNG = 1
+HYDROL = 2
+SNFRAC = 3
