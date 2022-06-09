@@ -13,7 +13,7 @@
 &veg
 /
 &initial
-  start_file = 'out_dump'
+  pyINIT
 /
 &outputs
   runid = 'out_'

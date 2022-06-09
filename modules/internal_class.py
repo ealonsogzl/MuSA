@@ -75,13 +75,11 @@ class SnowEnsemble:
         fsm.fsm_forcing_wrt(forcing_sbst, self.temp_dest)
 
         # Write init or dump file from previous run if step != 0
-        if step == 0:
-            fsm.write_init(self.temp_dest)
-        else:
+        if step != 0:
             fsm.write_dump(self.origin_dump[step - 1], self.temp_dest)
 
         # create open loop simulation
-        fsm.fsm_run(self.temp_dest)
+        fsm.fsm_run(self.temp_dest, step)
 
         # read FSM outputs
         origin_state_tmp, origin_dump_tmp =\
@@ -139,16 +137,14 @@ class SnowEnsemble:
             # writte perturbed forcing
             fsm.fsm_forcing_wrt(member_forcing, self.temp_dest)
 
-            if step == 0:
-                fsm.write_init(self.temp_dest)
-            else:
+            if step != 0:
                 if cfg.da_algorithm in ['PBS', 'PF']:
                     fsm.write_dump(self.out_members[mbr], self.temp_dest)
                 else:  # if kalman, write updated dump
                     fsm.write_dump(self.out_members_kalman[mbr],
                                    self.temp_dest)
 
-            fsm.fsm_run(self.temp_dest)
+            fsm.fsm_run(self.temp_dest, step)
 
             state_tmp, dump_tmp = fsm.fsm_read_output(self.temp_dest)
 
@@ -181,13 +177,11 @@ class SnowEnsemble:
 
                 fsm.fsm_forcing_wrt(member_forcing, self.temp_dest)
 
-                if step == 0:
-                    fsm.write_init(self.temp_dest)
-                else:
+                if step != 0:
                     fsm.write_dump(self.out_members_kalman[mbr],
                                    self.temp_dest)
 
-                fsm.fsm_run(self.temp_dest)
+                fsm.fsm_run(self.temp_dest, step)
 
                 state_tmp, dump_tmp = fsm.fsm_read_output(self.temp_dest)
 
