@@ -73,6 +73,10 @@ def write_nlst(temp_dest, step):
     filedata = filedata.replace('pyNSMAX', str(Nsmax))
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
 
+    # fSCA parameters
+    filedata = filedata.replace('pySWEsca', str(cfg.SWEsca))
+    filedata = filedata.replace('pyTaf', str(cfg.Taf))
+
     if step == 0:
         filedata = filedata.replace('pyINIT', "\n")
     else:

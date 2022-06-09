@@ -149,6 +149,11 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
 # Number and thickness of snow layers
 Dzsnow = [0.1, 0.2, 0.4]
 
+# SWE threshold where SCA = 1 (SWEsca) and
+# shape of the fSCA (Taf). [SNFRAC = 3]
+SWEsca = 16
+Taf = 2.6
+
 # -----------------------------------
 # FSM configuration (Compilation)
 # -----------------------------------
@@ -163,15 +168,3 @@ DENSITY = 2
 EXCHNG = 1
 HYDROL = 2
 SNFRAC = 3
-
-
-
-
-
-
-
-
-
-
-
-
