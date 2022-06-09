@@ -18,11 +18,8 @@ tSNOW = 273                     # Guessed Snow temperature [K]
 lSNOW = 0.1                     # Guessed Snow liquid content [-]
 sfcTEMP = 273                   # Guessed Snow/ground sfc temp [K]
 grRADI = 0.00005                # Guessed grain radius [m]
-Hfsn = 0.1                      # fSCA depth scale [m] (linear/asymptotic fSCA)
-SWEsca = 13                     # SWE where SCA=1 [mm] (Noah fSCA)
-Taf = 4                         # fSCA shape parameter [-] (Noah fSCA)
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
-sdfrac = 0.1                    # fraction of the sd_errors to use if collapse
+sdfrac = 0.3                    # fraction of the sd_errors to use if collapse
 
 
 # -----------------------------------

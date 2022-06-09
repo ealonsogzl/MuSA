@@ -132,7 +132,7 @@ def fsm_read_output(fsm_path, read_dump=True):
     state_dir = os.path.join(fsm_path, "out_stat.txt")
     state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
     state.columns = ["year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "alb"]
+                     "SWE", "Tsrf", "fSCA", "alb"]
     if (state.isnull().values.any()):
         raise Exception('''nan found in FSM2 output: check forcing or
                         change FORTRAN compiler''')
@@ -292,7 +292,7 @@ def write_dump(dump, fsm_path):
 def get_var_state_position(var):
 
     state_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "alb", "fSCA", "SCA")
+                     "SWE", "Tsrf", "fSCA", "alb", "SCA")
 
     return state_columns.index(var)
 

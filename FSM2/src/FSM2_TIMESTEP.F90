@@ -1,13 +1,13 @@
 !-----------------------------------------------------------------------
 ! Call FSM2 physics subroutines for one timestep at one point
 !-----------------------------------------------------------------------
-subroutine FSM2_TIMESTEP(dt,elev,zT,zU,                                &
+subroutine FSM2_TIMESTEP(dt,elev,zT,zU,SWEsca,Taf,                     &
                          LW,Ps,Qa,Rf,Sdif,Sdir,Sf,Ta,trans,Ua,         &
                          alb0,vegh,VAI,                                &
                          albs,Tsrf,Dsnw,Nsnow,Qcan,Rgrn,Sice,Sliq,     &
                          Sveg,Tcan,Tsnow,Tsoil,Tveg,Vsmc,              &
                          H,LE,LWout,LWsub,Melt,Roff,snd,snw,subl,svg,  &
-                         SWout,SWsub,Usub,Wflx)
+                         SWout,SWsub,Usub,Wflx,fsnow,asrf)
 
 use LAYERS, only: &
   Ncnpy,             &! Number of canopy layers
@@ -20,7 +20,9 @@ implicit none
 real, intent(in) :: &!
   dt,                &! Timestep (s)
   zT,                &! Temperature and humidity measurement height (m)
-  zU                  ! Wind speed measurement height (m)
+  zU,                 &! Wind speed measurement height (m)
+  SWEsca,            &! SWE where SCA=1 [mm] (Noah fSCA)
+  Taf                ! #fSCA shape parameter [-] (Noah fSCA)
 
 ! Meteorological variables
 real, intent(in) :: &
@@ -76,7 +78,9 @@ real, intent(out) :: &
   SWout,             &! Outgoing SW radiation (W/m^2)
   SWsub,             &! Subcanopy downward SW radiation (W/m^2)
   Usub,              &! Subcanopy wind speed (m/s)
-  Wflx(Nsmax)         ! Water flux into snow layer (kg/m^2/s)
+  Wflx(Nsmax),       &! Water flux into snow layer (kg/m^2/s)
+  fsnow,             &! Ground snowcover fraction
+  asrf                ! Snow/ground surface albed
 
 ! Vegetation properties
 real :: &
@@ -89,7 +93,7 @@ real :: &
 
 ! Snow properties
 real :: &
-  fsnow,             &! Ground snowcover fraction
+  !fsnow,             &! Ground snowcover fraction
   ksnow(Nsmax)        ! Thermal conductivities of snow layers (W/m/K)
 
 ! Surface properties
@@ -117,8 +121,8 @@ real :: &
 
 call CANOPY(Sveg,Tveg,VAI,cveg,fcans,lveg,Scap,Tveg0)
 
-call SWRAD(alb0,Dsnw,dt,elev,fcans,lveg,Sdif,Sdir,Sf,Tsrf,             &
-           albs,fsnow,SWout,SWsrf,SWsub,SWveg,tdif)
+call SWRAD(alb0,SWEsca,Taf,Dsnw,snw,dt,elev,fcans,lveg,Sdif,Sdir,             &
+           Sf,Tsrf,albs,fsnow,SWout,SWsrf,SWsub,SWveg,tdif,asrf)
 
 call THERMAL(Dsnw,Nsnow,Sice,Sliq,Tsnow,Tsoil,Vsmc,csoil,Ds1,          &
              gs1,ksnow,ksoil,ks1,Ts1)

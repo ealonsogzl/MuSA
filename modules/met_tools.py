@@ -221,37 +221,6 @@ def redraw(func_shape):
     return storage
 
 
-def fSCA(state):
-
-    fSCA_implementation = cfg.fSCA_implementation
-    snow_depth_id = fsm.get_var_state_position("snd")
-    snow_depth = state.iloc[:, snow_depth_id].copy().to_numpy()
-
-    if fSCA_implementation == "asymptotic":
-
-        fSCA = np.tanh(snow_depth / cnt.Hfsn)
-
-    elif fSCA_implementation == "linear":
-
-        fSCA = np.tanh(snow_depth / cnt.Hfsn)
-
-    elif fSCA_implementation == "Noah":
-
-        SWEsca = cnt.SWEsca
-        Taf = cnt.Taf
-
-        SWE_id = fsm.get_var_state_position("SWE")
-        SWE = state.iloc[:, SWE_id].to_numpy()
-
-        fSCA = 1 - (np.exp((-Taf*SWE)/SWEsca) - (SWE/SWEsca) * np.exp(-Taf))
-
-    else:
-        raise Exception("""Bad fSCA_implementation""")
-
-    fSCA[fSCA > 1] = 1
-    return fSCA
-
-
 def SCA(state):
 
     SCA0 = cnt.SCA0

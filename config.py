@@ -39,9 +39,6 @@ r_cov = [0.15]
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
 var_to_assim = ["snd"]
 
-# fSCA_implementation from "Noah", "linear" or "asymptotic"
-fSCA_implementation = "Noah"
-
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
 vars_to_perturbate = ["Prec", "Ta"]
 
@@ -79,7 +76,6 @@ date_end = "2020-08-30 23:00"
 
 season_ini_month = 9 #In smoothers, beginning of DA window (month)
 season_ini_day = 1   #In smoothers, beginning of DA window (day)
-
 
 # -----------------------------------
 # Observations
