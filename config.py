@@ -26,14 +26,14 @@ restart_run = False
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
-da_algorithm = 'PF'
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 Kalman_iterations = 4  # IEnKF and IES only
 
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
-resampling_algorithm = "stratified_resample"
-ensemble_members = 20
+resampling_algorithm = "no_resampling"
+ensemble_members = 100
 r_cov = [0.15]
 
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
@@ -53,7 +53,7 @@ perturbation_strategy = ["constant_lognormal",
 precipitation_phase = "Harder"
 
 # Save ensembles as a pkl object
-save_ensemble = True
+save_ensemble = False
 save_ensemble_path = "./DATA/ENSEMBLES/"
 
 
@@ -62,20 +62,20 @@ save_ensemble_path = "./DATA/ENSEMBLES/"
 # -----------------------------------
 
 # implementation from "point_scale" or "distributed"
-implementation = "point_scale"
+implementation = "distributed"
 
 # parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
 parallelization = "multiprocessing"
 nprocess = None  # if None, the number of processors will be estimated
 
-aws_lat = 4735311.06 #Latitude in case of point_scale
-aws_lon = 710803.42 #Longitude in case of point_scale
+aws_lat = 4735311.06  # Latitude in case of point_scale
+aws_lon = 710803.42   # Longitude in case of point_scale
 
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
-season_ini_month = 9 #In smoothers, beginning of DA window (month)
-season_ini_day = 1   #In smoothers, beginning of DA window (day)
+season_ini_month = 9  # In smoothers, beginning of DA window (month)
+season_ini_day = 1    # In smoothers, beginning of DA window (day)
 
 # -----------------------------------
 # Observations
@@ -143,6 +143,35 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
 
 
 # -----------------------------------
-# FSM configuration
+# FSM configuration (Namelist)
 # -----------------------------------
+
+# Number and thickness of snow layers
 Dzsnow = [0.1, 0.2, 0.4]
+
+# -----------------------------------
+# FSM configuration (Compilation)
+# -----------------------------------
+
+# Fortran compiler
+FC = 'ifort'
+
+# Parameterizations, see FSM2 documentation
+ALBEDO = 2
+CONDCT = 1
+DENSITY = 2
+EXCHNG = 1
+HYDROL = 2
+SNFRAC = 3
+
+
+
+
+
+
+
+
+
+
+
+

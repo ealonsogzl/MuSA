@@ -8,7 +8,6 @@ Author: Esteban Alonso González - e.alonsogzl@gmail.com
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import pandas as pd
 import config as cfg
@@ -88,15 +87,38 @@ def fsm_compile(temp_dest):
 
     # fsm_path = cfg.fsm_src_path
     # TODO: provide full suport for wind32
+    with open(os.path.join(temp_dest, "compil_base.sh"), "r") as file:
+        filedata = file.read()
 
-    if sys.platform == "linux":
-        bash_command = "./compil.sh"
-    elif sys.platform == "win32":
-        bash_command = "./compil.bat"
-    else:
-        raise Exception(sys.platform, " is not supported by MuSA yet")
+    # Canopy options, to be updated if canopy module is enabled
+    filedata = filedata.replace('pyCANMOD', str(1))
+    filedata = filedata.replace('pyCANRAD', str(1))
 
-    bash_command = "cd " + temp_dest + " && " + bash_command
+    # Fortran compiler
+    filedata = filedata.replace('pyFC', cfg.FC)
+
+    # Parameterizations
+    filedata = filedata.replace('pyALBEDO', str(cfg.ALBEDO))
+    filedata = filedata.replace('pyCONDCT', str(cfg.CONDCT))
+    filedata = filedata.replace('pyDENSITY', str(cfg.DENSITY))
+    filedata = filedata.replace('pyEXCHNG', str(cfg.EXCHNG))
+    filedata = filedata.replace('pyHYDROL', str(cfg.HYDROL))
+    filedata = filedata.replace('pySNFRAC', str(cfg.SNFRAC))
+
+    compile_path = os.path.join(temp_dest, "compil.sh")
+
+    # Ensure the compile.sh file is not there
+    if (os.path.exists(compile_path)):
+        os.remove(compile_path)
+
+    # Write the file out again
+    with open(compile_path, "x") as file:
+        file.write(filedata)
+
+    # Forze executable permision
+    os.chmod(compile_path, 509)
+
+    bash_command = "cd " + temp_dest + " && " + "./compil.sh"
     subprocess.call(bash_command, shell=True)
 
 
