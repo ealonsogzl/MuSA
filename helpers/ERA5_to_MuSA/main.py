@@ -5,7 +5,7 @@ Small application to download data from ERA5_land ready to be used by MuSA,
 using Google Earth Engine. To use it you need to have the GEE API installed
 and to be authenticated.
 
-It creates a flat netcdf dimensions: (time x 1 x number of locations)
+It creates a flat netcdf. Dimensions: (time x 1 x number of locations)
 
 Author: Esteban Alonso González - e.alonsogzl@gmail.com
 """
@@ -60,3 +60,4 @@ for n in range(len(era_lon)):
     MuSA_era5 = myf.format_forz(era5df)
 
     myf.store_era_nc(nc_name, MuSA_era5, n)
+
