@@ -21,7 +21,9 @@ In its current version MuSA provides support for assimilating different  variabl
 - Land/Snow surface temperature (K) 
 - Snow cover area (binary) 
 - Fractional snow cover area (-) 
-- Albedo (-) 
+- Albedo (-)
+- Sensible heat flux to the atmosphere (W m<sup>-2</sup>)
+- Latent heat flux to the atmosphere (W m<sup>-2</sup>)
 
 The support of other variables like liquid water content, density, ice content etc.  could be relatively easily implemented on demand. 
   
