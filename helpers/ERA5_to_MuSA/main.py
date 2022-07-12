@@ -22,8 +22,8 @@ i_date = "2015-01-16"
 f_date = "2017-01-16"
 
 # Define the locations of interest in degrees.
-era_lon = [100.233, 0.63, 7.02]
-era_lat = [64.266, 42.67, 45.49]
+era_lon = [100.233]
+era_lat = [64.266]
 
 
 ###

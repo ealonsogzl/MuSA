@@ -67,8 +67,8 @@ def fromGEE_to_df(dates, era5_land, era_poi):
     era5_df = pd.DataFrame(columns=['datetime',
                                     'temperature_2m',
                                     'dewpoint_temperature_2m',
-                                    'surface_solar_radiation_downwards',
-                                    'surface_thermal_radiation_downwards',
+                                    'surface_solar_radiation_downwards_hourly',
+                                    'surface_thermal_radiation_downwards_hourly',
                                     'total_precipitation_hourly',
                                     'u_component_of_wind_10m',
                                     'v_component_of_wind_10m',
@@ -82,8 +82,8 @@ def fromGEE_to_df(dates, era5_land, era_poi):
         # Selection of appropriate bands and dates for LST.
         era5_selc = era5_land.select('temperature_2m',
                                      'dewpoint_temperature_2m',
-                                     'surface_solar_radiation_downwards',
-                                     'surface_thermal_radiation_downwards',
+                                     'surface_solar_radiation_downwards_hourly',
+                                     'surface_thermal_radiation_downwards_hourly',
                                      'total_precipitation_hourly',
                                      'u_component_of_wind_10m',
                                      'v_component_of_wind_10m',
@@ -95,8 +95,8 @@ def fromGEE_to_df(dates, era5_land, era_poi):
         era5_dftmp = ee_array_to_df(era5_data,
                                     ['temperature_2m',
                                      'dewpoint_temperature_2m',
-                                     'surface_solar_radiation_downwards',
-                                     'surface_thermal_radiation_downwards',
+                                     'surface_solar_radiation_downwards_hourly',
+                                     'surface_thermal_radiation_downwards_hourly',
                                      'total_precipitation_hourly',
                                      'u_component_of_wind_10m',
                                      'v_component_of_wind_10m',
@@ -114,40 +114,27 @@ def format_forz(era5df):
 
     # Silence copy warning
     pd.set_option('mode.chained_assignment', None)
-    # mask for dailly integrals
-    mask = [tidy_df['datetime'][x].hour for x in range(len(tidy_df.index))]
-    mask = [i for i, x in enumerate(mask) if x == 1]
 
     # Shortwave
     # To W
     tidy_df['SW_flux'] = \
-        tidy_df['surface_solar_radiation_downwards']/3600
-    # derive
-    tidy_df['SW_flux'] = \
-        tidy_df['SW_flux'].diff().fillna(0)
-    # Fill 0 hours
-    mornings = tidy_df['surface_solar_radiation_downwards'][mask]/3600
-    tidy_df['SW_flux'][mask] = mornings
+        tidy_df['surface_solar_radiation_downwards_hourly']/3600
+    # Remove negative noise
     tidy_df['SW_flux'][tidy_df['SW_flux'] < 0] = 0
 
     # Longwave
     # To W
     tidy_df['LW_flux'] = \
-        tidy_df['surface_thermal_radiation_downwards']/3600
-    # derive
-    tidy_df['LW_flux'] = \
-        tidy_df['LW_flux'].diff().fillna(0)
-    # Fill 0 hours
-    mornings = tidy_df['surface_thermal_radiation_downwards'][mask]/3600
-    tidy_df['LW_flux'][mask] = mornings
+        tidy_df['surface_thermal_radiation_downwards_hourly']/3600
+        # Remove negative noise
     tidy_df['LW_flux'][tidy_df['LW_flux'] < 0] = 0
-
+    
     # RH
     TD = tidy_df['dewpoint_temperature_2m'] - 273.15
     T = tidy_df['temperature_2m'] - 273.15
     tidy_df['RH'] = 100 * (np.exp((17.625 * TD) / (243.04 + TD)) /
                            np.exp((17.625 * T) / (243.04 + T)))
-    # Ensure boundaries
+    # Force bounds
     tidy_df['RH'][tidy_df['RH'] > 100] = 100
     tidy_df['RH'][tidy_df['RH'] < 0] = 0
 
@@ -158,12 +145,12 @@ def format_forz(era5df):
 
     # Precipitation
     tidy_df['PRECC'] = \
-        tidy_df['total_precipitation_hourly']/1000
+        tidy_df['total_precipitation_hourly']*1000/3600
     tidy_df['PRECC'][tidy_df['PRECC'] < 0] = 0
 
     # remove old columns
-    del tidy_df['surface_solar_radiation_downwards']
-    del tidy_df['surface_thermal_radiation_downwards']
+    del tidy_df['surface_solar_radiation_downwards_hourly']
+    del tidy_df['surface_thermal_radiation_downwards_hourly']
     del tidy_df['dewpoint_temperature_2m']
     del tidy_df['u_component_of_wind_10m']
     del tidy_df['v_component_of_wind_10m']
@@ -217,10 +204,10 @@ def init_netcdf(nc_name, era_lon, era_lat, i_date, f_date):
 
     # Create met vars
     sw = f.createVariable('SW', 'f4', ('time', 'lon', 'lat'))
-    sw.long_name = 'surface_solar_radiation_downwards'
+    sw.long_name = 'surface_solar_radiation_downwards_hourly'
     sw.units = 'W/m2'
     lw = f.createVariable('LW', 'f4', ('time', 'lon', 'lat'))
-    lw.long_name = 'surface_thermal_radiation_downwards'
+    lw.long_name = 'surface_thermal_radiation_downwards_hourly'
     lw.units = 'W/m2'
     precc = f.createVariable('PRECC', 'f4', ('time', 'lon', 'lat'))
     precc.long_name = 'precipitation_flux_hourly'
