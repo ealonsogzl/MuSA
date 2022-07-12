@@ -94,8 +94,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
             # Check if masked
             # TODO: Check if there is a better way to do this
             if np.ma.is_masked(nc_value):
-                nc_value = np.ma.getdata(nc_value)
-                nc_value[:] = np.nan
+                nc_value = nc_value.filled(np.nan)
             else:
                 nc_value = np.ma.getdata(nc_value)
 
@@ -505,7 +504,6 @@ def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
     print("No observations in: " + str(lon_idx) + "," + str(lat_idx))
     real_forcing = main_forcing.copy()
     fsm.fsm_forcing_wrt(real_forcing, temp_dest)
-    fsm.write_init(temp_dest)
     fsm.fsm_run(temp_dest)
     state = fsm.fsm_read_output(temp_dest, read_dump=False)
     state.columns = ["year", "month", "day", "hour", "snd", "SWE",
@@ -658,43 +656,3 @@ def cell_assimilation(lon_idx, lat_idx):
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
         filehandler = lzma.open(name_ensemble, 'wb')
         pickle.dump(ensemble_list, filehandler)
-
-
-def open_loop_simulation(lon_idx, lat_idx):
-
-    nc_obs_path = cfg.nc_obs_path
-
-    # Check if file allready exist
-    filename = ("Result_openloop_" + str(lat_idx) +
-                "_" + str(lon_idx) + ".csv")
-    filename = os.path.join(cfg.output_path, filename)
-
-    if os.path.exists(filename):
-        return None
-
-    mask = glob.glob(nc_obs_path + "*mask*.nc")
-
-    if mask:  # If mask exists, check if the cell is masked
-        mask = nc.Dataset(mask[0])
-        mask_value = mask.variables['mask'][lat_idx, lon_idx]
-        mask.close()
-        if np.ma.is_masked(mask_value):
-            return None
-
-    temp_dest = fsm.fsm_copy(lon_idx, lat_idx)
-
-    main_forcing = forcing_table(lat_idx, lon_idx)
-
-    main_forcing = unit_conversion(main_forcing)
-
-    real_forcing = main_forcing.copy()
-    fsm.fsm_forcing_wrt(real_forcing, temp_dest)
-    fsm.write_init(temp_dest)
-    fsm.fsm_run(temp_dest)
-    origin_state_tmp = fsm.fsm_read_output(temp_dest, read_dump=True)
-
-    # TODO: create a write function with NCDF support
-    origin_state_tmp.to_csv(filename, sep=",", header=True, index=False,
-                            float_format="%.3f")
-    # Clean tmp directory
-    shutil.rmtree(temp_dest, ignore_errors=True)

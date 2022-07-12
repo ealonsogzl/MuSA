@@ -187,7 +187,7 @@ def init_netcdf(nc_name, era_lon, era_lat, i_date, f_date):
     # create dim vars
     longitude = f.createVariable('Lon', 'f4', 'lon')
     longitude.units = 'number of points'
-    longitude.long_name = 'latitude'
+    longitude.long_name = 'longitude'
 
     latitude = f.createVariable('Lat', 'f4', 'lat')
     latitude.units = 'Just one'
