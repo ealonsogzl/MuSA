@@ -60,4 +60,3 @@ for n in range(len(era_lon)):
     MuSA_era5 = myf.format_forz(era5df)
 
     myf.store_era_nc(nc_name, MuSA_era5, n)
-

@@ -3,7 +3,7 @@
 """
 Some functions to interact with FSM.
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import os
 import shutil
@@ -164,7 +164,7 @@ def fsm_read_output(fsm_path, read_dump=True):
     state_dir = os.path.join(fsm_path, "out_stat.txt")
     state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
     state.columns = ["year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb"]
+                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE']
     if (state.isnull().values.any()):
         raise Exception('''nan found in FSM2 output: check forcing or
                         change FORTRAN compiler''')
@@ -300,7 +300,7 @@ def write_dump(dump, fsm_path):
 def get_var_state_position(var):
 
     state_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", "SCA")
+                     "SWE", "Tsrf", "fSCA", "alb", "SCA", 'H', 'LE')
 
     return state_columns.index(var)
 

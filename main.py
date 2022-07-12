@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 
 import modules.internal_fns as ifn

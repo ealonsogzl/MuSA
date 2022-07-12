@@ -3,7 +3,7 @@
 """
 Here The main classes of MuSA are stored.
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import config as cfg
 import numpy as np

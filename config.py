@@ -36,7 +36,7 @@ resampling_algorithm = "no_resampling"
 ensemble_members = 100
 r_cov = [0.15]
 
-# var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb"
+# var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
 var_to_assim = ["snd"]
 
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS

@@ -4,7 +4,7 @@
 Internal functions to read and tidy the forcing, as well as launch the real
 assimilation functions.
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import glob
 import os
@@ -448,7 +448,7 @@ def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
     # Get updated columns
-    colums = ["snd", "SWE", "Tsrf", "fSCA", "alb", "SCA"]
+    colums = ["snd", "SWE", "Tsrf", "fSCA", "alb", "H", "LE", 'SCA']
     pesos = Ensemble.wgth
 
     for n, name_col in enumerate(colums):
@@ -479,7 +479,8 @@ def init_result(del_t, DA=False):
 
     else:
         # Concatenate
-        col_names = ["Date", "snd", "SWE", "Tsrf", "fSCA", "alb", "SCA"]
+        col_names = ["Date", "snd", "SWE", "Tsrf",
+                     "fSCA", "alb", "H", "LE", "SCA"]
 
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
@@ -493,6 +494,8 @@ def init_result(del_t, DA=False):
         Results["alb"] = [np.nan for x in del_t]
         Results["fSCA"] = [np.nan for x in del_t]
         Results["SCA"] = [np.nan for x in del_t]
+        Results["H"] = [np.nan for x in del_t]
+        Results["LE"] = [np.nan for x in del_t]
 
         return Results
 
@@ -506,7 +509,7 @@ def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
     fsm.fsm_run(temp_dest)
     state = fsm.fsm_read_output(temp_dest, read_dump=False)
     state.columns = ["year", "month", "day", "hour", "snd", "SWE",
-                     "Tsrf", "fSCA", "alb"]
+                     "Tsrf", "fSCA", "alb", "H", "LE"]
 
     state.to_csv(filename, sep=",", header=True, index=False)
 
@@ -688,14 +691,10 @@ def open_loop_simulation(lon_idx, lat_idx):
     fsm.fsm_forcing_wrt(real_forcing, temp_dest)
     fsm.write_init(temp_dest)
     fsm.fsm_run(temp_dest)
-    state, flux, dump = fsm.fsm_read_output(temp_dest, read_flux=True)
-
-    # Join fluxes to state variables
-    flux_temp = flux.iloc[:, 4:11].copy()
-    Results = state.join(flux_temp).copy()
+    origin_state_tmp = fsm.fsm_read_output(temp_dest, read_dump=True)
 
     # TODO: create a write function with NCDF support
-    Results.to_csv(filename, sep=",", header=True, index=False,
-                   float_format="%.3f")
+    origin_state_tmp.to_csv(filename, sep=",", header=True, index=False,
+                            float_format="%.3f")
     # Clean tmp directory
     shutil.rmtree(temp_dest, ignore_errors=True)

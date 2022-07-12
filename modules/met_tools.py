@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Collection of functions to interact with the meteorological data and calculate
-other parameters related with the snowpack (SCA, fSCA, precipitation phase...)
+other parameters related with the snowpack
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import numpy as np
 from scipy.optimize import newton

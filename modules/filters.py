@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Description
+Collection of functions to DA
 
-Author: Esteban Alonso González - e.alonso@ipe.csic.es
-Thu Oct  7 16:50:27 2021
+Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+
 """
 
 import numpy as np
