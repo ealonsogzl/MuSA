@@ -19,7 +19,6 @@ In its current version MuSA provides support for assimilating different  variabl
 - SWE (mm) 
 - Snow depth (m) 
 - Land/Snow surface temperature (K) 
-- Snow cover area (binary) 
 - Fractional snow cover area (-) 
 - Albedo (-)
 - Sensible heat flux to the atmosphere (W m<sup>-2</sup>)
