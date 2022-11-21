@@ -19,7 +19,7 @@ lSNOW = 0.1                     # Guessed Snow liquid content [-]
 sfcTEMP = 273                   # Guessed Snow/ground sfc temp [K]
 grRADI = 0.00005                # Guessed grain radius [m]
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
-sdfrac = 0.3                    # fraction of the sd_errors to use if collapse
+sdfrac = 0.7                    # fraction of the sd_errors to use if collapse
 
 
 # -----------------------------------
@@ -41,8 +41,8 @@ mean_errors = {"SW": 0,
 
 sd_errors = {"SW": 0.1,
              "LW": 20.8,
-             "Prec": 0.63,
-             "Ta": 1,
+             "Prec": 0.73,
+             "Ta": 2,
              "RH": 8.9,
              "Ua": 0.53,
              "Ps": 100}

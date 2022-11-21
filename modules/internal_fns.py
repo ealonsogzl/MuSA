@@ -186,7 +186,7 @@ def forcing_table(lat_idx, lon_idx):
                                     str(lat_idx) + ".pkl"))
 
     # try to read the forcing from a dumped file
-    if os.path.exists(final_directory):
+    if os.path.exists(final_directory) and cfg.restart_forcing:
 
         forcing_df = pd.read_pickle(final_directory)
 
@@ -384,6 +384,8 @@ def simulation_steps(observations, dates_obs):
     elif (da_algorithm in ['PF', 'EnKF', 'IEnKF', "direct_insertion"]):
         # HACK: I add one to easy the subset of the forcing
         assimilation_steps = obs_idx + 1
+    elif (da_algorithm == 'deterministic_OL'):
+        assimilation_steps = 0
     else:
         raise Exception("Choose between smoothing or filtering")
 
@@ -563,9 +565,10 @@ def cell_assimilation(lon_idx, lat_idx):
     time_dict = simulation_steps(observations, dates_obs)
 
     # If no obs in the cell, run openloop
-    if np.isnan(observations).all():
+    if np.isnan(observations).all() or cfg.da_algorithm == "deterministic_OL":
         run_FSM_openloop(lon_idx, lat_idx, main_forcing,
                          temp_dest, OL_filename)
+        return None
 
     # Inicialice results dataframes
     DA_Results = init_result(time_dict["del_t"], DA=True)   # DA parametesr

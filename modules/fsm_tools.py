@@ -300,7 +300,7 @@ def write_dump(dump, fsm_path):
 def get_var_state_position(var):
 
     state_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", "SCA", 'H', 'LE')
+                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE', "SCA")
 
     return state_columns.index(var)
 

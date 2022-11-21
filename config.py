@@ -21,6 +21,8 @@ tmp_path = None
 
 # If restart_run is enabled, the outputs will not be overwritten
 restart_run = False
+# If restart_forcing, the forcing will be read from intermediate files
+restart_forcing = False
 # -----------------------------------
 # Data Assim
 # -----------------------------------

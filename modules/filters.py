@@ -16,31 +16,10 @@ import constants as cnt
 import modules.fsm_tools as fsm
 
 
-def ens_klm(prior, obs, pred, alpha, r_cov):
+def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
+            stochastic=True, dosvd=True):
     """
     EnKA: Implmentation of the Ensemble Kalman Analysis
-    Inputs:
-        prior: Prior ensemble matrix (n x N array)
-        obs: Observation vector (m x 1 array)
-        pred: Predicted observation ensemble matrix (m x N array)
-        alpha: Observation error inflation coefficient (scalar)
-        r_cov: Observation error covariance matrix (m x m array, m x 1 array,
-                                                    or scalar)
-    Outputs:
-        post: Posterior ensemble matrix (n x N array)
-    Dimensions:
-        N is the number of ensemble members, n is the number of state
-        variables and/orparameters, and m is the number of boservations.
-
-    For now, we have impelemnted the classic (stochastic) version of the
-    Ensemble Kalman analysis that involves perturbing the observations.
-    Deterministic variants (Sakov and Oke, 2008) also exist that may be worth
-    looking into. This analysis step can be used both for filtering, i.e.
-    Ensemble Kalman filter, when observations are assimilated sequentially or
-    smoothing, i.e. Ensemble (Kalman) smoother, when also be carried out in a
-    multiple data assimilation (i.e. iterative) approach.
-
-    Based on a previous version from K. Aalstad (10.12.2020)
     """
     # TODO: Using a Bessel correction (Ne-1 normalization) for sample
     # covariances.
@@ -58,67 +37,118 @@ def ens_klm(prior, obs, pred, alpha, r_cov):
     #       in Evensen, 2003, Ocean Dynamics).
 
     # Dimensions.
-    n_obs = np.size(obs)  # Number of obs
-    n_state = np.shape(prior)[0]  # Tentative n of state vars and/or parameters
+    m = np.size(obs)  # Number of obs
+    n = np.shape(prior)[0]  # Tentative number of state vars and/or parameters
+    if np.size(prior) == n:  # If prior is 1D correct the above.
+        N = n  # Number of ens. members.
+        n = 1  # Number of state vars and/or parameters.
+    else:
+        # If prior is 2D then the lenght of the second dim is the ensemble size
+        N = np.shape(prior)[1]
 
     if pred.ndim == 1:
-        pred = np.expand_dims(pred, 1)
-        pred = pred.T
-
-    if np.size(prior) == n_state:  # If prior is 1D correct the above.
-        n_ens_mem = n_state  # Number of ens. members.
-        n_state = 1  # Number of state vars and/or parameters.
-    else:  # If prior is 2D then the len of the second dim is the ensemble size
-        n_ens_mem = np.shape(prior)[1]
+        pred = pred[np.newaxis, :]
 
     # Checks on the observation error covariance matrix.
-    if np.size(r_cov) == 1:
-        r_cov = r_cov * np.identity(n_obs)
-    elif np.size(r_cov) == n_obs:
-        r_cov = np.diag(r_cov)
-        # Convert to matrix if specified as a vector.
-    elif np.shape(r_cov)[0] == n_obs and np.shape(r_cov)[1] == n_obs:
-        pass
-        # Do nothing if specified as a matrix.
-    else:
-        raise Exception(
-            'r_cov must be a scalar, m x 1 vector, or m x m matrix.')
+    if R.ndim == 2:
+        if np.shape(R)[0] == m and np.shape(R)[1] == m:
+            Rsqrt = sqrtm(R)
 
+        else:
+            raise Exception('r_cov bad dimensions')
+
+    else:
+        if np.size(R) == 1:
+            Rsqrt = np.sqrt(R)
+            R = R*np.identity(m)
+            Rsqrt = Rsqrt*np.identity(m)
+        elif np.size(R) == m:
+            # print('diag')
+            # Square root of a diag matrix is the square root of its elements.
+            Rsqrt = np.sqrt(R)
+            R = np.diag(R)
+            Rsqrt = np.diag(Rsqrt)
+            # Convert to matrix if specified as a vector.
+        else:
+            raise Exception('R must be a scalar, m x 1 vector,\
+                            or m x m matrix.')
+
+    # pdb.set_trace()
     # Anomaly calculations.
     mprior = np.mean(prior, -1)  # Prior ensemble mean
-    if n_state == 1:
-        A = prior - mprior
+    if n == 1:
+        A = prior-mprior
     else:
-        A = prior - mprior[:, None]
+        A = prior-mprior[:, None]
     mpred = np.mean(pred, -1)  # Prior predicted obs ensemble mean
-    if n_obs == 1:
+    if m == 1:
         B = pred-mpred
     else:
         B = pred-mpred[:, None]
 
     Bt = B.T  # Tranposed -"-
 
-    # Perturbed observations.
-    Y = np.outer(obs, np.ones(n_ens_mem)) + np.sqrt(alpha) * \
-        np.random.randn(n_obs, n_ens_mem)
-    # Y=np.outer(obs,np.ones(N))
+    # Covariance matrices
+    C_AB = A@Bt  # Prior-predic obs covariance matrix multiplied by N (n x m)
+    C_BB = B@Bt  # Predicted obs covariance matrix multiplied by N (m x m)
+    # Ap=np.linalg.pinv(A)
+    # C_BB=(B@(Ap@A))@((B@(Ap@A)).T)
+    # Localize covariance matrices
+    C_AB = rho_AB * C_AB
+    C_BB = rho_BB * C_BB
+    aR = (N*alpha)*R  # Scaled observation error covariance matrix (m x m)
 
-    # Covariance matrices.
-    C_AB = A @ Bt  # Prior-predicted obs covariance matrix mult by N (n x m)
-    C_BB = B @ Bt  # Predicted obs covariance matrix mult by N (m x m)
-
-    # Scaled observation error cov matrix (m x m)
-    aR = (n_ens_mem * alpha) * r_cov
-
-    # Analysis step
-    if n_state == 1 and n_obs == 1:  # Scalar case
-        K = C_AB * (np.linalg.inv(C_BB + aR))
-        inno = Y - pred
-        post = prior + K * inno
+    if dosvd:
+        L = np.linalg.cholesky(aR)
+        Linv = np.linalg.inv(L)
+        Ctilde = Linv@C_BB@(Linv.T)+np.eye(m)
+        # This is a shortcut, but then you don't set the SVD ratio explicitly
+        # Cinv=np.linalg.pinv(Ctilde,rcond=1e-2)
+        [U, S, _] = np.linalg.svd(Ctilde)
+        # Note, in np S is already a vector.
+        # Since Ctilde is pos def, then U=V hence why V output is supressed
+        Svr = np.cumsum(S)/np.sum(S)
+        minds = np.arange(m)
+        # Singular value ratio threshold (typically between 0.9-0.99=90%-99%)
+        thresh = 0.9
+        keep = min(minds[Svr > thresh])  # Number of singular values to keep
+        St = S[:(keep+1)]  # Exclusive indexing (yay python!)
+        Ut = U[:, :(keep+1)]
+        Sti = 1/St  # Vector (representing a diagonal matrix)
+        Ctildei = (Ut*Sti)@Ut.T  # Same as Ut@np.diag(Sti)@Ut.T
+        Cinv = Linv.T@Ctildei@Linv
+        # U,S=np.linalg.svd(Ctilde)
     else:
-        K = C_AB@(np.linalg.inv(C_BB+aR))  # Kalman gain (n x m)
-        inno = Y - pred  # Innovation (m x N)
-        post = prior + K @ inno  # Posterior (n x N)
+        Cinv = np.linalg.inv(C_BB+aR)
+
+    if stochastic:
+        # Perturbed observations.
+        pert = np.random.randn(m, N)
+        Y = np.outer(obs, np.ones(N))+np.sqrt(alpha)*(Rsqrt@pert)
+        # Analysis step
+        if n == 1 and m == 1:  # Scalar case
+            K = C_AB*Cinv
+            inno = Y-pred
+            post = prior+K*inno
+        else:
+            K = C_AB@Cinv  # Kalman gain (n x m)
+            inno = Y-pred  # Innovation (m x N)
+            post = prior+K@inno  # Posterior (n x N)
+    else:
+        Y = np.squeeze(obs)
+        # Analysis step
+        if n == 1 and m == 1:  # Scalar case
+            K = C_AB * Cinv
+            inno = Y - mpred
+            mpost = mprior + K * inno  # Posterior (n x N)
+            A = A - 0.5*K*B
+            post = mpost+A
+        else:
+            K = C_AB@Cinv  # Kalman gain (n x m)
+            inno = Y - mpred  # Innovation (m x N)
+            mpost = mprior + K @ inno  # Posterior (n x N)
+            A = A - 0.5*K@B
+            post = (mpost+A.T).T
 
     return post
 
