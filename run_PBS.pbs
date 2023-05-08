@@ -11,6 +11,10 @@ units="mb"
 memory=$((mempcpu * nprocs))
 memorystrg=$memory$units
 
+# clean dirs
+module load conda
+python clean.py
+
 cat << end_jobarray > pbsScript.sh
  
 #!/bin/bash

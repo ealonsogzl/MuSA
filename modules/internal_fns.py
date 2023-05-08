@@ -12,17 +12,91 @@ import shutil
 import datetime as dt
 import netCDF4 as nc
 import numpy as np
+import multiprocessing as mp
 import pandas as pd
-import modules.fsm_tools as fsm
-import modules.filters as flt
-from modules.internal_class import SnowEnsemble
 import config as cfg
-import constants as cnt
-import copy
+if cfg.numerical_model == 'FSM2':
+    import modules.fsm_tools as model
+elif cfg.numerical_model == 'dIm':
+    import modules.dIm_tools as model
+elif cfg.numerical_model == 'snow17':
+    import modules.snow17_tools as model
+else:
+    raise Exception('Model not implemented')
+import pickle
+import blosc
+if cfg.MPI:
+    from mpi4py.futures import MPIPoolExecutor
 
-if cfg.save_ensemble:
-    import pickle
-    import lzma
+
+def io_write(filename, obj):
+    with open(filename, "wb") as f:
+        pickled_data = pickle.dumps(obj)
+        compressed_pickle = blosc.compress(pickled_data)
+        f.write(compressed_pickle)
+
+
+def io_read(filename):
+    with open(filename, "rb") as f:
+        compressed_pickle = f.read()
+        depressed_pickle = blosc.decompress(compressed_pickle)
+        obj = pickle.loads(depressed_pickle)
+        return obj
+
+
+def reduce_size_state(df_state, time_dict, observations):
+
+    var_to_assim = cfg.var_to_assim
+    df_state = df_state.copy()
+
+    for count, col in enumerate(df_state.columns):
+
+        if col in var_to_assim:
+            mask = np.ones(len(df_state.index), bool)
+            if observations.ndim > 1:
+
+                mask[~np.isnan(observations[:, count])] = 0
+            else:
+                mask[~np.isnan(observations)] = 0
+
+            df_state.loc[mask, col] = 0
+
+        else:
+
+            df_state[col] = 0
+
+    return df_state
+
+
+def chunker(seq, size):
+    return [seq[pos:pos + size] for pos in range(0, len(seq), size)]
+
+
+def pool_wrap(func, inputs, nprocess):
+
+    if cfg.MPI:
+        print('MPI not tested yet')
+        with MPIPoolExecutor() as pool:
+            pool.starmap(func, inputs)
+    else:
+        with mp.Pool(processes=nprocess) as pool:
+            pool.starmap(func, inputs)
+
+
+def safe_pool(func, inputs, nprocess):
+    # for some reason, pool sometimes hangs with too many cells.
+    # here I divide the whole parallel thing in chunks, it seems to be safer.
+    # But this has to be investigated, probably something with starmap_async
+    # can do the trick
+
+    ncellsmax = 5 * nprocess  # 5 cells per process maximun
+    inputs_chunk = [chunker(x, ncellsmax) for x in inputs]
+
+    for chunk_id in range(len(inputs_chunk[0])):
+
+        chuked_list = [item[chunk_id] for item in inputs_chunk]
+        chunked_zip = zip(*chuked_list)
+        pool_wrap(func, chunked_zip, nprocess)
 
 
 def get_dates_obs():
@@ -50,30 +124,29 @@ def get_dates_obs():
 def obs_array(dates_obs, lat_idx, lon_idx):
 
     nc_obs_path = cfg.nc_obs_path
-    nc_maks_path = cfg.nc_maks_path
+    mask = cfg.nc_maks_path
     obs_var_names = cfg.obs_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-    del_t = np.asarray([date_ini + dt.timedelta(hours=n)
-                        for n in range(int((date_end - date_ini).days
-                                           * 24 + 24))])
+    del_t = generate_dates(date_ini, date_end)
 
     obs_idx = np.searchsorted(del_t, dates_obs)
 
     files = glob.glob(nc_obs_path + "*.nc")
     # TODO: let the user define the prefix of the observations
+    if len(files) == 0:
+        raise Exception('Observation files not found')
+
     files.sort()
 
-    mask = glob.glob(nc_maks_path + "*.nc")
-
     if mask:  # If mask exists, return string if masked
-        mask = nc.Dataset(mask[0])
+        mask = nc.Dataset(mask)
         mask_value = mask.variables['mask'][lat_idx, lon_idx]
         mask.close()
-        if np.ma.is_masked(mask_value):
+        if np.isnan(mask_value):
             array_obs = "Out_of_AOI"
             return array_obs
 
@@ -115,6 +188,17 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     return obs_matrix
 
 
+def generate_dates(date_ini, date_end):
+
+    del_t = [date_ini]
+    date_time = date_ini
+    while date_time < date_end:
+        date_time += dt.timedelta(hours=1)
+        del_t.append(date_time)
+    del_t = np.asarray(del_t)
+    return del_t
+
+
 def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
                      date_ini, date_end):
     """
@@ -142,18 +226,10 @@ def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-    del_t = np.asarray([date_ini + dt.timedelta(hours=n)
-                        for n in range(int((date_end -
-                                            date_ini).days*24 + 24))])
+    del_t = generate_dates(date_ini, date_end)
 
     files = glob.glob(nc_forcing_path + "*.nc")
     files.sort()
-
-    # TODO: Bug reported somewhere. Test with a different version of netcdf
-    # Surprisingly high RAM consumption, netCDF4 bug?
-    # nc_data = nc.MFDataset(files)
-    # array_nc = nc_data.variables[nc_var_name][:,lat_idx,lon_idx]
-    # nc_data.close()
 
     array_nc = []
 
@@ -170,118 +246,6 @@ def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
         raise Exception("date_end - date_ini longuer than forcing")
 
     return array_nc
-
-
-def forcing_table(lat_idx, lon_idx):
-
-    nc_forcing_path = cfg.nc_forcing_path
-    frocing_var_names = cfg.frocing_var_names
-    date_ini = cfg.date_ini
-    date_end = cfg.date_end
-    intermediate_path = cfg.intermediate_path
-
-    # Path to intermediate file
-    final_directory = os.path.join(intermediate_path,
-                                   (str(lon_idx) + "_" +
-                                    str(lat_idx) + ".pkl"))
-
-    # try to read the forcing from a dumped file
-    if os.path.exists(final_directory) and cfg.restart_forcing:
-
-        forcing_df = pd.read_pickle(final_directory)
-
-    else:
-
-        short_w = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                   frocing_var_names["SW_var_name"],
-                                   date_ini, date_end)
-
-        long_wave = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                     frocing_var_names["LW_var_name"],
-                                     date_ini, date_end)
-
-        prec = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                frocing_var_names["Precip_var_name"],
-                                date_ini, date_end)
-
-        temp = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                frocing_var_names["Temp_var_name"],
-                                date_ini, date_end)
-
-        rel_humidity = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        frocing_var_names["RH_var_name"],
-                                        date_ini, date_end)
-
-        wind = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                frocing_var_names["Wind_var_name"],
-                                date_ini, date_end)
-
-        press = nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                 frocing_var_names["Press_var_name"],
-                                 date_ini, date_end)
-
-        date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
-        date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-        del_t = [date_ini + dt.timedelta(hours=n)
-                 for n in range(int((date_end - date_ini).days*24 + 24))]
-
-        forcing_df = pd.DataFrame({"year": del_t,
-                                  "month": del_t,
-                                   "day": del_t,
-                                   "hours": del_t,
-                                   "SW": short_w,
-                                   "LW": long_wave,
-                                   "Prec": prec,
-                                   "Ta": temp,
-                                   "RH": rel_humidity,
-                                   "Ua": wind,
-                                   "Ps": press})
-
-        forcing_df["year"] = forcing_df["year"].dt.year
-        forcing_df["month"] = forcing_df["month"].dt.month
-        forcing_df["day"] = forcing_df["day"].dt.day
-        forcing_df["hours"] = forcing_df["hours"].dt.hour
-
-        # write intermediate file to avoid re-reading the nc files
-        forcing_df.to_pickle(final_directory)
-
-        if len(del_t) != len(forcing_df.index):
-            raise Exception("date_end - date_ini longuer than forcing")
-
-    return forcing_df
-
-
-def forcing_check(forcing_df):
-
-    if forcing_df.isnull().values.any():
-        return True
-
-    else:
-        return False
-
-
-def unit_conversion(forcing_df):
-
-    forcing_offset = cnt.forcing_offset
-    forcing_multiplier = cnt.forcing_multiplier
-
-    forcing_df.SW = forcing_df.SW * forcing_multiplier["SW"]
-    forcing_df.LW = forcing_df.LW * forcing_multiplier["LW"]
-    forcing_df.Prec = forcing_df.Prec * forcing_multiplier["Prec"]
-    forcing_df.Ta = forcing_df.Ta * forcing_multiplier["Ta"]
-    forcing_df.RH = forcing_df.RH * forcing_multiplier["RH"]
-    forcing_df.Ua = forcing_df.Ua * forcing_multiplier["Ua"]
-    forcing_df.Ps = forcing_df.Ps * forcing_multiplier["Ps"]
-
-    forcing_df.SW = forcing_df.SW + forcing_offset["SW"]
-    forcing_df.LW = forcing_df.LW + forcing_offset["LW"]
-    forcing_df.Prec = forcing_df.Prec + forcing_offset["Prec"]
-    forcing_df.Ta = forcing_df.Ta + forcing_offset["Ta"]
-    forcing_df.RH = forcing_df.RH + forcing_offset["RH"]
-    forcing_df.Ua = forcing_df.Ua + forcing_offset["Ua"]
-    forcing_df.Ps = forcing_df.Ps + forcing_offset["Ps"]
-
-    return(forcing_df)
 
 
 def nc_idx():
@@ -304,10 +268,10 @@ def nc_idx():
     lat_idx = (np.abs(lats - lat)).argmin()
     lon_idx = (np.abs(lons - lon)).argmin()
 
-    return lon_idx, lat_idx
+    return lat_idx, lon_idx
 
 
-def get_dims():
+def get_dims(return_ncdim=False):
 
     nc_forcing_path = cfg.nc_forcing_path
     forcing_dim_names = cfg.forcing_dim_names
@@ -317,28 +281,39 @@ def get_dims():
 
     lat_name_var = forcing_dim_names["lat_forz_var_name"]
     lon_name_var = forcing_dim_names["lon_forz_var_name"]
+    if return_ncdim:
+        lon = example_file.variables[lon_name_var]
+        lat = example_file.variables[lat_name_var]
+        return lat, lon
     n_lats = len(example_file.variables[lat_name_var][:])
     n_lons = len(example_file.variables[lon_name_var][:])
-    return n_lons, n_lats
+    return n_lats, n_lons
+
+
+def forcing_check(forcing_df):
+
+    if forcing_df.isnull().values.any():
+        return True
+
+    else:
+        return False
 
 
 def expand_grid():
 
-    nc_maks_path = cfg.nc_maks_path
+    mask = cfg.nc_maks_path
 
-    n_lons, n_lats = get_dims()
-    grid = np.meshgrid(range(n_lons), range(n_lats))
-    grid = np.array(grid).reshape(2, n_lons * n_lats).T
-
-    mask = glob.glob(nc_maks_path + "*.nc")
+    n_lats, n_lons = get_dims()
+    grid = np.meshgrid(range(n_lats), range(n_lons))
+    grid = np.array(grid).reshape(2, n_lats * n_lons).T
 
     if mask:  # If mask exists, return string if masked
-        mask = nc.Dataset(mask[0])
-        mask_value = mask.variables['mask'][:, :]
+        mask = nc.Dataset(mask)
+        mask_value = mask.variables['mask'][:]
         mask.close()
-        mask = mask_value.flatten('C')
+        mask = mask_value.flatten('F')
 
-        grid = grid[~mask.mask]
+        grid = grid[mask == 1]
         grid = np.squeeze(grid)
 
     return grid
@@ -349,15 +324,13 @@ def simulation_steps(observations, dates_obs):
     date_ini = cfg.date_ini
     date_end = cfg.date_end
     season_ini_day = cfg.season_ini_day
-    season_ini_month = cfg.season_ini_month,
+    season_ini_month = cfg.season_ini_month
     da_algorithm = cfg.da_algorithm
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
 
-    del_t = np.asarray([date_ini + dt.timedelta(hours=x)
-                        for x in range(int((date_end-date_ini).total_seconds()
-                                           / 3600) + 1)])
+    del_t = generate_dates(date_ini, date_end)
 
     obs_idx = np.searchsorted(del_t, dates_obs)
 
@@ -379,9 +352,9 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if da_algorithm in ['PBS', 'ES', 'IES']:
+    if da_algorithm in ['PBS', 'ES', 'IES', 'S-MCMC', 'IES-MCMC', 'PIES']:
         assimilation_steps = season_ini_cuts[:, 0]
-    elif (da_algorithm in ['PF', 'EnKF', 'IEnKF', "direct_insertion"]):
+    elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
         # HACK: I add one to easy the subset of the forcing
         assimilation_steps = obs_idx + 1
     elif (da_algorithm == 'deterministic_OL'):
@@ -399,263 +372,17 @@ def simulation_steps(observations, dates_obs):
             "Assimilaiton_steps": assimilation_steps}
 
 
-def storeDA(Result_df, step_results, observations_sbst, time_dict, step):
+def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
 
-    vars_to_perturbate = cfg.vars_to_perturbate
-    var_to_assim = cfg.var_to_assim
-
-    rowIndex = Result_df.index[time_dict["Assimilaiton_steps"][step]:
-                               time_dict["Assimilaiton_steps"][step + 1]]
-
-    if len(var_to_assim) > 1:
-        for i, var in enumerate(var_to_assim):
-            Result_df.loc[rowIndex, var] = observations_sbst[:, i]
-    else:
-        var = var_to_assim[0]
-        Result_df.loc[rowIndex, var] = observations_sbst
-
-    # Add perturbation parameters to Results
-    for var_p in vars_to_perturbate:
-        Result_df.loc[rowIndex, var_p +
-                      "_noise_mean"] = step_results[var_p + "_noise_mean"]
-        Result_df.loc[rowIndex, var_p +
-                      "_noise_sd"] = step_results[var_p + "_noise_sd"]
-
-
-def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
-
-    ol_data = Ensemble.origin_state.copy()
-
-    # remove time ids fomr FSM output
-    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
-    # TODO: modify directly FSM code to not to output time id's
-
-    # Store colums
-    for n, name_col in enumerate(ol_data.columns):
-        OL_FSM.loc[:, name_col] = ol_data.iloc[:, [n]].to_numpy()
-
-
-def store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
-                     time_dict, step):
-
-    list_state = copy.deepcopy(Ensemble.state_membres)
-    # remove time ids fomr FSM output
-    # TODO: modify directly FSM code to not to output time id's
-    for lst in range(len(list_state)):
-        data = list_state[lst]
-        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
-
-    rowIndex = updated_FSM.index[time_dict["Assimilaiton_steps"][step]:
-                                 time_dict["Assimilaiton_steps"][step + 1]]
-
-    # Get updated columns
-    colums = ["snd", "SWE", "Tsrf", "fSCA", "alb", "H", "LE", 'SCA']
-    pesos = Ensemble.wgth
-
-    for n, name_col in enumerate(colums):
-        # create matrix of colums
-        col_arr = [list_state[x].iloc[:, n].to_numpy()
-                   for x in range(len(list_state))]
-        col_arr = np.vstack(col_arr)
-
-        average_sim = np.average(col_arr, axis=0, weights=pesos)
-        sd_sim = flt.weighted_std(col_arr, axis=0, weights=pesos)
-
-        updated_FSM.loc[rowIndex, name_col] = average_sim
-        sd_FSM.loc[rowIndex, name_col] = sd_sim
-
-
-def init_result(del_t, DA=False):
-
-    if DA:
-        # Concatenate
-        col_names = ["Date"]
-
-        # Create results dataframe
-        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
-
-        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
-        return Results
-
-    else:
-        # Concatenate
-        col_names = ["Date", "snd", "SWE", "Tsrf",
-                     "fSCA", "alb", "H", "LE", "SCA"]
-
-        # Create results dataframe
-        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
-
-        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
-
-        Results["snd"] = [np.nan for x in del_t]
-        Results["SWE"] = [np.nan for x in del_t]
-        Results["Tsrf"] = [np.nan for x in del_t]
-        Results["alb"] = [np.nan for x in del_t]
-        Results["fSCA"] = [np.nan for x in del_t]
-        Results["SCA"] = [np.nan for x in del_t]
-        Results["H"] = [np.nan for x in del_t]
-        Results["LE"] = [np.nan for x in del_t]
-
-        return Results
-
-
-def run_FSM_openloop(lon_idx, lat_idx, main_forcing, temp_dest, filename):
-
-    print("No observations in: " + str(lon_idx) + "," + str(lat_idx))
+    print("No observations in: " + str(lat_idx) + "," + str(lon_idx))
+    # create temporal simulation
+    temp_dest = model.model_copy(lat_idx, lon_idx)
     real_forcing = main_forcing.copy()
-    fsm.fsm_forcing_wrt(real_forcing, temp_dest)
-    fsm.fsm_run(temp_dest)
-    state = fsm.fsm_read_output(temp_dest, read_dump=False)
-    state.columns = ["year", "month", "day", "hour", "snd", "SWE",
-                     "Tsrf", "fSCA", "alb", "H", "LE"]
+    model.model_forcing_wrt(real_forcing, temp_dest)
+    model.model_run(temp_dest)
+    state = model.model_read_output(temp_dest, read_dump=False)
+    state.columns = list(model.model_columns)
 
-    state.to_csv(filename, sep=",", header=True, index=False)
-
-
-def cell_assimilation(lon_idx, lat_idx):
-
-    save_ensemble = cfg.save_ensemble
-
-    # Not alwais usefull
-    filename = (str(lon_idx) + "_" + str(lat_idx) + ".csv")
-    filename = os.path.join(cfg.output_path, filename)
-
-    # Create filenames
-    DA_filename = ("DA_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
-    updated_filename = ("updated_" + str(lon_idx) + "_" + str(lat_idx)
-                        + ".csv")
-    sd_filename = ("sd_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
-    OL_filename = ("OL_" + str(lon_idx) + "_" + str(lat_idx) + ".csv")
-
-    DA_filename = os.path.join(cfg.output_path, DA_filename)
-    updated_filename = os.path.join(cfg.output_path, updated_filename)
-    sd_filename = os.path.join(cfg.output_path, sd_filename)
-    OL_filename = os.path.join(cfg.output_path, OL_filename)
-
-    # Check if file allready exist if is a restart run
-    if (cfg.restart_run and
-        os.path.exists(DA_filename) and
-        os.path.exists(updated_filename) and
-        os.path.exists(sd_filename) and
-            os.path.exists(OL_filename)):
-        return None
-
-    dates_obs = get_dates_obs()
-    observations = obs_array(dates_obs, lat_idx, lon_idx)
-
-    if isinstance(observations, str):  # check if masked
-        return None
-
-    temp_dest = fsm.fsm_copy(lon_idx, lat_idx)
-
-    # Compile FSM
-    fsm.fsm_compile(temp_dest)
-    # TODO: think on how to compile it just once, but compatible with PBS.array
-
-    main_forcing = forcing_table(lat_idx, lon_idx)
-
-    if forcing_check(main_forcing):
-        print("NA's found in: " + str(lon_idx) + "," + str(lat_idx))
-        return None
-
-    main_forcing = unit_conversion(main_forcing)
-
-    time_dict = simulation_steps(observations, dates_obs)
-
-    # If no obs in the cell, run openloop
-    if np.isnan(observations).all() or cfg.da_algorithm == "deterministic_OL":
-        run_FSM_openloop(lon_idx, lat_idx, main_forcing,
-                         temp_dest, OL_filename)
-        return None
-
-    # Inicialice results dataframes
-    DA_Results = init_result(time_dict["del_t"], DA=True)   # DA parametesr
-    updated_FSM = init_result(time_dict["del_t"])  # posterior simulaiton
-    sd_FSM = init_result(time_dict["del_t"])       # posterios standar desv
-    OL_FSM = init_result(time_dict["del_t"])       # OL simulation
-
-    # initialice Ensemble class
-    Ensemble = SnowEnsemble(temp_dest)
-
-    # Initialice Ensemble list if enabled in cfg
-    if save_ensemble:
-        ensemble_list = []
-
-    # Loop over assimilation steps
-    for step in range(len(time_dict["Assimilaiton_steps"])-1):
-
-        # subset forcing and observations
-        observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
-                                         time_dict["Assimilaiton_steps"][step
-                                                                         + 1]]
-
-        forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
-                                    time_dict["Assimilaiton_steps"][step + 1]]\
-            .copy()
-
-        Ensemble.create(forcing_sbst, step)
-
-        step_results = flt.implement_assimilation(Ensemble, observations_sbst,
-                                                  step, forcing_sbst)
-
-        if cfg.da_algorithm == "direct_insertion":
-            continue
-
-        if save_ensemble:
-            # deepcopy necesary to not to change all
-            Ensemble_tmp = copy.deepcopy(Ensemble)
-            ensemble_list.append(Ensemble_tmp)
-
-        # Store results in dataframes
-        storeDA(DA_Results, step_results, observations_sbst, time_dict, step)
-        store_updatedsim(updated_FSM, sd_FSM, Ensemble, observations_sbst,
-                         time_dict, step)
-
-        # If redraw, calculate the postrior shape
-        if cfg.redraw_prior:
-
-            Ensemble.posterior_shape()
-
-        # Resample if filtering
-        if(cfg.da_algorithm == "PF"):
-
-            Ensemble.resample(step_results["resampled_particles"])
-
+    io_write(filename, state)
     # Clean tmp directory
-    shutil.rmtree(temp_dest, ignore_errors=True)
-
-    # if direct insertion save file
-    if cfg.da_algorithm == "direct_insertion":
-
-        updated = Ensemble.origin_state
-        updated.to_csv(filename, sep=",", header=True, index=False)
-        return None
-
-    # Store OL
-    storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step)
-
-    # TODO: create a write function with NCDF support
-    # NOTE: The binary SCA is removed form output, need to implemetn a binary
-    # weightedSD and average
-    OL_FSM.drop('SCA', axis=1, inplace=True)
-    updated_FSM.drop('SCA', axis=1, inplace=True)
-    sd_FSM.drop('SCA', axis=1, inplace=True)
-
-    # Write results
-    DA_Results.to_csv(DA_filename, sep=",", header=True, index=False,
-                      float_format="%.3f")
-    OL_FSM.to_csv(OL_filename, sep=",", header=True, index=False,
-                  float_format="%.3f")
-    updated_FSM.to_csv(updated_filename, sep=",", header=True, index=False,
-                       float_format="%.3f")
-    sd_FSM.to_csv(sd_filename, sep=",", header=True, index=False,
-                  float_format="%.3f")
-
-    # Save ensemble
-    if save_ensemble:
-        name_ensemble = "ensbl_" + str(lon_idx) + "_" + str(lat_idx) + ".xz"
-        name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
-        filehandler = lzma.open(name_ensemble, 'wb')
-        pickle.dump(ensemble_list, filehandler)
+    shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)

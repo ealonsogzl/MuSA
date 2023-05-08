@@ -9,11 +9,21 @@ Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 
 import numpy as np
 from numpy.random import random
-import pandas as pd
 from scipy import special
+from scipy.linalg import sqrtm
 import config as cfg
 import constants as cnt
-import modules.fsm_tools as fsm
+if cfg.numerical_model == 'FSM2':
+    import modules.fsm_tools as model
+elif cfg.numerical_model == 'dIm':
+    import modules.dIm_tools as model
+elif cfg.numerical_model == 'snow17':
+    import modules.snow17_tools as model
+else:
+    raise Exception('Model not implemented')
+import modules.met_tools as met
+from sklearn.gaussian_process import GaussianProcessRegressor
+import sklearn.gaussian_process.kernels as krn
 
 
 def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
@@ -153,7 +163,7 @@ def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
     return post
 
 
-def pbs(obs, pred, r_cov):
+def pbs(obs, pred, R):
     """
     PBS: Implmentation of the Particle Batch Smoother
     Inputs:
@@ -196,9 +206,9 @@ def pbs(obs, pred, r_cov):
     ens_mem = np.shape(pred)[-1]
 
     # Checks on the observation error covariance matrix.
-    if np.size(r_cov) == 1:
-        r_cov = r_cov * np.ones(n_obs)
-    elif np.size(r_cov) == n_obs:
+    if np.size(R) == 1:
+        R = R * np.ones(n_obs)
+    elif np.size(R) == n_obs:
         pass
     else:
         raise Exception('r_cov must be a scalar, m x 1 vector.')
@@ -206,10 +216,10 @@ def pbs(obs, pred, r_cov):
     # Residual and log-likelihood
     if n_obs == 1:
         residual = obs - pred
-        llh = -0.5 * ((residual**2) * (1/r_cov))
+        llh = -0.5 * ((residual**2) * (1/R))
     else:
         residual = obs - pred
-        llh = -0.5 * ((1/r_cov)@(residual**2))
+        llh = -0.5 * ((1/R)@(residual**2))
 
     # Log of normalizing constant
     # A properly scaled version of this could be output for model comparison.
@@ -226,7 +236,174 @@ def pbs(obs, pred, r_cov):
 
     weights = np.squeeze(weights)  # Remove axes of length one
 
-    return weights
+    Neff = 1/np.sum(weights**2)
+    Neff = np.round(Neff)
+
+    return weights, Neff
+
+
+def PIES(obs, pred, R, priormean, priorcov, proposal):
+    """
+    PIES: Implmentation of the Particle-adjusted Iterative Ensemble Smoother
+    Inputs:
+        obs: Observation vector (m x 1 array)
+        pred: Predicted observation ensemble matrix (m x N array)
+        R: Observation error covariance 'matrix' (m x 1 array, or scalar)
+        priormean: The mean (vector) of the prior (n x 1 array)
+        priorcov: The covariance (matrix) of the prior (n x n array)
+        proposal: Samples from the proposal (n x N array)
+
+    Outputs:
+        w: Posterior weights (N x 1 array)
+    Dimensions
+        N is the number of ensemble members, n is the number of state
+        variables and/or parameters, and m is the number of observations.
+
+    The PIES scheme is obtained by using the output of the Iterative Ensemble
+    Smoother, i.e. a Gaussian distribution, as the proposal in importance
+    sampling. Note that we do not need to use the final posterior from IES
+    as the proposal, we can instead use the "posterior" at any iteration
+    l=0,...,Na where Na is the number of assimilation cycles.Note that the
+    in the special case l=0 we end up with the standard PBS scheme if we
+    disregardthe differences between the true and sampled prior statistics.
+
+    Code by: K. Aalstad (14.12.2020) based on an earlier Matlab version.
+    """
+
+    # Dimensions.
+    m = np.size(obs)  # Number of obs
+    N = np.shape(pred)[-1]
+
+    # Checks on the observation error covariance matrix.
+    if np.size(R) == 1:
+        R = R*np.ones(m)
+    elif np.size(R) == m:
+        pass
+    else:
+        raise Exception('R must be a scalar, m x 1 vector.')
+
+    if m == 1:
+        residual = obs-pred
+        Phid = -0.5*((residual**2))
+    else:
+        residual = obs.flatten() - pred.T
+        residual = residual.T
+        Phid = -0.5*((1/R)@(residual**2))  # (1 x m) x (m x N) == 1 x N
+
+    # Transpose for broadcasting (N x n) - (n) = (N x n) [row major logic]
+    # TODO: Substitute np.linalg.inv by SVD invesion
+    # use scipy.linalg.pinvh ? (rtol parameter instead of numpy rcond)
+    A0 = proposal.T-priormean
+    A0 = A0.T  # n x N
+    C0inv = np.linalg.inv(priorcov)
+    Phi0 = -0.5*(A0.T)@C0inv@(A0)  # (N x n)  x (n x n) x (n x N) = N x N
+    Phi0 = np.diag(Phi0)  # N x 1
+
+    proposalmean = proposal.mean(-1)
+    A = (proposal.T-proposalmean)
+    A = A.T  # n x N
+    C = (1/N)*(A@A.T)
+    Cinv = np.linalg.inv(C)
+    Phip = -0.5*(A.T)@Cinv@A  # N x N
+    Phip = np.diag(Phip)  # N x 1
+
+    Phi = Phid+Phi0-Phip
+    Phimax = Phi.max()
+    Phis = Phi-Phimax  # Scaled to avoid numerical overflow
+    # See e.g. Chopin and Papaspiliopoulos (2020) book on SMC
+
+    w = np.exp(Phis)
+    w = w/sum(w)
+
+    # Neff = 0 if degenerate and 1 if equal weights
+    Neff = 1/np.sum(w**2)
+    Neff = np.round(Neff)
+
+    return w, Neff
+
+
+def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R):
+
+    vars_to_perturbate = cfg.vars_to_perturbate
+
+    nll = negloglik(predicted, observations_sbst_masked, R)
+
+    # train emulator
+    gp_emul = gp_emulator(X_train=starting_parameters.T, y_train=nll)
+
+    # MCMC parameters
+    chain_len = 200000
+    # Rinv = None
+    sigp = 0.1
+
+    SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
+    m0 = np.asarray([cnt.mean_errors[x] for x in vars_to_perturbate])
+
+    mcmc_storage = np.zeros((chain_len, len(vars_to_perturbate)))
+    mcmc_storage[:] = np.nan
+
+    # Init chain
+    phic = np.reshape(starting_parameters.T[0, :], (1, 2))
+    nll, sd = gp_emul.predict(phic, return_std=True)
+
+    Uc = neglogpost(nll, phic, SD0, m0)
+
+    accepted = 0
+
+    for nsteps in range(chain_len):
+
+        r = np.random.randn(len(vars_to_perturbate))
+
+        prop = sigp*r
+        phip = phic+prop
+
+        nll, sd = gp_emul.predict(phip, return_std=True)
+
+        Up = neglogpost(nll, phip, SD0, m0)
+        mh = min(1, np.exp(-Up+Uc))
+        u = np.random.rand(1)
+        accept = (mh > u)
+        if accept:
+            phic = phip
+            Uc = Up
+            accepted = accepted + 1
+
+        mcmc_storage[nsteps] = phic
+
+    return accepted, mcmc_storage
+
+
+def negloglik(predicted, observations_sbst_masked, R):
+
+    if len(R.shape) == 1:
+        R = R[:, np.newaxis]
+
+    nres = (observations_sbst_masked - predicted)/np.sqrt(R)
+
+    nll = 0.5 * np.sum(nres**2, axis=0)
+
+    return nll
+
+
+def neglogpost(nll, chain_par, SD0, m0):
+
+    ndev = (chain_par - m0)/SD0
+
+    nlpri = 0.5 * np.sum(ndev**2, axis=1)
+
+    nlp = nll + nlpri
+
+    return nlp
+
+
+def gp_emulator(X_train, y_train):
+
+    # kernel = 1 * krn.RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
+    kernel = 1.0 * krn.Matern(length_scale=1.0, nu=1.5)
+    gp = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b',
+                                  n_restarts_optimizer=9, normalize_y=True)
+    gp.fit(X_train, y_train)
+    return gp
 
 
 def bootstrapping(weights):
@@ -370,8 +547,6 @@ def systematic_resample(weights):
 
 def resampled_indexes(weights):
     """
-
-
     Parameters
     ----------
     weights : TYPE
@@ -422,7 +597,7 @@ def get_predicitons(list_state, var_to_assim):
     predicted = []
 
     for var in var_to_assim:
-        assim_idx = fsm.get_var_state_position(var)
+        assim_idx = model.get_var_state_position(var)
 
         predicted_tmp = [list_state[x].iloc[:, assim_idx].to_numpy()
                          for x in range(len(list_state))]
@@ -439,7 +614,7 @@ def tidy_obs_pred_rcov(predicted, observations_sbst, r_cov, ret_mask=False):
     var_to_assim = cfg.var_to_assim
 
     # tidy list of predictions
-    predicted = np.concatenate(predicted, axis=1)
+    predicted = np.concatenate(predicted.copy(), axis=1)
 
     # check that there are the same error than vasr to assim
     if len(r_cov) != len(var_to_assim):
@@ -471,11 +646,13 @@ def tidy_obs_pred_rcov(predicted, observations_sbst, r_cov, ret_mask=False):
 
 def tidy_predictions(predicted, mask):
 
-    predicted = np.concatenate(predicted, axis=1)
-    predicted = np.squeeze(predicted[:, mask])
-    predicted = np.ndarray.transpose(predicted)
+    predicted_sf = predicted.copy()
 
-    return predicted
+    predicted_sf = np.concatenate(predicted_sf, axis=1)
+    predicted_sf = np.squeeze(predicted_sf[:, mask])
+    predicted_sf = np.ndarray.transpose(predicted_sf)
+
+    return predicted_sf
 
 
 def get_posterior_vars(list_state, var_to_assim, wgth):
@@ -499,7 +676,7 @@ def get_OL_vars(Ensemble, var_to_assim):
 
     for var in var_to_assim:
 
-        assim_idx = fsm.get_var_state_position(var)
+        assim_idx = model.get_var_state_position(var)
         OL_tmp = OL_state.iloc[:, assim_idx].to_numpy()
 
         OL.append(OL_tmp)
@@ -507,47 +684,76 @@ def get_OL_vars(Ensemble, var_to_assim):
     return OL
 
 
+def transform_space(parameters, trans_direction):
+
+    safe_pars = parameters.copy()
+    perturbation_strategy = cfg.perturbation_strategy
+    upper_bounds = cnt.upper_bounds
+    lower_bounds = cnt.lower_bounds
+    vars_to_perturbate = cfg.vars_to_perturbate
+
+    if trans_direction == 'to_normal':
+        # translate lognormal variables to normal distribution
+        for cont, var in enumerate(perturbation_strategy):
+
+            var_tmp = vars_to_perturbate[cont]
+
+            if var == "lognormal":
+                safe_pars[cont, :] = np.log(safe_pars[cont, :])
+
+            elif var in ["logitnormal_mult",
+                         "logitnormal_adi"]:
+
+                safe_pars[cont, :] = met.glogit(safe_pars[cont, :],
+                                                lower_bounds[var_tmp],
+                                                upper_bounds[var_tmp])
+            else:
+                pass
+
+    elif trans_direction == 'from_normal':
+
+        for cont, var in enumerate(perturbation_strategy):
+            var_tmp = vars_to_perturbate[cont]
+
+            if var == "lognormal":
+                safe_pars[cont, :] = np.exp(safe_pars[cont, :])
+
+            elif var in ["logitnormal_mult",
+                         "logitnormal_adi"]:
+
+                safe_pars[cont, :] = met.gexpit(safe_pars[cont, :],
+                                                lower_bounds[var_tmp],
+                                                upper_bounds[var_tmp])
+            else:
+                pass
+
+    else:
+        raise Exception("transformation not found")
+
+    return safe_pars
+
+
 def implement_assimilation(Ensemble, observations_sbst,
                            step, forcing_sbst):
-    """
 
-
-    Parameters
-    ----------
-    Ensemble : Ensemble class
-        An Ensemble of snow simulations.
-    observations_sbst : array
-        Array of observations to assimilate.
-
-    Raises
-    ------
-    Exception
-        DESCRIPTION.
-
-    Returns
-    -------
-    dict
-        DESCRIPTION.
-
-    """
     vars_to_perturbate = cfg.vars_to_perturbate
-    perturbation_strategy = cfg.perturbation_strategy
+    mean_errors = cnt.mean_errors
+    sd_errors = cnt.sd_errors
     da_algorithm = cfg.da_algorithm
     Kalman_iterations = cfg.Kalman_iterations
     var_to_assim = cfg.var_to_assim
     r_cov = cfg.r_cov
 
     Result = {}  # initialice results dict
-    # Avoid to create ensemblestatistics if direct insertion
-    if da_algorithm != "direct_insertion":
 
-        list_state = Ensemble.state_membres
+    list_state = Ensemble.state_membres
 
     # implement assimilation
     if da_algorithm == "PBS":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(observations_sbst).all():
 
+            Ensemble.season_rejuvenation()
             pass
 
         else:
@@ -557,9 +763,21 @@ def implement_assimilation(Ensemble, observations_sbst,
             observations_sbst_masked, predicted, r_cov = \
                 tidy_obs_pred_rcov(predicted, observations_sbst, r_cov)
 
-            wgth = pbs(observations_sbst_masked, predicted, r_cov)
+            wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
+
+            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
+                      format(lat=Ensemble.lat_idx,
+                             lon=Ensemble.lon_idx,
+                             Neff=int(Neff)))
+                Ensemble.lowNeff = True
+
+            else:
+                Ensemble.lowNeff = False
 
             Ensemble.wgth = wgth
+
+            Ensemble.season_rejuvenation()
 
     elif da_algorithm == "PF":
         if np.isnan(observations_sbst).all():
@@ -573,7 +791,17 @@ def implement_assimilation(Ensemble, observations_sbst,
             observations_sbst_masked, predicted, r_cov = \
                 tidy_obs_pred_rcov(predicted, observations_sbst, r_cov)
 
-            wgth = pbs(observations_sbst_masked, predicted, r_cov)
+            wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
+
+            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
+                      format(lat=Ensemble.lat_idx,
+                             lon=Ensemble.lon_idx,
+                             Neff=int(Neff)))
+                Ensemble.lowNeff = True
+
+            else:
+                Ensemble.lowNeff = False
 
             Ensemble.wgth = wgth
 
@@ -625,24 +853,21 @@ def implement_assimilation(Ensemble, observations_sbst,
                     if var_tmp.ndim == 1:
                         prior[cont, :] = var_tmp
                     else:
-                        prior[cont, :] = var_tmp[:, 0]
+                        if da_algorithm == "EnKF":
+                            prior[cont, :] = var_tmp[:, -1]
+                        else:  # da_algorithm == "IEnKF"
+                            prior[cont, :] = var_tmp[:, 0]
 
                 # translate lognormal variables to normal distribution
-                for cont, var in enumerate(perturbation_strategy):
-                    if var in ["constant_lognormal", "time_varing_lognormal",
-                               "time_dcor_lognormal"]:
-                        prior[cont, :] = np.log(prior[cont, :])
+                prior = transform_space(prior, 'to_normal')
 
                 alpha = Kalman_iterations
                 updated_pars = ens_klm(prior, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
-                for cont, var in enumerate(perturbation_strategy):
-                    if var in ["constant_lognormal", "time_varing_lognormal",
-                               "time_dcor_lognormal"]:
-                        updated_pars[cont, :] = np.exp(updated_pars[cont, :])
+                updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(forcing_sbst, step, updated_pars,
+                Ensemble.kalman_update(step, updated_pars,
                                        create=True, iteration=j)
 
     elif da_algorithm in ['ES', 'IES']:
@@ -651,6 +876,140 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Kalman_iterations = 1
 
+        if np.isnan(observations_sbst).all():
+
+            Ensemble.kalman_update(create=False)
+            Ensemble.season_rejuvenation()
+            pass
+
+        else:
+            for j in range(Kalman_iterations):
+
+                list_state = Ensemble.state_membres
+
+                # Get ensemble of predictions
+                predicted = get_predicitons(list_state, var_to_assim)
+
+                if j == 0:
+                    observations_sbst_masked, predicted, r_cov, mask = \
+                        tidy_obs_pred_rcov(predicted, observations_sbst,
+                                           r_cov, ret_mask=True)
+                else:
+                    predicted = tidy_predictions(predicted, mask)
+
+                # get prior
+                prior = np.ones((len(vars_to_perturbate), len(list_state)))
+                for cont, var in enumerate(vars_to_perturbate):
+                    if j == 0:
+                        var_tmp = [Ensemble.noise[x][var]
+                                   for x in range(len(list_state))]
+                    else:
+                        var_tmp = [Ensemble.noise_kalman[x][var]
+                                   for x in range(len(list_state))]
+                    var_tmp = np.asarray(var_tmp)
+                    var_tmp = np.squeeze(var_tmp)
+                    # HACK: next lines have to be modified with time varying
+                    # perturbations
+                    # var_tmp = np.squeeze(var_tmp[:, mask])
+                    prior[cont, :] = var_tmp[:, 0]
+
+                # translate lognormal variables to normal distribution
+                prior = transform_space(prior, 'to_normal')
+
+                alpha = Kalman_iterations
+                updated_pars = ens_klm(prior, observations_sbst_masked,
+                                       predicted, alpha, r_cov)
+
+                updated_pars = transform_space(updated_pars, 'from_normal')
+
+                Ensemble.kalman_update(step, updated_pars,
+                                       create=True, iteration=j)
+            Ensemble.season_rejuvenation()
+
+    elif da_algorithm == 'PIES':
+        if np.isnan(observations_sbst).all():
+
+            Ensemble.kalman_update(create=False)
+            Ensemble.season_rejuvenation()
+            Result["resampled_particles"] = np.arange(Ensemble.members)
+            pass
+
+        else:
+            for j in range(Kalman_iterations):
+
+                list_state = Ensemble.state_membres
+
+                # Get ensemble of predictions
+                predicted = get_predicitons(list_state, var_to_assim)
+
+                if j == 0:
+                    observations_sbst_masked, predicted, r_cov, mask = \
+                        tidy_obs_pred_rcov(predicted, observations_sbst,
+                                           r_cov, ret_mask=True)
+                else:
+                    predicted = tidy_predictions(predicted, mask)
+
+                # get prior
+                prior = np.ones((len(vars_to_perturbate), len(list_state)))
+                for cont, var in enumerate(vars_to_perturbate):
+                    if j == 0:
+                        var_tmp = [Ensemble.noise[x][var]
+                                   for x in range(len(list_state))]
+                    else:
+                        var_tmp = [Ensemble.noise_kalman[x][var]
+                                   for x in range(len(list_state))]
+                    var_tmp = np.asarray(var_tmp)
+                    var_tmp = np.squeeze(var_tmp)
+                    # HACK: next lines have to be modified with time varying
+                    # perturbations
+                    # var_tmp = np.squeeze(var_tmp[:, mask])
+                    prior[cont, :] = var_tmp[:, 0]
+
+                # translate lognormal variables to normal distribution
+                prior = transform_space(prior, 'to_normal')
+
+                alpha = Kalman_iterations
+                updated_pars = ens_klm(prior, observations_sbst_masked,
+                                       predicted, alpha, r_cov)
+
+                updated_pars = transform_space(updated_pars, 'from_normal')
+
+                Ensemble.kalman_update(step, updated_pars,
+                                       create=True, iteration=j)
+
+            list_state = Ensemble.state_membres
+            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = tidy_predictions(predicted, mask)
+
+            priormean = np.zeros(len(vars_to_perturbate))
+            priorsd = np.zeros(len(vars_to_perturbate))
+
+            for count, var in enumerate(vars_to_perturbate):
+                priormean[count] = mean_errors[var]
+                priorsd[count] = sd_errors[var]
+
+            priorcov = np.diag(priorsd**2)
+            proposal = transform_space(updated_pars, 'to_normal')
+
+            wgth, Neff = PIES(observations_sbst_masked, predicted, r_cov,
+                              priormean, priorcov, proposal)
+
+            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
+                      format(lat=Ensemble.lat_idx,
+                             lon=Ensemble.lon_idx,
+                             Neff=int(Neff)))
+                Ensemble.lowNeff = True
+
+            else:
+                Ensemble.lowNeff = False
+
+            Ensemble.wgth = wgth
+            Ensemble.season_rejuvenation()
+            resampled_particles = resampled_indexes(wgth)
+            Result["resampled_particles"] = resampled_particles
+
+    elif da_algorithm in ['IES-MCMC']:
         if np.isnan(observations_sbst).all():
 
             Ensemble.kalman_update(create=False)
@@ -687,98 +1046,79 @@ def implement_assimilation(Ensemble, observations_sbst,
                     # var_tmp = np.squeeze(var_tmp[:, mask])
                     prior[cont, :] = var_tmp[:, 0]
 
+                # Store parameters for gaussian process regresion
+
+                Ensemble.store_train_data(prior, predicted, j)
+
                 # translate lognormal variables to normal distribution
-                for cont, var in enumerate(perturbation_strategy):
-                    if var in ["constant_lognormal", "time_varing_lognormal",
-                               "time_dcor_lognormal"]:
-                        prior[cont, :] = np.log(prior[cont, :])
+                prior = transform_space(prior, 'to_normal')
 
                 alpha = Kalman_iterations
                 updated_pars = ens_klm(prior, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
-                for cont, var in enumerate(perturbation_strategy):
-                    if var in ["constant_lognormal", "time_varing_lognormal",
-                               "time_dcor_lognormal"]:
-                        updated_pars[cont, :] = np.exp(updated_pars[cont, :])
+                updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(forcing_sbst, step, updated_pars,
+                Ensemble.kalman_update(step, updated_pars,
                                        create=True, iteration=j)
 
-    elif da_algorithm == "direct_insertion":
-        # raise Exception("direct_insertion not implemented yet")
+            # MCMC starting point
+            list_state = Ensemble.state_membres
 
-        if np.isnan(observations_sbst).all():
-            # If there are not observations do nothing
-            return None
+            # Get ensemble of predictions
+            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = tidy_predictions(predicted, mask)
 
-        # Remove nan from obs and predict
-        mask = np.argwhere(~np.isnan(observations_sbst))
-        observations_sbst_masked = observations_sbst[mask]
+            # get prior
+            prior = np.ones((len(vars_to_perturbate), len(list_state)))
+            for cont, var in enumerate(vars_to_perturbate):
+                if j == 0:
+                    var_tmp = [Ensemble.noise[x][var]
+                               for x in range(len(list_state))]
+                else:
+                    var_tmp = [Ensemble.noise_kalman[x][var]
+                               for x in range(len(list_state))]
+                var_tmp = np.asarray(var_tmp)
+                var_tmp = np.squeeze(var_tmp)
+                # HACK: next lines have to be modified with time varying
+                # perturbations
+                # var_tmp = np.squeeze(var_tmp[:, mask])
+                prior[cont, :] = var_tmp[:, 0]
 
-        # Point to last init file
-        dump_to_insert = Ensemble.origin_dump[len(Ensemble.origin_dump)-1]
+            Ensemble.store_train_data(prior, predicted, j+1)
 
-        # get layers from sim and obser
-        n, l1, l2, l3 = fsm.get_layers(observations_sbst_masked[0])
-        n_sim = dump_to_insert.iloc[2, 0]
+            # Start MCMC
+            starting_parameters = np.concatenate(Ensemble.train_parameters,
+                                                 axis=1)
+            predicted = np.concatenate(Ensemble.train_pred, axis=1)
 
-        if (n == n_sim):  # Equal number of layers
-            # Update mass, keeping density constant
-            # ice content
-            ice_dens = dump_to_insert.iloc[5] / dump_to_insert.iloc[1]
-            new_icecont = ice_dens * pd.Series([l1, l2, l3, float("NaN")])
-            dump_to_insert.iloc[5] = new_icecont.fillna(0)
+            # translate to gaussian space
+            starting_parameters = transform_space(starting_parameters,
+                                                  'to_normal')
 
-            # Water content
-            liquid_dens = dump_to_insert.iloc[6] / dump_to_insert.iloc[1]
-            new_liqcont = liquid_dens * pd.Series([l1, l2, l3, float("NaN")])
-            dump_to_insert.iloc[6] = new_liqcont.fillna(0)
+            # Run MCMC with gaussian emulator
+            accepted, mcmc_storage = AI_mcmc(starting_parameters, predicted,
+                                             observations_sbst_masked, r_cov)
 
-            # Insert snowdepth in last init file
-            dump_to_insert.at[1, 0] = l1
-            dump_to_insert.at[1, 1] = l2
-            dump_to_insert.at[1, 2] = l3
+            # Burn in:  discard the first 10% samples
 
-            return None
+            ini = int(mcmc_storage.shape[0] * 0.1)
+            end = mcmc_storage.shape[0]
+            mcmc_storage = mcmc_storage[ini:end, :]
 
-        else:   # if the number of layers is different.
-            # Guess mass and temperature, also insert layers
-            # TODO : try to retrieve density and temperature from simulation
-            # if any layers exist instead of overwrite with fixed values
-            # TODO : Think on the albedo, if there is no snow in the simulation
-            # The albedo of the direct insertion is too low
+            # Sample n number of members
+            idx = np.random.randint(mcmc_storage.shape[0],
+                                    size=Ensemble.members)
+            post_sample = mcmc_storage[idx, :].T
 
-            liquid_dens = cnt.rSNOW * cnt.lSNOW
-            new_liqcont = liquid_dens * pd.Series([l1, l2, l3, float("NaN")])
-            dump_to_insert.iloc[6] = new_liqcont.fillna(0)
+            # Create Ensemble from mcmc
+            # translate to log space
+            post_sample = transform_space(post_sample, 'from_normal')
 
-            ice_dens = cnt.rSNOW - liquid_dens
-            new_icecont = ice_dens * pd.Series([l1, l2, l3, float("NaN")])
-            dump_to_insert.iloc[5] = new_icecont.fillna(0)
+            Ensemble.create_MCMC(post_sample)
 
-            # Insert snowdepth in last init file
-            dump_to_insert.at[1, 0] = l1
-            dump_to_insert.at[1, 1] = l2
-            dump_to_insert.at[1, 2] = l3
-
-            # Insert snow temp in last init file
-            dump_to_insert.at[9, 0] = cnt.tSNOW
-            dump_to_insert.at[9, 1] = cnt.tSNOW
-            dump_to_insert.at[9, 2] = cnt.tSNOW
-
-            # Insert snow/ground sfc temp
-            dump_to_insert.at[11, 0] = cnt.sfcTEMP
-
-            # Insert number of layers
-            dump_to_insert.at[2, 0] = n
-
-            # Insert snow grain radius
-            dump_to_insert.at[4, 0] = cnt.grRADI
-            dump_to_insert.at[4, 1] = cnt.grRADI
-            dump_to_insert.at[4, 2] = cnt.grRADI
-
-            return None
+            # Generate new parameters at the end of the season
+            Ensemble.season_rejuvenation()
 
     else:
         raise Exception("Assim not implemented")

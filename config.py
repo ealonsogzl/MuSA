@@ -5,79 +5,122 @@ This is the MuSA configuration file.
 Note that not all the options will be used in all the experimental setups.
 
 """
-
-
+# Note: not all options have been tested with dIm and snow17
+numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
 # -----------------------------------
 # Directories
 # -----------------------------------
 
 nc_obs_path = "./DATA/Obs/"
 nc_forcing_path = "./DATA/Forcing/"
-nc_maks_path = "./DATA/mask/"
-fsm_src_path = "./FSM2"
+nc_maks_path = "./DATA/mask/mask.nc"
+dem_path = "./DATA/DEM/DEM.nc"
+fsm_src_path = "./FSM2/"
 intermediate_path = "./DATA/INTERMEDIATE/"
+save_ensemble_path = "./DATA/ENSEMBLES/"
 output_path = "./DATA/RESULTS/"
+spatial_propagation_storage_path = "./DATA/SPATIAL_PROP/"
 tmp_path = None
 
 # If restart_run is enabled, the outputs will not be overwritten
 restart_run = False
 # If restart_forcing, the forcing will be read from intermediate files
 restart_forcing = False
+
 # -----------------------------------
 # Data Assim
 # -----------------------------------
 
-# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES
+# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL, IES-MCMC
+# or PIES
 da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 Kalman_iterations = 4  # IEnKF and IES only
-
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
-r_cov = [0.15]
-
+r_cov = [0.04]
+add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
 var_to_assim = ["snd"]
 
-# vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
-vars_to_perturbate = ["Prec", "Ta"]
+# DA second order variables and/or statistics (experimental)
+DAsord = False
+DAord_names = ["Ampli"]
 
+# vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
+vars_to_perturbate = ["Ta", "Prec"]
+
+# In smoothers, re-draw new parameters for each season
+season_rejuvenation = [True, True]
 # seed to initialise the random number generator
 seed = None
 
-# perturbation_strategy from "constant_normal" or "constant_lognormal"
-perturbation_strategy = ["constant_lognormal",
-                         "constant_normal"]
+# perturbation_strategy from "normal", "lognormal",
+# "logitnormal_adi" or "logitnormal_mult"
+perturbation_strategy = ["logitnormal_adi", "logitnormal_mult"]
 
 # precipitation_phase from "Harder" or "temp_thld"
 precipitation_phase = "Harder"
 
 # Save ensembles as a pkl object
 save_ensemble = False
-save_ensemble_path = "./DATA/ENSEMBLES/"
-
 
 # -----------------------------------
 # Domain
 # -----------------------------------
 
-# implementation from "point_scale" or "distributed"
+# implementation from "point_scale", "distributed" or "Spatial_propagation"
 implementation = "distributed"
 
-# parallelization from "sequential", "multiprocessing", "MPI" or "PBS.array"
+# parallelization from "sequential", "multiprocessing" or "PBS.array"
 parallelization = "multiprocessing"
-nprocess = None  # if None, the number of processors will be estimated
+MPI = False  # Note: not tested
+nprocess = 8  # Note: if None, the number of processors will be estimated
 
-aws_lat = 4735311.06  # Latitude in case of point_scale
-aws_lon = 710803.42   # Longitude in case of point_scale
+aws_lat = 4735225.54  # Latitude in case of point_scale
+aws_lon = 710701.28   # Longitude in case of point_scale
 
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
 season_ini_month = 9  # In smoothers, beginning of DA window (month)
 season_ini_day = 1    # In smoothers, beginning of DA window (day)
+
+# -----------------------------------
+# Spatial propagation configuration
+# -----------------------------------
+
+# Cut-off distance for the Gaspari and Cohn function.
+c = [5, 5]
+
+# Calculate the distances internally (topo_dict_external = None) or read an
+# external file with the dimensions
+topo_dict_external = None
+dist_algo = 'mahalanobis'
+
+# Optionally perform dimension reduction
+dimension_reduction = 'None'  # LMDS, PCA or None
+
+# try to find closePD or raise exception (closePDmethod = None)
+closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
+
+# Topographical dimensions to compute the distances
+topographic_features = {'Ys': True,     # Latitude
+                        'Xs': True,     # Longitude
+                        'Zs': True,    # Elevation
+                        'slope': True,  # Slope
+                        'DAH': True,   # Diurnal Anisotropic Heat
+                        'TPI': True,   # Topographic Position Index
+                        'Sx': True}    # Upwind Slope index (Winstral)
+
+# Topographical hyperparameters
+DEM_res = 5              # DEM resolution
+TPI_size = 25            # TPI window size
+Sx_dmax = 15             # Sx search distance
+Sx_angle = 315           # Sx main wind direction angle
+nc_dem_varname = "DEM_full"     # Name of the elevation variable in the DEM
 
 # -----------------------------------
 # Observations
@@ -87,7 +130,7 @@ season_ini_day = 1    # In smoothers, beginning of DA window (day)
 # order of the obs files fits the list of dates (dates_obs)
 
 # Note 2: dates_obs supports list indentation to not have to write many dates
-# in very long runs. example for generating a list of dailly strings:
+# in very long runs. Example for generating a list of dailly strings:
 
 # =============================================================================
 # import datetime as dt
@@ -103,12 +146,12 @@ season_ini_day = 1    # In smoothers, beginning of DA window (day)
 # format "%Y-%m-%d %H:%M" is also accepted substituting:
 # dates_obs = '/path/to/file/dates.csv'
 
+
 dates_obs = ["2019-02-21 12:00",
              "2019-03-26 12:00",
              "2019-05-05 12:00",
              "2019-05-09 12:00",
              "2019-05-23 12:00",
-             "2019-05-30 12:00",
              "2020-01-14 12:00",
              "2020-02-03 12:00",
              "2020-02-24 12:00",
@@ -130,19 +173,19 @@ lon_obs_var_name = "easting"
 # -----------------------------------
 # Forcing
 # -----------------------------------
-
+# Note: RealLat_var_name only necesary if snow17
 frocing_var_names = {"SW_var_name": "SW",
                      "LW_var_name": "LW",
                      "Precip_var_name": "PRECC",
                      "Press_var_name": "PRESS",
                      "RH_var_name": "RH",
                      "Temp_var_name": "TEMP",
-                     "Wind_var_name": "UA"}
+                     "Wind_var_name": "UA",
+                     "RealLat_var_name": " XLAT"}
 
 forcing_dim_names = {"lat_forz_var_name": "northing",
                      "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
-
 
 # -----------------------------------
 # FSM configuration (Namelist)
@@ -151,17 +194,16 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
 # Number and thickness of snow layers
 Dzsnow = [0.1, 0.2, 0.4]
 
-# SWE threshold where SCA = 1 (SWEsca) and
-# shape of the fSCA (Taf). [SNFRAC = 3]
-SWEsca = 16
-Taf = 2.6
+# SWE threshold where SCA = 1 (SWEsca) [SNFRAC = 3]
+SWEsca = 40
+# shape of the fSCA. [SNFRAC = 3]
+Taf = 4.0
+# coefficient of variation for the subgrid snow variation [SNFRAC = 4]
+subgrid_cv = 2.0
 
 # -----------------------------------
 # FSM configuration (Compilation)
 # -----------------------------------
-
-# Fortran compiler
-FC = 'ifort'
 
 # Parameterizations, see FSM2 documentation
 ALBEDO = 2
@@ -169,4 +211,4 @@ CONDCT = 1
 DENSITY = 2
 EXCHNG = 1
 HYDROL = 2
-SNFRAC = 3
+SNFRAC = 2

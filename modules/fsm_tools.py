@@ -9,15 +9,31 @@ import os
 import shutil
 import subprocess
 import tempfile
+import datetime as dt
 import pandas as pd
 import config as cfg
+import constants as cnt
 import modules.met_tools as met
 import secrets
-
+import time
+import copy
+import numpy as np
+import modules.filters as flt
+import modules.internal_fns as ifn
+if cfg.DAsord:
+    from modules.user_optional_fns import snd_ord
 # TODO: homogenize documentation format
 
+if cfg.DAsord:
+    model_columns = ("year", "month", "day", "hour", "snd",
+                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE',
+                     tuple(cfg.DAord_names))
+else:
+    model_columns = ("year", "month", "day", "hour", "snd",
+                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE')
 
-def fsm_copy(x_id, y_id):
+
+def model_copy(y_id, x_id):
     """
     Copy FSM code to a new location
 
@@ -43,12 +59,12 @@ def fsm_copy(x_id, y_id):
     if to_directory is None:
         tmp_dir = tempfile.mkdtemp()
         final_directory = os.path.join(tmp_dir,
-                                       (str(x_id) + "_" + str(y_id) + "_FSM"))
+                                       (str(y_id) + "_" + str(x_id) + "_FSM"))
     else:
         token = secrets.token_urlsafe(16)  # safe path to run multiple sesions
         final_directory = os.path.join(to_directory,
                                        token,
-                                       (str(x_id) + "_" + str(y_id) + "_FSM"))
+                                       (str(y_id) + "_" + str(x_id) + "_FSM"))
     if os.path.exists(final_directory):
         shutil.rmtree(final_directory, ignore_errors=True)
 
@@ -76,6 +92,7 @@ def write_nlst(temp_dest, step):
     # fSCA parameters
     filedata = filedata.replace('pySWEsca', str(cfg.SWEsca))
     filedata = filedata.replace('pyTaf', str(cfg.Taf))
+    filedata = filedata.replace('pycv', str(cfg.subgrid_cv))
 
     if step == 0:
         filedata = filedata.replace('pyINIT', "\n")
@@ -87,19 +104,28 @@ def write_nlst(temp_dest, step):
         file.write(filedata)
 
 
-def fsm_compile(temp_dest):
+def model_compile():
 
-    # fsm_path = cfg.fsm_src_path
+    fsm_path = cfg.fsm_src_path
     # TODO: provide full suport for wind32
-    with open(os.path.join(temp_dest, "compil_base.sh"), "r") as file:
+
+    bin_name = os.path.join(fsm_path, "FSM2")
+
+    try:  # remove FSM binary if exists
+        os.remove(bin_name)
+    except OSError:
+        pass
+
+    with open(os.path.join(fsm_path, "compil_base.sh"), "r") as file:
         filedata = file.read()
 
     # Canopy options, to be updated if canopy module is enabled
     filedata = filedata.replace('pyCANMOD', str(1))
     filedata = filedata.replace('pyCANRAD', str(1))
+    filedata = filedata.replace('pyCANRAD', str(1))
 
     # Fortran compiler
-    filedata = filedata.replace('pyFC', cfg.FC)
+    # filedata = filedata.replace('pyFC', cfg.FC)
 
     # Parameterizations
     filedata = filedata.replace('pyALBEDO', str(cfg.ALBEDO))
@@ -109,7 +135,7 @@ def fsm_compile(temp_dest):
     filedata = filedata.replace('pyHYDROL', str(cfg.HYDROL))
     filedata = filedata.replace('pySNFRAC', str(cfg.SNFRAC))
 
-    compile_path = os.path.join(temp_dest, "compil.sh")
+    compile_path = os.path.join(fsm_path, "compil.sh")
 
     # Ensure the compile.sh file is not there
     if (os.path.exists(compile_path)):
@@ -122,11 +148,26 @@ def fsm_compile(temp_dest):
     # Forze executable permision
     os.chmod(compile_path, 509)
 
-    bash_command = "cd " + temp_dest + " && " + "./compil.sh"
+    bash_command = "cd " + fsm_path + " && " + "./compil.sh"
     subprocess.call(bash_command, shell=True)
 
 
-def fsm_run(fsm_path, step=0):
+def model_compile_PBS(pbs_task_id):
+    # Compile FSM in the first PBS task
+    fsm_path = cfg.fsm_src_path
+    file_name = os.path.join(fsm_path, "FSM2")
+
+    if pbs_task_id == 0:
+        model_compile()
+    else:
+        while True:
+            if os.path.isfile(file_name):
+                break
+            else:
+                time.sleep(5)
+
+
+def model_run(fsm_path, step=0):
     """
     Just run FSM in a directory
 
@@ -144,12 +185,14 @@ def fsm_run(fsm_path, step=0):
 
     fsm_exe_dir = os.path.join(fsm_path, "FSM2")
     order = fsm_exe_dir + " < nlst"
+    # TODO: investigate pexpect. seems fast, but it do not wait for output
+    # https://stackoverflow.com/questions/69720755/run-a-program-from-python-several-times-whitout-initialize-different-shells
     fsm_run_comand = subprocess.call(order, shell=True, cwd=fsm_path)
     if fsm_run_comand != 0:
         raise Exception("FSM failed")
 
 
-def fsm_read_output(fsm_path, read_dump=True):
+def model_read_output(fsm_path, read_dump=True):
     """
     Read FSM outputs and return it in a dataframe
 
@@ -161,20 +204,46 @@ def fsm_read_output(fsm_path, read_dump=True):
    """
     # HACK: column/index names and number of columns/index are hardcoded here
     # Potential incompatibility in future versions of FSM.
+    #  engine="pyarrow", do not waork with spaces, come back to this.
     state_dir = os.path.join(fsm_path, "out_stat.txt")
-    state = pd.read_csv(state_dir, header=None, delim_whitespace=True)
+    state = pd.read_table(state_dir, header=None, sep=',', engine="pyarrow")
+
     state.columns = ["year", "month", "day", "hour", "snd",
                      "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE']
+
+    # Save some memory
+    state = state.astype({'year': 'int16',
+                          'month': 'int8',
+                          'day': 'int8',
+                          'hour': 'int8',
+                          'snd': 'float32',
+                          'SWE': 'float32',
+                          'Tsrf': 'float32',
+                          'fSCA': 'float32',
+                          'alb': 'float32',
+                          'H': 'float32',
+                          'LE': 'float32'})
+
+    # add optional variables
+    if cfg.DAsord:
+        state = snd_ord(state)
+
     if (state.isnull().values.any()):
-        raise Exception('''nan found in FSM2 output: check forcing or
-                        change FORTRAN compiler''')
+        raise Exception('NaN found in FSM2 output.\n Checklist:\n'
+                        u'\u2022 Check main forcing, its units and internal '
+                        'unit conversion in constants.py\n'
+                        u'\u2022 Wrong perturbation_strategy?\n'
+                        u'\u2022 Check sd_errors/mean_errors in constants.py\n'
+                        u'\u2022 Change FORTRAN compiler\n'
+                        u'\u2022 Change da_algorithm\n')
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
         dump = pd.read_csv(dump_dir, header=None, delim_whitespace=True,
                            names=list(range(4)))
         dump.index = ["albs", "Dsnw", "Nsnow", "Qcan", "Rgrn", "Slice", "Sliq",
-                      "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]
+                      "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc",
+                      "fsnow", "D_a", "D_m", "D_ave"]
 
     if read_dump:
         return state, dump
@@ -182,7 +251,7 @@ def fsm_read_output(fsm_path, read_dump=True):
         return state
 
 
-def fsm_remove(fsm_path):
+def model_remove(fsm_path):
     """
     Remove the temporal FSM directory
     Parameters
@@ -248,10 +317,10 @@ def stable_forcing(forcing_df):
     return temp_forz_def
 
 
-def fsm_forcing_wrt(forcing_df, temp_dest):
+def model_forcing_wrt(forcing_df, temp_dest):
 
     temp_forz_def = forcing_df.copy()
-    temp_forz_def = stable_forcing(forcing_df)
+    temp_forz_def = stable_forcing(temp_forz_def)
 
     if cfg.precipitation_phase == "Harder":
 
@@ -263,6 +332,12 @@ def fsm_forcing_wrt(forcing_df, temp_dest):
 
         Rf, Sf = met.pp_temp_thld_log(temp_forz_def["Ta"],
                                       temp_forz_def["Prec"])
+
+    elif cfg.precipitation_phase == "Liston":
+
+        Rf, Sf = met.linear_liston(temp_forz_def["Ta"],
+                                   temp_forz_def["Prec"])
+
     else:
 
         raise Exception("Precipitation phase partitioning not implemented")
@@ -273,7 +348,9 @@ def fsm_forcing_wrt(forcing_df, temp_dest):
 
     file_name = os.path.join(temp_dest, "input.txt")
 
-    temp_forz_def.to_csv(file_name, sep="\t", header=False, index=False)
+    temp_forz_def.to_csv(file_name, sep="\t",
+                         header=False,
+                         index=False)
 
 
 def write_dump(dump, fsm_path):
@@ -299,36 +376,231 @@ def write_dump(dump, fsm_path):
 
 def get_var_state_position(var):
 
-    state_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE', "SCA")
+    state_columns = model_columns
 
     return state_columns.index(var)
 
 
-def get_layers(hs):
+def storeDA(Result_df, step_results, observations_sbst, time_dict, step):
 
-    if hs <= 0:
-        l1 = 0
-        l2 = 0
-        l3 = 0
-        n = 0
+    vars_to_perturbate = cfg.vars_to_perturbate
+    var_to_assim = cfg.var_to_assim
 
-    elif hs <= 0.2:
-        l1 = hs
-        l2 = 0
-        l3 = 0
-        n = 1
+    rowIndex = Result_df.index[time_dict["Assimilaiton_steps"][step]:
+                               time_dict["Assimilaiton_steps"][step + 1]]
 
-    elif 0.2 < hs <= 0.5:
-        l1 = 0.1
-        l2 = hs - 0.1
-        l3 = 0
-        n = 2
+    if len(var_to_assim) > 1:
+        for i, var in enumerate(var_to_assim):
+            Result_df.loc[rowIndex, var] = observations_sbst[:, i]
+    else:
+        var = var_to_assim[0]
+        Result_df.loc[rowIndex, var] = observations_sbst
 
-    elif hs > 0.5:
-        l1 = 0.1
-        l2 = 0.2
-        l3 = hs - 0.3
-        n = 3
+    # Add perturbation parameters to Results
+    for var_p in vars_to_perturbate:
+        Result_df.loc[rowIndex, var_p +
+                      "_noise_mean"] = step_results[var_p + "_noise_mean"]
+        Result_df.loc[rowIndex, var_p +
+                      "_noise_sd"] = step_results[var_p + "_noise_sd"]
 
-    return int(n), float(l1), float(l2), float(l3)
+
+def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
+
+    ol_data = Ensemble.origin_state.copy()
+
+    # remove time ids fomr FSM output
+    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
+    # TODO: modify directly FSM code to not to output time id's
+
+    # Store colums
+    for n, name_col in enumerate(ol_data.columns):
+        OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
+
+
+def store_sim(updated_Sim, sd_Sim, Ensemble,
+              time_dict, step, MCMC=False):
+
+    if MCMC:
+        list_state = copy.deepcopy(Ensemble.state_members_mcmc)
+    else:
+        list_state = copy.deepcopy(Ensemble.state_membres)
+    # remove time ids fomr FSM output
+    # TODO: modify directly FSM code to not to output time id's
+    for lst in range(len(list_state)):
+        data = list_state[lst]
+        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
+
+    rowIndex = updated_Sim.index[time_dict["Assimilaiton_steps"][step]:
+                                 time_dict["Assimilaiton_steps"][step + 1]]
+
+    # Get updated columns
+    pesos = Ensemble.wgth
+
+    for n, name_col in enumerate(list(list_state[0].columns)):
+        # create matrix of colums
+        col_arr = [list_state[x].iloc[:, n].to_numpy()
+                   for x in range(len(list_state))]
+        col_arr = np.vstack(col_arr)
+
+        average_sim = np.average(col_arr, axis=0, weights=pesos)
+        sd_sim = flt.weighted_std(col_arr, axis=0, weights=pesos)
+
+        updated_Sim.loc[rowIndex, name_col] = average_sim
+        sd_Sim.loc[rowIndex, name_col] = sd_sim
+
+
+def init_result(del_t, DA=False):
+
+    if DA:
+        # Concatenate
+        col_names = ["Date"]
+
+        # Create results dataframe
+        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
+                               columns=col_names)
+
+        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        return Results
+
+    else:
+        # Concatenate
+        col_names = ["Date", "snd", "SWE", "Tsrf",
+                     "fSCA", "alb", "H", "LE"]
+
+        # Create results dataframe
+        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
+                               columns=col_names)
+
+        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+
+        Results["snd"] = [np.nan for x in del_t]
+        Results["SWE"] = [np.nan for x in del_t]
+        Results["Tsrf"] = [np.nan for x in del_t]
+        Results["alb"] = [np.nan for x in del_t]
+        Results["fSCA"] = [np.nan for x in del_t]
+        Results["H"] = [np.nan for x in del_t]
+        Results["LE"] = [np.nan for x in del_t]
+
+        Results = Results.astype({'snd': 'float32',
+                                  'SWE': 'float32',
+                                  'Tsrf': 'float32',
+                                  'fSCA': 'float32',
+                                  'alb': 'float32',
+                                  'H': 'float32',
+                                  'LE': 'float32'})
+
+        return Results
+
+
+def forcing_table(lat_idx, lon_idx):
+
+    nc_forcing_path = cfg.nc_forcing_path
+    frocing_var_names = cfg.frocing_var_names
+    date_ini = cfg.date_ini
+    date_end = cfg.date_end
+    intermediate_path = cfg.intermediate_path
+
+    # Path to intermediate file
+    final_directory = os.path.join(intermediate_path,
+                                   (str(lat_idx) + "_" +
+                                    str(lon_idx) + ".pkl"))
+
+    # try to read the forcing from a dumped file
+    if os.path.exists(final_directory) and cfg.restart_forcing:
+
+        forcing_df = pd.read_pickle(final_directory)
+
+    else:
+
+        short_w = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                       frocing_var_names["SW_var_name"],
+                                       date_ini, date_end)
+
+        long_wave = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         frocing_var_names["LW_var_name"],
+                                         date_ini, date_end)
+
+        prec = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                    frocing_var_names["Precip_var_name"],
+                                    date_ini, date_end)
+
+        temp = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                    frocing_var_names["Temp_var_name"],
+                                    date_ini, date_end)
+
+        rel_humidity = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                            frocing_var_names["RH_var_name"],
+                                            date_ini, date_end)
+
+        wind = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                    frocing_var_names["Wind_var_name"],
+                                    date_ini, date_end)
+
+        press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                     frocing_var_names["Press_var_name"],
+                                     date_ini, date_end)
+
+        date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
+        date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
+        del_t = ifn.generate_dates(date_ini, date_end)
+
+        forcing_df = pd.DataFrame({"year": del_t,
+                                  "month": del_t,
+                                   "day": del_t,
+                                   "hours": del_t,
+                                   "SW": short_w,
+                                   "LW": long_wave,
+                                   "Prec": prec,
+                                   "Ta": temp,
+                                   "RH": rel_humidity,
+                                   "Ua": wind,
+                                   "Ps": press})
+
+        forcing_df["year"] = forcing_df["year"].dt.year
+        forcing_df["month"] = forcing_df["month"].dt.month
+        forcing_df["day"] = forcing_df["day"].dt.day
+        forcing_df["hours"] = forcing_df["hours"].dt.hour
+
+        # write intermediate file to avoid re-reading the nc files
+        forcing_df.to_pickle(final_directory)
+
+        if len(del_t) != len(forcing_df.index):
+            raise Exception("date_end - date_ini longuer than forcing")
+
+    return forcing_df
+
+
+def unit_conversion(forcing_df):
+
+    forcing_offset = cnt.forcing_offset
+    forcing_multiplier = cnt.forcing_multiplier
+
+    forcing_df.SW = forcing_df.SW * forcing_multiplier["SW"]
+    forcing_df.LW = forcing_df.LW * forcing_multiplier["LW"]
+    forcing_df.Prec = forcing_df.Prec * forcing_multiplier["Prec"]
+    forcing_df.Ta = forcing_df.Ta * forcing_multiplier["Ta"]
+    forcing_df.RH = forcing_df.RH * forcing_multiplier["RH"]
+    forcing_df.Ua = forcing_df.Ua * forcing_multiplier["Ua"]
+    forcing_df.Ps = forcing_df.Ps * forcing_multiplier["Ps"]
+
+    forcing_df.SW = forcing_df.SW + forcing_offset["SW"]
+    forcing_df.LW = forcing_df.LW + forcing_offset["LW"]
+    forcing_df.Prec = forcing_df.Prec + forcing_offset["Prec"]
+    forcing_df.Ta = forcing_df.Ta + forcing_offset["Ta"]
+    forcing_df.RH = forcing_df.RH + forcing_offset["RH"]
+    forcing_df.Ua = forcing_df.Ua + forcing_offset["Ua"]
+    forcing_df.Ps = forcing_df.Ps + forcing_offset["Ps"]
+
+    forcing_df = forcing_df.astype({'year': 'int16',
+                                    'month': 'int8',
+                                    'day': 'int8',
+                                    'hours': 'int8',
+                                    'SW': 'float32',
+                                    'LW': 'float32',
+                                    'Prec': 'float32',
+                                    'Ta': 'float32',
+                                    'RH': 'float32',
+                                    'Ua': 'float32',
+                                    'Ps': 'float32'})
+
+    return(forcing_df)

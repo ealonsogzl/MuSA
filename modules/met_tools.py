@@ -8,10 +8,15 @@ Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import numpy as np
 from scipy.optimize import newton
+from scipy.special import expit, logit
 import constants as cnt
 import config as cfg
-import modules.fsm_tools as fsm
+if cfg.numerical_model == 'FSM2':
+    import modules.fsm_tools as model
+else:
+    import modules.dIm_tools as model
 import modules.filters as flt
+import modules.spatialMuSA as spM
 
 
 def pp_psychrometric(ta2, rh2, precc):
@@ -83,37 +88,124 @@ def pp_temp_thld_log(ta2, precc):
     return liquid_prec, solid_prec
 
 
-def create_noise(perturbation_strategy, n_steps, mean, std_dev):
+def linear_liston(ta2, precc):
+
+    ta2 = np.asarray(ta2)
+    precc = np.asarray(precc)
+
+    temp_C = ta2-cnt.KELVING_CONVER
+
+    Tair_C_center = 1.1
+    slope = -0.3
+    b = 0.5 - slope*Tair_C_center
+    snowfall_frac = np.array(slope * temp_C + b)
+    snowfall_frac[snowfall_frac > 1] = 1.
+    snowfall_frac[snowfall_frac < 0] = 0.
+
+    solid_prec = precc * snowfall_frac
+    liquid_prec = precc * (1 - snowfall_frac)
+    return liquid_prec, solid_prec
+
+
+def glogit(x, bPmin, bPmax):
+    """ Generalized logit that transforms a logit-normal to a normal"""
+
+    # HACK: make it numerically stable
+    if (x == bPmin).any():
+        x[x == bPmin] = x[x == bPmin] + np.abs(np.spacing(x[x == bPmin])*100)
+    if (x == bPmax).any():
+        x[x == bPmax] = x[x == bPmax] - np.abs(np.spacing(x[x == bPmax])*100)
+
+    xs = (x-bPmin)/(bPmax-bPmin)  # Scale x\in(a,b) to be between (0,1) instead
+    xt = logit(xs)
+    return xt
+
+
+def gexpit(xt, bPmin, bPmax):
+    """ Generalized expit that transforms a normal to a logit-normal"""
+    # HACK: make it numerically stable
+    if (xt == bPmin).any():
+        xt[xt == bPmin] = xt[xt == bPmin] +\
+            np.abs(np.spacing(xt[xt == bPmin])*100)
+    if (xt == bPmax).any():
+        xt[xt == bPmax] = xt[xt == bPmax] -\
+            np.abs(np.spacing(xt[xt == bPmax])*100)
+
+    xs = expit(xt)
+    x = (bPmax-bPmin)*xs+bPmin
+    return x
+
+
+def create_noise(perturbation_strategy, n_steps, mean, std_dev, bPmin, bPmax):
 
     if(cfg.seed is not None):
         np.random.seed(cfg.seed)
 
-    if perturbation_strategy == "constant_normal":
+    if perturbation_strategy == "normal":
         noise = np.random.normal(mean, std_dev, 1)
         noise = np.repeat(noise, n_steps)
 
-    elif perturbation_strategy == "constant_lognormal":
+    elif perturbation_strategy == "lognormal":
         noise = np.random.lognormal(mean, std_dev, 1)
         noise = np.repeat(noise, n_steps)
 
-    elif perturbation_strategy == "time_varing_normal":
-        noise = np.random.normal(mean, std_dev, n_steps)
+    elif perturbation_strategy in ["logitnormal_mult",
+                                   "logitnormal_adi"]:
 
-    elif perturbation_strategy == "time_varing_lognormal":
-        noise = np.random.lognormal(mean, std_dev, n_steps)
+        norm_noise = np.random.normal(mean, std_dev, 1)
+        norm_noise = np.repeat(norm_noise, n_steps)
+        noise = gexpit(norm_noise, bPmin, bPmax)
 
-    elif perturbation_strategy == "time_dcor_normal":
-        # description of the algorithm:  https://doi.org/10.1002/2016WR019092
-        raise Exception("Not implemented yet")
-    elif perturbation_strategy == "time_dcor_lognormal":
-        # description of the algorithm:  https://doi.org/10.1002/2016WR019092
-        raise Exception("Not implemented yet")
     else:
         raise Exception("choose the shape of the perturbation parameters")
     return noise
 
 
-def perturb_parameters(main_forcing, noise=None, update=False):
+def add_process_noise(noise_coef, var, strategy):
+
+    dyn_noise = cnt.dyn_noise
+    upper_bounds = cnt.upper_bounds
+    lower_bounds = cnt.lower_bounds
+
+    # Not to add process noise in spatial version yet
+    if cfg.implementation == 'Spatial_propagation':
+        return noise_coef
+
+    if cfg.add_dynamic_noise:
+
+        # Add process noise
+        tmp_proc_noise = dyn_noise[var]
+        add_vals = np.random.normal(0, tmp_proc_noise, len(noise_coef))
+
+        if strategy == 'normal':
+
+            noise_coef = noise_coef + np.cumsum(add_vals)
+
+        elif strategy == 'lognormal':
+
+            noise_coef = np.log(noise_coef) + np.cumsum(add_vals)
+            noise_coef = np.exp(noise_coef)
+
+        elif strategy in ["logitnormal_mult",
+                          "logitnormal_adi"]:
+            noise_coef = glogit(noise_coef,
+                                lower_bounds[var],
+                                upper_bounds[var]) + np.cumsum(add_vals)
+            noise_coef = gexpit(noise_coef,
+                                lower_bounds[var],
+                                upper_bounds[var])
+        else:
+            raise Exception("Bad perturbation strategy")
+
+    else:
+        pass
+
+    return noise_coef
+
+
+def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None, member=None,
+                       noise=None, update=False, readGSC=False,
+                       GSC_filename=None):
 
     forcing_copy = main_forcing.copy()
 
@@ -121,6 +213,8 @@ def perturb_parameters(main_forcing, noise=None, update=False):
     perturbation_strategy = cfg.perturbation_strategy
     mean_errors = cnt.mean_errors
     sd_errors = cnt.sd_errors
+    upper_bounds = cnt.upper_bounds
+    lower_bounds = cnt.lower_bounds
 
     n_steps = forcing_copy.shape[0]
 
@@ -139,36 +233,42 @@ def perturb_parameters(main_forcing, noise=None, update=False):
         var_tmp = vars_to_perturbate[idv]
         strategy_tmp = perturbation_strategy[idv]
 
-        if update:
+        if readGSC:
+            parameter = spM.read_parameter(GSC_filename, lat_idx, lon_idx,
+                                           var_tmp, member)
+            noise_coef = np.repeat(parameter, n_steps)
+
+        elif update:
             noise_coef = noise[idv]
             noise_coef = np.repeat(noise_coef, n_steps)
-            if strategy_tmp in ["time_varing_normal", "time_varing_lognormal",
-                                "time_dcor_normal", "time_dcor_lognormal"]:
-                raise Exception("""time vating noise not implemented
-                                in the update""")
         else:
+
             noise_coef = create_noise(strategy_tmp, n_steps,
                                       mean_errors[var_tmp],
-                                      sd_errors[var_tmp])
+                                      sd_errors[var_tmp],
+                                      lower_bounds[var_tmp],
+                                      upper_bounds[var_tmp])
 
-        # store the noise
-        noise_storage[var_tmp] = noise_coef
-
+        noise_coef = add_process_noise(noise_coef, var_tmp, strategy_tmp)
         # If lognormal perturbation multiplicate, else add
-        if strategy_tmp in ["constant_lognormal", "time_varing_lognormal",
-                            "time_dcor_lognormal"]:
+        if strategy_tmp in ["lognormal", "logitnormal_mult"]:
             forcing_copy[var_tmp] = forcing_copy[var_tmp].values * noise_coef
         else:
             forcing_copy[var_tmp] = forcing_copy[var_tmp].values + noise_coef
 
+        # store the noise
+        noise_storage[var_tmp] = noise_coef
+
     return forcing_copy, noise_storage
 
 
-def get_shape_from_noise(noise_dict, wgth):
+def get_shape_from_noise(noise_dict, wgth, lowNeff):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     perturbation_strategy = cfg.perturbation_strategy
     ensemble_members = cfg.ensemble_members
+    upper_bounds = cnt.upper_bounds
+    lower_bounds = cnt.lower_bounds
 
     storage = np.ones((len(vars_to_perturbate), 2))
 
@@ -179,18 +279,22 @@ def get_shape_from_noise(noise_dict, wgth):
         var_temp = np.asarray(var_temp)
         var_temp = np.squeeze(var_temp)
 
-        # Transform this to log-space to make it normally distributed
-        if perturbation_strategy[count] in ["constant_lognormal",
-                                            "time_varing_lognormal",
-                                            "time_dcor_lognormal"]:
+        # Transform this from log-space to make it normally distributed
+        if perturbation_strategy[count] == "lognormal":
             var_temp = np.log(var_temp)
+
+        if perturbation_strategy[count] == ["logitnormal_mult",
+                                            "logitnormal_adi"]:
+            var_temp = glogit(var_temp,
+                              upper_bounds[var],
+                              lower_bounds[var])
 
         # reduce the timeserie to its mean
         mu = np.mean(np.average(var_temp, axis=0, weights=wgth))
         sigma = np.mean(flt.weighted_std(var_temp, axis=0, weights=wgth))
 
         # Fix to recover from collapse through particle rejuvenation
-        if sigma == 0:
+        if lowNeff:
             sigma = cnt.sd_errors[var] * cnt.sdfrac
 
         storage[count, 0] = mu
@@ -202,6 +306,8 @@ def get_shape_from_noise(noise_dict, wgth):
 def redraw(func_shape):
 
     perturbation_strategy = cfg.perturbation_strategy
+    upper_bounds = cnt.upper_bounds
+    lower_bounds = cnt.lower_bounds
 
     storage = np.ones(len(perturbation_strategy))
 
@@ -211,23 +317,18 @@ def redraw(func_shape):
         sigma = func_shape[count, 1].copy()
 
         new_pert = mu+sigma*np.random.randn(1)
-        if var in ["constant_lognormal", "time_varing_lognormal",
-                   "time_dcor_lognormal"]:
+        if var == "lognormal":
             # re-draw in log-space
             new_pert = np.exp(new_pert)
+
+        if perturbation_strategy[count] == ["logitnormal_mult",
+                                            "logitnormal_adi"]:
+
+            varindict = cfg.vars_to_perturbate[count]
+            new_pert = gexpit(new_pert,
+                              upper_bounds[varindict],
+                              lower_bounds[varindict])
 
         storage[count] = new_pert
 
     return storage
-
-
-def SCA(state):
-
-    SCA0 = cnt.SCA0
-    fSCA_id = fsm.get_var_state_position("fSCA")
-    fSCA_to_SCA = state.iloc[:, fSCA_id].copy().to_numpy()
-
-    fSCA_to_SCA[fSCA_to_SCA >= SCA0] = 1
-    fSCA_to_SCA[fSCA_to_SCA < SCA0] = 0
-
-    return fSCA_to_SCA

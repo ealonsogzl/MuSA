@@ -13,22 +13,19 @@ KELVING_CONVER = 273.15         # Kelvin to Celsius conversion
 R = 8.31441                     # Universal Gas Constant [J mol**-1 K**-1]
 MW = 0.01801528                 # Molecular weight of water [kg mol**-1]
 LF = 334000                     # latent heat of fusion [J kg**-1]
-rSNOW = 300                     # Guessed Snow bulk density [kg m**-3]
-tSNOW = 273                     # Guessed Snow temperature [K]
-lSNOW = 0.1                     # Guessed Snow liquid content [-]
-sfcTEMP = 273                   # Guessed Snow/ground sfc temp [K]
-grRADI = 0.00005                # Guessed grain radius [m]
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
 sdfrac = 0.7                    # fraction of the sd_errors to use if collapse
-
-
+Neffthrs = 0.1                  # Low Neff threshold
+DMF = 3/24                      # Degree melt index
+FIX_density = 0.3
+aprox_lat = 50
 # -----------------------------------
 # Mean errors
 # -----------------------------------
 
 mean_errors = {"SW": 0,
                "LW": 0,
-               "Prec": 0,
+               "Prec": -1.6,
                "Ta": 0,
                "RH": 0,
                "Ua": -0.14,
@@ -41,21 +38,56 @@ mean_errors = {"SW": 0,
 
 sd_errors = {"SW": 0.1,
              "LW": 20.8,
-             "Prec": 0.73,
-             "Ta": 2,
+             "Prec": 1,
+             "Ta": 0.5,
              "RH": 8.9,
              "Ua": 0.53,
              "Ps": 100}
+
+# -----------------------------------
+# upper bounds errors
+# -----------------------------------
+
+upper_bounds = {"SW": 10,
+                "LW": 10,
+                "Prec": 8,
+                "Ta": 8,
+                "RH": 10,
+                "Ua": 10,
+                "Ps": 10}
+
+# -----------------------------------
+# Lower bounds errors
+# -----------------------------------
+
+lower_bounds = {"SW": -10,
+                "LW": -10,
+                "Prec": 0,
+                "Ta": -8,
+                "RH": -10,
+                "Ua": -10,
+                "Ps": -10}
+
+
+# -----------------------------------
+# Dynamic noise
+# -----------------------------------
+dyn_noise = {"SW": 0.01,
+             "LW": 0.01,
+             "Prec": 0.01,
+             "Ta": 0.01,
+             "RH": 0.01,
+             "Ua": 0.01,
+             "Ps": 0.01}
 
 
 # -----------------------------------
 # Unit conversions
 # -----------------------------------
-
 forcing_offset = {"SW": 0,
                   "LW": 0,
                   "Prec": 0,
-                  "Ta": 0,
+                  "Ta": 273.15,
                   "RH": 0,
                   "Ua": 0,
                   "Ps": 0}
