@@ -8,7 +8,6 @@
 program FSM2
 
 #include "OPTS.h"
-
 #if PROFNC == 1
 use netcdf
 #endif
@@ -69,6 +68,7 @@ integer :: &
 logical :: EoF        ! End-of-file flag
 real :: &
   dt,                &! Timestep (s)
+  cv,                &! cv of the Listons depletion curve
   elev,              &! Solar elevation (radians)
   hour,              &! Hour of day
   zT,                &! Temperature and humidity measurement height (m)
@@ -128,6 +128,13 @@ real, allocatable :: &
   fsnow(:,:),        &! Ground snowcover fraction
   asrf(:,:)           ! Snow/ground surface albedo
 
+
+real, allocatable :: &
+  D_a(:,:),          &
+  D_m(:,:),          &
+  D_ave(:,:)      
+
+
 ! Vegetation characteristics
 character(len=70) :: &
   alb0_file,         &! Snow-free ground albedo map file name
@@ -159,7 +166,7 @@ integer :: &
   j,                 &! Grid column counter
   k                   ! Soil layer counter
 
-namelist    /drive/ met_file,dt,lat,noon,zT,zU,SWEsca,Taf
+namelist    /drive/ met_file,dt,lat,noon,zT,zU,SWEsca,Taf,cv
 namelist /gridpnts/ Ncols,Nrows,Nsmax,Nsoil
 namelist /gridlevs/ Dzsnow,Dzsoil,fvg1,zsub
 namelist  /initial/ fsat,Tprf,start_file
@@ -202,6 +209,9 @@ zT = 2
 zU = 10
 SWEsca = 13
 Taf = 2.6
+! this cv correspond to distinguished by relatively high temperatures, moderate to high topographic variability, 
+! and high wind speeds according to https://doi.org/10.1175/1520-0442(2004)017<1381:RSSCHI>2.0.CO;2
+cv = 0.2!0.85 
 read(5,drive)
 open(umet, file = met_file)
 read(umet,*) year,month,day,hour
@@ -264,6 +274,12 @@ allocate(Tsnow(Nsmax,Ncols,Nrows))
 allocate(Tsoil(Nsoil,Ncols,Nrows))
 allocate(Tveg(Ncnpy,Ncols,Nrows))
 allocate(Vsmc(Nsoil,Ncols,Nrows))
+allocate(fsnow(Ncols,Nrows)) 
+      
+allocate(D_a(Ncols,Nrows))         
+allocate(D_m(Ncols,Nrows))          
+allocate(D_ave(Ncols,Nrows))     
+
 
 ! Default initialization of state variables
 albs  = 0.8
@@ -277,6 +293,11 @@ Sveg  = 0
 Tcan  = 285
 Tsnow = 273
 Tveg  = 285
+fsnow = 0.0
+D_a = 0.0
+D_m = 0.0
+D_ave = 0.0
+
 ! Missing values for vegetation at non-forest points
 do k = 1, Ncnpy
   where(VAI==0) Sveg(k,:,:) = -999./Ncnpy
@@ -313,6 +334,10 @@ if (start_file /= 'none') then
   read(udmp,*) Tsrf
   read(udmp,*) Tveg
   read(udmp,*) Vsmc
+  read(udmp,*) fsnow
+  read(udmp,*) D_a
+  read(udmp,*) D_m
+  read(udmp,*) D_ave
   close(udmp)
   snw = sum(Sice) + sum(Sliq)
 end if
@@ -332,7 +357,6 @@ allocate(SWout(Ncols,Nrows))
 allocate(SWsub(Ncols,Nrows))
 allocate(Usub(Ncols,Nrows))
 allocate(Wflx(Nsmax,Ncols,Nrows))
-allocate(fsnow(Ncols,Nrows))
 allocate(asrf(Ncols,Nrows))
 
 ! Output files 
@@ -360,7 +384,7 @@ do
   do j = 1, Ncols
     call FSM2_TIMESTEP(                                                &
                        ! Driving variables                             &
-                       dt,elev,zT,zU,SWEsca,Taf,LW(j,i),Ps(j,i),       &
+                       dt,elev,zT,zU,SWEsca,Taf,cv, LW(j,i),Ps(j,i),   &
                        Qa(j,i),Rf(j,i),Sdif(j,i),Sdir(j,i),Sf(j,i),    &
                        Ta(j,i),trans(j,i),Ua(j,i),                     &
                        ! Vegetation characteristics                    &
@@ -370,8 +394,8 @@ do
                        Qcan(:,j,i),Rgrn(:,j,i),Sice(:,j,i),            &
                        Sliq(:,j,i),Sveg(:,j,i),Tcan(:,j,i),            &
                        Tsnow(:,j,i),Tsoil(:,j,i),Tveg(:,j,i),          &
-                       Vsmc(:,j,i),                                    &
-                       ! Diagnostics                                   &
+                       Vsmc(:,j,i),D_a(j,i),D_m(j,i),D_ave(j,i),       &
+                       ! Diagnostics                                   &                                          
                        H(j,i),LE(j,i),LWout(j,i),LWsub(j,i),           &
                        Melt(j,i),Roff(j,i),snd(j,i),snw(j,i),          &
                        subl(j,i),svg(j,i),SWout(j,i),SWsub(j,i),       &
@@ -410,6 +434,10 @@ write(udmp,*) Tsoil
 write(udmp,*) Tsrf
 write(udmp,*) Tveg
 write(udmp,*) Vsmc
+write(udmp,*) fsnow
+write(udmp,*) D_a
+write(udmp,*) D_m
+write(udmp,*) D_ave
 close(udmp)
 
 #if PROFNC == 1

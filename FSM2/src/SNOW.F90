@@ -1,9 +1,9 @@
 !-----------------------------------------------------------------------
 ! Snow thermodynamics and hydrology
 !-----------------------------------------------------------------------
-subroutine SNOW(dt,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,     &
+subroutine SNOW(dt,SWEsca,Taf,cv,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,     &
                 Tsrf,unload,Nsnow,Dsnw,Rgrn,Sice,Sliq,Tsnow,Tsoil,     &
-                Gsoil,Roff,snd,snw,Wflx)
+                Gsoil,Roff,snd,snw,Wflx,fsnow,D_a,D_m,D_ave,Rsrf,H,LE)
 
 #include "OPTS.h"
 
@@ -25,6 +25,7 @@ use LAYERS, only: &
   Nsoil               ! Number of soil layers
 
 use PARAMETERS, only: &
+  hfsn,              &! Snowcover fraction depth scale (m)
   eta0,              &! Reference snow viscosity (Pa s)
   rcld,              &! Maximum density for cold snow (kg/m^3)
   rfix,              &! Fixed snow density (kg/m^3)
@@ -39,10 +40,15 @@ use PARAMETERS, only: &
 implicit none
 
 real, intent(in) :: &
+  SWEsca,            &! SWE where SCA=1 [mm] (Noah fSCA)
+  Taf,               &! #fSCA shape parameter [-] (Noah fSCA)
+  cv,                &! cv of the Listons depletion curve
   dt,                &! Timestep (s)
   drip,              &! Melt water drip from vegetation (kg/m^2)
   Esrf,              &! Moisture flux from the surface (kg/m^2/s)
   Gsrf,              &! Heat flux into snow/ground surface (W/m^2)
+  H,                 &! Sensible heat flux to the atmosphere (W/m^2)
+  LE,                &! Latent heat flux to the atmosphere (W/m^2)
   Melt,              &! Surface melt rate (kg/m^2/s)
   Rf,                &! Rainfall rate (kg/m^2/s)
   Sf,                &! Snowfall rate (kg/m^2/s)
@@ -51,8 +57,8 @@ real, intent(in) :: &
   Tsrf,              &! Snow/ground surface temperature (K)
   unload,            &! Snow mass unloaded from vegetation (kg/m^2)
   ksnow(Nsmax),      &! Thermal conductivity of snow layers (W/m/K)
-  ksoil(Nsoil)        ! Thermal conductivity of soil layers (W/m/K)
-
+  ksoil(Nsoil),       & ! Thermal conductivity of soil layers (W/m/K)
+  Rsrf              ! Net radiation absorbed by the surface (W/m^2)
 integer, intent(inout) :: &
   Nsnow               ! Number of snow layers
 
@@ -62,7 +68,11 @@ real, intent(inout) :: &
   Sice(Nsmax),       &! Ice content of snow layers (kg/m^2)
   Sliq(Nsmax),       &! Liquid content of snow layers (kg/m^2)
   Tsnow(Nsmax),      &! Snow layer temperatures (K)
-  Tsoil(Nsoil)        ! Soil layer temperatures (K)
+  Tsoil(Nsoil),      &! Soil layer temperatures (K)
+  fsnow,             &! Ground snowcover fraction
+  D_a,               & ! sum of all snow accumulation events prior to this time,
+  D_m,               & ! sum of all snowmelt events prior to this time,
+  D_ave                ! cell-average snow depth
 
 real, intent(out) :: &
   Gsoil,             &! Heat flux into soil (W/m^2)
@@ -87,7 +97,9 @@ real :: &
   mass,              &! Mass of overlying snow (kg/m^2)
   rhos,              &! Density of snow layer (kg/m^3)
   SliqMax,           &! Maximum liquid content for layer (kg/m^2)
-  wt                  ! Layer weighting
+  wt,                &! Layer weighting
+  snet,              &
+  melt_liston
 
 real :: &
   a(Nsmax),          &! Below-diagonal matrix elements
@@ -480,4 +492,44 @@ if (snd > 0) then  ! Existing or new snowpack
 snw = sum(Sice(:)) + sum(Sliq(:))
 end if ! Existing or new snowpack
 
+
+snd = sum(Dsnw(:))
+#if SNFRC == 0
+if (snd > 0) then
+  fsnow = 1
+else
+  fsnow = 0
+end if
+#endif
+
+#if SNFRAC == 1
+fsnow = min(snd/hfsn, 1.)
+#endif
+
+#if SNFRAC == 2
+fsnow = snd / (snd + hfsn)
+#endif
+
+#if SNFRAC == 3
+if (snw < SWEsca) then
+  fsnow = 1 - (exp((-Taf*snw)/SWEsca) - (snw/SWEsca) * exp(-Taf))
+  fsnow = min(fsnow,1.)
+else
+  fsnow = 1
+end if
+#endif
+
+#if SNFRAC == 4
+
+melt_liston = (Rsrf + Gsrf - H - LE)/Lf
+melt_liston = min(melt_liston, 0.)
+snet = (melt_liston*dt + (Sf - Esnow)*dt) /1000
+
+call SSNOWD(cv,D_ave,D_a,D_m,fsnow,snet)
+#endif
+
 end subroutine SNOW
+
+
+
+

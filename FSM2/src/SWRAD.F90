@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------
 ! Surface and vegetation net shortwave radiation
 !-----------------------------------------------------------------------
-subroutine SWRAD(alb0,SWEsca,Taf,Dsnw,snw,dt,elev,fcans,lveg,Sdif,Sdir,       &
+subroutine SWRAD(alb0,Dsnw,snw,dt,elev,fcans,lveg,Sdif,Sdir,       &
                  Sf,Tsrf,albs,fsnow,SWout,SWsrf,SWsub,SWveg,tdif,asrf)
 
 #include "OPTS.h"
@@ -18,7 +18,6 @@ use PARAMETERS, only: &
   acns,              &! Snow-covered dense canopy albedo
   asmx,              &! Maximum albedo for fresh snow
   asmn,              &! Minimum albedo for melting snow
-  hfsn,              &! Snowcover fraction depth scale (m)
   kext,              &! Vegetation light extinction coefficient
   Salb,              &! Snowfall to refresh albedo (kg/m^2)
   Talb,              &! Snow albedo decay temperature threshold (C)
@@ -28,9 +27,8 @@ use PARAMETERS, only: &
 implicit none
 
 real, intent(in) :: &
+  fsnow,             &! Ground snowcover fraction
   alb0,              &! Snow-free ground albedo
-  SWEsca,            &! SWE where SCA=1 [mm] (Noah fSCA)
-  Taf,               &! #fSCA shape parameter [-] (Noah fSCA)
   dt,                &! Timestep (s)
   elev,              &! Solar elevation (radians)
   Sdif,              &! Diffuse shortwave radiation (W/m^2)
@@ -46,7 +44,6 @@ real, intent(inout) :: &
   albs                ! Snow albedo
 
 real, intent(out) :: &
-  fsnow,             &! Ground snowcover fraction
   asrf,              &! Snow/ground surface albedo
   SWout,             &! Outgoing SW radiation (W/m^2)
   SWsrf,             &! SW absorbed by snow/ground surface (W/m^2)
@@ -83,23 +80,6 @@ alim = (asmn/tdec + asmx*Sf/Salb)/(1/tdec + Sf/Salb)
 albs = alim + (albs - alim)*exp(-(1/tdec + Sf/Salb)*dt)
 #endif
 albs = max(min(albs,asmx),asmn)
-
-! Partial snowcover on ground
-snd = sum(Dsnw(:))
-#if SNFRAC == 1
-fsnow = min(snd/hfsn, 1.)
-#endif
-#if SNFRAC == 2
-fsnow = snd / (snd + hfsn)
-#endif
-#if SNFRAC == 3
-if (snw < SWEsca) then
-  fsnow = 1 - (exp((-Taf*snw)/SWEsca) - (snw/SWEsca) * exp(-Taf))
-  fsnow = min(fsnow,1.)
-else
-  fsnow = 1
-end if
-#endif
 
 ! Surface and vegetation net shortwave radiation
 asrf = (1 - fsnow)*alb0 + fsnow*albs

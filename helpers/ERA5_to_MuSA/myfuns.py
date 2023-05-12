@@ -103,7 +103,7 @@ def fromGEE_to_df(dates, era5_land, era_poi):
                                      'surface_pressure'])
 
         # append rows to storage df
-        era5_df = era5_df.append(era5_dftmp, ignore_index=True)
+        era5_df = pd.concat([era5_df, era5_dftmp])
 
     return era5_df
 

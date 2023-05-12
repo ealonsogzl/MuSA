@@ -4,7 +4,7 @@
 subroutine SRFEBAL(cveg,Ds1,dt,fcans,fsnow,gs1,ks1,lveg,LW,Ps,Qa,      &
                    SWsrf,Sveg,SWveg,Ta,tdif,Ts1,Tveg0,Ua,VAI,vegh,     &
                    zT,zU,Tsrf,Qcan,Sice,Tcan,Tveg,                     &
-                   Esrf,Eveg,Gsrf,H,LE,LWout,LWsub,Melt,subl,Usub)
+                   Esrf,Eveg,Gsrf,H,LE,LWout,LWsub,Melt,subl,Usub,Rsrf)
 
 #include "OPTS.h"
 
@@ -74,6 +74,7 @@ real, intent(inout) :: &
 real, intent(out) :: &
   Esrf,              &! Moisture flux from the surface (kg/m^2/s)
   Gsrf,              &! Heat flux into snow/ground surface (W/m^2)
+  Rsrf,              &! Net radiation absorbed by the surface (W/m^2)
   H,                 &! Sensible heat flux to the atmosphere (W/m^2)
   LE,                &! Latent heat flux to the atmosphere (W/m^2)
   LWout,             &! Outgoing LW radiation (W/m^2)
@@ -112,7 +113,7 @@ real :: &
   rho,               &! Air density (kg/m^3)
   rL,                &! Reciprocal of Obukhov length (1/m)
   ro,                &! Open aerodynamic resistance (s/m)
-  Rsrf,              &! Net radiation absorbed by the surface (W/m^2)
+!  Rsrf,              &! Net radiation absorbed by the surface (W/m^2)
   Ssub,              &! Mass of snow available for sublimation (kg/m^2)
   Uc,                &! Within-canopy wind speed (m/s)
   Uh,                &! Wind speed at canopy top (m/s)
@@ -186,6 +187,7 @@ rho = Ps/(Rair*Ta)
 if (VAI == 0) then  ! open
 Eveg(:) = 0
 Hveg(:) = 0
+Lcan(:) = 0
 ustar = vkman*Ua/log(zU1/z0g)
 ga = vkman*ustar/log(zT1/z0h)
 do ne = 1, 20
@@ -630,6 +632,7 @@ end if
 E = Esrf + sum(Eveg(:))
 H = Hsrf + sum(Hveg(:))
 LE = Lsrf*Esrf + sum(Lcan(:)*Eveg(:))
+
 
 end subroutine SRFEBAL
 
