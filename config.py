@@ -39,9 +39,9 @@ Kalman_iterations = 4  # IEnKF and IES only
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 20
+ensemble_members = 100
 
-# can be a list of scalars of length equal to var_to_assim or the string 'dynamic_error'.
+# r_cov can be a list of scalars of length equal to var_to_assim or the string 'dynamic_error'.
 # If 'dynamic_error' is selected, errors may change in space and time.
 # If this option is selected, the errors will be stored in a new variable in the observation
 # files, and will have the same dimensions as the observations.
