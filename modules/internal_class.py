@@ -78,11 +78,12 @@ class SnowEnsemble():
 
         self.train_pred[kalman_iter] = predictions.copy()
 
-    def create(self, forcing_sbst, observations_sbst, step,
+    def create(self, forcing_sbst, observations_sbst, error_sbst, step,
                readGSC=False, GSC_filename=None):
 
         self.step = step
         self.observations = observations_sbst.copy()
+        self.errors = error_sbst.copy()
         self.forcing = forcing_sbst.copy()
 
         # create temporal FSM2

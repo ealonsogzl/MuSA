@@ -609,23 +609,14 @@ def get_predicitons(list_state, var_to_assim):
     return predicted
 
 
-def tidy_obs_pred_rcov(predicted, observations_sbst, r_cov, ret_mask=False):
-
-    var_to_assim = cfg.var_to_assim
+def tidy_obs_pred_rcov(predicted, observations_sbst, errors_sbst,
+                       ret_mask=False):
 
     # tidy list of predictions
     predicted = np.concatenate(predicted.copy(), axis=1)
 
-    # check that there are the same error than vasr to assim
-    if len(r_cov) != len(var_to_assim):
-        raise Exception('Provide one error covariance value per var_to_assim')
-
-    # expand errors to observation estructure
-    r_cov_expand = np.tile(np.asarray(r_cov),
-                           (np.shape(observations_sbst)[0], 1))
-
     # flaten obs and errors
-    r_cov_expand_f = r_cov_expand.flatten(order='F')
+    r_cov_f = errors_sbst.flatten(order='F')
     observations_sbst_f = observations_sbst.flatten(order='F')
 
     # create mask of nan
@@ -633,15 +624,15 @@ def tidy_obs_pred_rcov(predicted, observations_sbst, r_cov, ret_mask=False):
 
     # mask everithing
     observations_sbst_f_masked = observations_sbst_f[mask]
-    r_cov_expand_f = np.squeeze(r_cov_expand_f[mask])
+    r_cov_f = np.array(np.squeeze(r_cov_f[mask]))
 
     predicted = np.squeeze(predicted[:, mask])
     predicted = np.ndarray.transpose(predicted)
 
     if ret_mask:
-        return observations_sbst_f_masked, predicted, r_cov_expand_f, mask
+        return observations_sbst_f_masked, predicted, r_cov_f, mask
 
-    return observations_sbst_f_masked, predicted, r_cov_expand_f
+    return observations_sbst_f_masked, predicted, r_cov_f
 
 
 def tidy_predictions(predicted, mask):
@@ -733,8 +724,7 @@ def transform_space(parameters, trans_direction):
     return safe_pars
 
 
-def implement_assimilation(Ensemble, observations_sbst,
-                           step, forcing_sbst):
+def implement_assimilation(Ensemble, step):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     mean_errors = cnt.mean_errors
@@ -742,16 +732,17 @@ def implement_assimilation(Ensemble, observations_sbst,
     da_algorithm = cfg.da_algorithm
     Kalman_iterations = cfg.Kalman_iterations
     var_to_assim = cfg.var_to_assim
-    r_cov = cfg.r_cov
 
     Result = {}  # initialice results dict
 
     list_state = Ensemble.state_membres
+    errors = Ensemble.errors
+    observations = Ensemble.observations
 
     # implement assimilation
     if da_algorithm == "PBS":
         # Check if there are observations to assim, or all weitgs = 1
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Ensemble.season_rejuvenation()
             pass
@@ -761,7 +752,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             predicted = get_predicitons(list_state, var_to_assim)
 
             observations_sbst_masked, predicted, r_cov = \
-                tidy_obs_pred_rcov(predicted, observations_sbst, r_cov)
+                tidy_obs_pred_rcov(predicted, observations, errors)
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
@@ -780,7 +771,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             Ensemble.season_rejuvenation()
 
     elif da_algorithm == "PF":
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Result["resampled_particles"] = np.arange(Ensemble.members)
 
@@ -789,7 +780,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             predicted = get_predicitons(list_state, var_to_assim)
 
             observations_sbst_masked, predicted, r_cov = \
-                tidy_obs_pred_rcov(predicted, observations_sbst, r_cov)
+                tidy_obs_pred_rcov(predicted, observations, errors)
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
@@ -814,7 +805,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Kalman_iterations = 1
 
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Ensemble.kalman_update(create=False)
             pass
@@ -829,8 +820,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations_sbst,
-                                           r_cov, ret_mask=True)
+                        tidy_obs_pred_rcov(predicted, observations,
+                                           errors, ret_mask=True)
                 else:
                     predicted = tidy_predictions(predicted, mask)
                 # get prior
@@ -876,7 +867,7 @@ def implement_assimilation(Ensemble, observations_sbst,
 
             Kalman_iterations = 1
 
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Ensemble.kalman_update(create=False)
             Ensemble.season_rejuvenation()
@@ -892,8 +883,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations_sbst,
-                                           r_cov, ret_mask=True)
+                        tidy_obs_pred_rcov(predicted, observations,
+                                           errors, ret_mask=True)
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -927,7 +918,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             Ensemble.season_rejuvenation()
 
     elif da_algorithm == 'PIES':
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Ensemble.kalman_update(create=False)
             Ensemble.season_rejuvenation()
@@ -944,8 +935,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations_sbst,
-                                           r_cov, ret_mask=True)
+                        tidy_obs_pred_rcov(predicted, observations,
+                                           errors, ret_mask=True)
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1010,7 +1001,7 @@ def implement_assimilation(Ensemble, observations_sbst,
             Result["resampled_particles"] = resampled_particles
 
     elif da_algorithm in ['IES-MCMC']:
-        if np.isnan(observations_sbst).all():
+        if np.isnan(Ensemble.observations).all():
 
             Ensemble.kalman_update(create=False)
             pass
@@ -1025,8 +1016,8 @@ def implement_assimilation(Ensemble, observations_sbst,
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations_sbst,
-                                           r_cov, ret_mask=True)
+                        tidy_obs_pred_rcov(predicted, observations,
+                                           errors, ret_mask=True)
                 else:
                     predicted = tidy_predictions(predicted, mask)
 

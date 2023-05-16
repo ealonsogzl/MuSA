@@ -87,7 +87,7 @@ dyn_noise = {"SW": 0.01,
 forcing_offset = {"SW": 0,
                   "LW": 0,
                   "Prec": 0,
-                  "Ta": 273.15,
+                  "Ta": 0,
                   "RH": 0,
                   "Ua": 0,
                   "Ps": 0}

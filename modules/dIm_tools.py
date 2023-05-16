@@ -152,10 +152,12 @@ def get_var_state_position(var):
     return state_columns.index(var)
 
 
-def storeDA(Result_df, step_results, observations_sbst, time_dict, step):
+def storeDA(Result_df, step_results, observations_sbst, error_sbst,
+            time_dict, step):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     var_to_assim = cfg.var_to_assim
+    error_names = cfg.obs_error_var_names
 
     rowIndex = Result_df.index[time_dict["Assimilaiton_steps"][step]:
                                time_dict["Assimilaiton_steps"][step + 1]]
@@ -163,9 +165,11 @@ def storeDA(Result_df, step_results, observations_sbst, time_dict, step):
     if len(var_to_assim) > 1:
         for i, var in enumerate(var_to_assim):
             Result_df.loc[rowIndex, var] = observations_sbst[:, i]
+            Result_df.loc[rowIndex, error_names[i]] = error_sbst[:, i]
     else:
         var = var_to_assim[0]
         Result_df.loc[rowIndex, var] = observations_sbst
+        Result_df.loc[rowIndex, error_names] = error_sbst
 
     # Add perturbation parameters to Results
     for var_p in vars_to_perturbate:

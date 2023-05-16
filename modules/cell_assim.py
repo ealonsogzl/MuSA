@@ -34,7 +34,7 @@ def cell_assimilation(lat_idx, lon_idx):
         return None
 
     dates_obs = ifn.get_dates_obs()
-    observations = ifn.obs_array(dates_obs, lat_idx, lon_idx)
+    observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
 
     if isinstance(observations, str):  # check if masked
         return None
@@ -79,23 +79,25 @@ def cell_assimilation(lat_idx, lon_idx):
     # Loop over assimilation steps
     for step in range(len(time_dict["Assimilaiton_steps"])-1):
 
-        # subset forcing and observations
+        # subset forcing, errors and observations
         observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
                                          time_dict["Assimilaiton_steps"][step
                                                                          + 1]]
+        error_sbst = errors[time_dict["Assimilaiton_steps"][step]:
+                            time_dict["Assimilaiton_steps"][step
+                                                            + 1]]
 
         forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
                                     time_dict["Assimilaiton_steps"][step + 1]]\
             .copy()
 
-        Ensemble.create(forcing_sbst, observations_sbst, step)
+        Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
         # store prior ensemble
         model.store_sim(prior_mean, prior_sd, Ensemble,
                         time_dict, step)
 
-        step_results = flt.implement_assimilation(Ensemble, observations_sbst,
-                                                  step, forcing_sbst)
+        step_results = flt.implement_assimilation(Ensemble, step)
 
         if save_ensemble:
             # deepcopy necesary to not to change all
@@ -103,7 +105,7 @@ def cell_assimilation(lat_idx, lon_idx):
             ensemble_list.append(Ensemble_tmp)
 
         # Store results in dataframes
-        model.storeDA(DA_Results, step_results, observations_sbst,
+        model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
                       time_dict, step)
         model.store_sim(updated_Sim, sd_Sim, Ensemble,
                         time_dict, step)
@@ -121,7 +123,8 @@ def cell_assimilation(lat_idx, lon_idx):
             Ensemble.resample(step_results["resampled_particles"])
 
     # Store OL
-    model.storeOL(OL_Sim, Ensemble, observations_sbst, time_dict, step)
+    model.storeOL(OL_Sim, Ensemble, observations_sbst,
+                  time_dict, step)
 
     # Write results
     cell_data = {"DA_Results": DA_Results,

@@ -128,6 +128,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     obs_var_names = cfg.obs_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
+    r_cov = cfg.r_cov
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
@@ -152,13 +153,18 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
     # Initialize obs matrix
     obs_matrix = np.empty((len(del_t), len(obs_var_names)))
+    error_matrix = np.empty((len(del_t), len(obs_var_names)))
 
     for cont, obs_var in enumerate(obs_var_names):
 
         array_obs = np.empty(len(del_t))
         array_obs[:] = np.nan
 
-        tmp_storage = []
+        array_error = np.empty(len(del_t))
+        array_error[:] = np.nan
+
+        tmp_obs_storage = []
+        tmp_error_storage = []
 
         for i, ncfile in enumerate(files):
 
@@ -171,21 +177,41 @@ def obs_array(dates_obs, lat_idx, lon_idx):
             else:
                 nc_value = np.ma.getdata(nc_value)
 
-            tmp_storage.extend(nc_value)
+            tmp_obs_storage.extend(nc_value)
+
+            # do the same conditionally for errors
+
+            if r_cov == 'dynamic_error':
+                nc_value = data_temp.variables[cfg.obs_error_var_names[cont]
+                                               ][:, lat_idx, lon_idx]
+                # Check if masked
+                # TODO: Check if there is a better way to do this
+                if np.ma.is_masked(nc_value):
+                    nc_value = nc_value.filled(np.nan)
+                else:
+                    nc_value = np.ma.getdata(nc_value)
+
+                tmp_error_storage.extend(nc_value)
+            else:
+
+                tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
+
             data_temp.close()
 
-        array_obs[obs_idx] = tmp_storage
+        array_obs[obs_idx] = tmp_obs_storage
+        array_error[obs_idx] = tmp_error_storage
 
         obs_matrix[:, cont] = array_obs
+        error_matrix[:, cont] = array_error
 
     # Remove extra dimension when len(obs_var_names) == 1
     obs_matrix = np.squeeze(obs_matrix)
-
+    error_matrix = np.squeeze(error_matrix)
     # check if num of dates == num of observations
 #    if obs_matrix.shape[0] != len(dates_obs):
 #        raise Exception("Number of dates different of number of obs files")
 
-    return obs_matrix
+    return (obs_matrix, error_matrix)
 
 
 def generate_dates(date_ini, date_end):

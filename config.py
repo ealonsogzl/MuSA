@@ -39,7 +39,12 @@ Kalman_iterations = 4  # IEnKF and IES only
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 100
+ensemble_members = 20
+
+# can be a list of scalars of length equal to var_to_assim or the string 'dynamic_error'.
+# If 'dynamic_error' is selected, errors may change in space and time.
+# If this option is selected, the errors will be stored in a new variable in the observation
+# files, and will have the same dimensions as the observations.
 r_cov = [0.04]
 add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
@@ -152,6 +157,7 @@ dates_obs = ["2019-02-21 12:00",
              "2019-05-05 12:00",
              "2019-05-09 12:00",
              "2019-05-23 12:00",
+             "2019-05-30 12:00",
              "2020-01-14 12:00",
              "2020-02-03 12:00",
              "2020-02-24 12:00",
@@ -166,6 +172,7 @@ dates_obs = ["2019-02-21 12:00",
              "2020-06-21 12:00"]
 
 obs_var_names = ["HS"]
+obs_error_var_names = ['sdError']  # In case of r_cov = 'dynamic_error'
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 

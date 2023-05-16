@@ -18,7 +18,7 @@ else:
 import numpy as np
 import sys
 
-if(cfg.parallelization == "multiprocessing" or
+if (cfg.parallelization == "multiprocessing" or
    cfg.implementation == "open_loop"):
     import multiprocessing as mp
 elif cfg.parallelization == "PBS.array":

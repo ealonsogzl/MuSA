@@ -554,12 +554,12 @@ def domain_steps():
 def prepare_forcing(lat_idx, lon_idx):
 
     dates_obs = ifn.get_dates_obs()
-    observations = ifn.obs_array(dates_obs, lat_idx, lon_idx)
+    observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
     time_dict = ifn.simulation_steps(observations, dates_obs)
     main_forcing = model.forcing_table(lat_idx, lon_idx)
     main_forcing = model.unit_conversion(main_forcing)
 
-    return main_forcing, time_dict, observations
+    return main_forcing, time_dict, observations, errors
 
 
 def generate_obs_mask(pbs_task_id):
@@ -741,22 +741,22 @@ def get_neig_info(lat_idx, lon_idx, step, j):
     neig_long = []
 
     var_to_assim = cfg.var_to_assim
-    r_cov = cfg.r_cov
+    # r_cov = cfg.r_cov
 
     for count, file in enumerate(files):
 
         ens_tmp = ifn.io_read(file)
-
-        list_state = ens_tmp.state_membres
-
-        predicted = flt.get_predicitons(list_state, var_to_assim)
         obs = ens_tmp.observations
+        errors = ens_tmp.errors
 
         if np.isnan(obs).all():
             continue
 
+        list_state = ens_tmp.state_membres
+        predicted = flt.get_predicitons(list_state, var_to_assim)
+
         obs_masked, predicted, tmp_r_cov = \
-            flt.tidy_obs_pred_rcov(predicted, obs, r_cov)
+            flt.tidy_obs_pred_rcov(predicted, obs, errors)
 
         if predicted.ndim == 1:  # F**k numpy
             predicted = predicted[np.newaxis, :]
@@ -818,7 +818,8 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
 
 def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
-    main_forcing, time_dict, observations = prepare_forcing(lat_idx, lon_idx)
+    main_forcing, time_dict, observations, errors = prepare_forcing(lat_idx,
+                                                                    lon_idx)
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
@@ -839,23 +840,29 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         Ensemble = ifn.io_read(file)
 
     # subset forcing and observations
+    # subset forcing, errors and observations
     observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
                                      time_dict["Assimilaiton_steps"][step
                                                                      + 1]]
+    error_sbst = errors[time_dict["Assimilaiton_steps"][step]:
+                        time_dict["Assimilaiton_steps"][step
+                                                        + 1]]
 
     forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
                                 time_dict["Assimilaiton_steps"][step + 1]]\
         .copy()
 
+    Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
+
     if time_dict["Assimilaiton_steps"][step] in ini_DA_window:
         GSC_filename = (str(gsc_count) + '_GSC.nc')
 
-        Ensemble.create(forcing_sbst, observations_sbst, step,
+        Ensemble.create(forcing_sbst, observations_sbst, error_sbst,  step,
                         readGSC=True, GSC_filename=GSC_filename)
 
     else:  # for filters
         raise Exception('Filters not implemented yet in spatial propagation')
-        Ensemble.create(forcing_sbst, observations_sbst, step)
+        Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
     # Save ensembles, update: I cant, if save space cell without neigb will
     # show cero values
