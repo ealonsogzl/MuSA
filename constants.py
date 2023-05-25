@@ -19,6 +19,21 @@ Neffthrs = 0.1                  # Low Neff threshold
 DMF = 3/24                      # Degree melt index
 FIX_density = 0.3
 aprox_lat = 50
+
+# -----------------------------------
+# Default parameters
+# -----------------------------------
+# Shall be used if they are not found in the forcing.
+# SWE threshold where SCA = 1 (SWEsca) [SNFRAC = 3]
+SWEsca = 40
+# shape of the fSCA. [SNFRAC = 3]
+Taf = 4.0
+# coefficient of variation for the subgrid snow variation [SNFRAC = 4]
+subgrid_cv = 2.0
+# Canopy params
+VAI = 0
+vegh = 0
+
 # -----------------------------------
 # Mean errors
 # -----------------------------------

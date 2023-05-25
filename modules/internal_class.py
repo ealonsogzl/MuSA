@@ -89,7 +89,7 @@ class SnowEnsemble():
         # create temporal FSM2
         self.temp_dest = model.model_copy(self.lat_idx, self.lon_idx)
 
-        model.model_forcing_wrt(forcing_sbst, self.temp_dest)
+        model.model_forcing_wrt(forcing_sbst, self.temp_dest, self.step)
 
         # Write init or dump file from previous run if step != 0
         if cfg.numerical_model in ['FSM2']:
@@ -97,7 +97,7 @@ class SnowEnsemble():
                 model.write_dump(self.origin_dump[step - 1], self.temp_dest)
 
             # create open loop simulation
-            model.model_run(self.temp_dest, step)
+            model.model_run(self.temp_dest)
 
             # read model outputs
             origin_state_tmp, origin_dump_tmp =\
@@ -177,7 +177,7 @@ class SnowEnsemble():
                                                noise=noise_tmp, update=True)
 
             # writte perturbed forcing
-            model.model_forcing_wrt(member_forcing, self.temp_dest)
+            model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
             if cfg.numerical_model in ['FSM2']:
                 if step != 0:
@@ -187,7 +187,7 @@ class SnowEnsemble():
                         model.write_dump(self.out_members_kalman[mbr],
                                          self.temp_dest)
 
-                model.model_run(self.temp_dest, step)
+                model.model_run(self.temp_dest)
 
                 state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
 
@@ -244,14 +244,15 @@ class SnowEnsemble():
                     met.perturb_parameters(self.forcing, noise=noise_tmp,
                                            update=True)
 
-                model.model_forcing_wrt(member_forcing, self.temp_dest)
+                model.model_forcing_wrt(member_forcing, self.temp_dest,
+                                        self.step)
 
                 if cfg.numerical_model in ['FSM2']:
                     if step != 0:
                         model.write_dump(self.out_members_kalman[mbr],
                                          self.temp_dest)
 
-                    model.model_run(self.temp_dest, step)
+                    model.model_run(self.temp_dest)
 
                     state_tmp, dump_tmp = model.model_read_output(
                         self.temp_dest)
@@ -334,13 +335,13 @@ class SnowEnsemble():
                 met.perturb_parameters(self.forcing, noise=noise_tmp,
                                        update=True)
 
-            model.model_forcing_wrt(member_forcing, self.temp_dest)
+            model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
             # if self.step != 0:
             model.write_dump(self.out_members_kalman[0],
                              self.temp_dest)
 
-            model.model_run(self.temp_dest, self.step)
+            model.model_run(self.temp_dest)
 
             state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
 
@@ -353,6 +354,5 @@ class SnowEnsemble():
 
     def save_space(self):
 
-        self.state_membres = [fns.reduce_size_state(x, self.time_dict,
-                                                    self.observations)
+        self.state_membres = [fns.reduce_size_state(x, self.observations)
                               for x in self.state_membres]

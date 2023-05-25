@@ -73,7 +73,7 @@ def model_copy(y_id, x_id):
     return final_directory
 
 
-def write_nlst(temp_dest, step):
+def write_nlst(temp_dest, params, step):
 
     Dzsnow = cfg.Dzsnow
     Nsmax = len(Dzsnow)
@@ -90,9 +90,13 @@ def write_nlst(temp_dest, step):
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
 
     # fSCA parameters
-    filedata = filedata.replace('pySWEsca', str(cfg.SWEsca))
-    filedata = filedata.replace('pyTaf', str(cfg.Taf))
-    filedata = filedata.replace('pycv', str(cfg.subgrid_cv))
+    filedata = filedata.replace('pySWEsca', str(params['SWEsca']))
+    filedata = filedata.replace('pyTaf', str(params['Taf']))
+    filedata = filedata.replace('pycv', str(params['subgrid_cv']))
+
+    # Canopy parameters
+    filedata = filedata.replace('pyvegh', str(params['vegh']))
+    filedata = filedata.replace('pyVAI', str(params['VAI']))
 
     if step == 0:
         filedata = filedata.replace('pyINIT', "\n")
@@ -167,7 +171,7 @@ def model_compile_PBS(pbs_task_id):
                 time.sleep(5)
 
 
-def model_run(fsm_path, step=0):
+def model_run(fsm_path):
     """
     Just run FSM in a directory
 
@@ -181,7 +185,6 @@ def model_run(fsm_path, step=0):
     [None]
 
    """
-    write_nlst(fsm_path, step)
 
     fsm_exe_dir = os.path.join(fsm_path, "FSM2")
     order = fsm_exe_dir + " < nlst"
@@ -271,28 +274,6 @@ def model_remove(fsm_path):
         shutil.rmtree(fsm_path, ignore_errors=True)
 
 
-def write_input(fsm_path, fsm_input_data):
-    """
-    Write the FSM input to the temporal directory
-
-    Parameters
-    ----------
-    fsm_path : string
-        FSM temporal location.
-
-    fsm_input_data : pandas dataframe
-        FSM input data.
-
-    Returns
-    -------
-    None.
-
-    """
-    file_name = os.path.join(fsm_path, "input.txt")
-    fsm_input_data.to_csv(file_name, header=None, index=None,
-                          sep=' ', mode='w')
-
-
 def stable_forcing(forcing_df):
 
     temp_forz_def = forcing_df.copy()
@@ -317,7 +298,7 @@ def stable_forcing(forcing_df):
     return temp_forz_def
 
 
-def model_forcing_wrt(forcing_df, temp_dest):
+def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     temp_forz_def = forcing_df.copy()
     temp_forz_def = stable_forcing(temp_forz_def)
@@ -344,9 +325,24 @@ def model_forcing_wrt(forcing_df, temp_dest):
 
     temp_forz_def.insert(6, "Sf", Sf)
     temp_forz_def.insert(7, "Rf", Rf)
-    del temp_forz_def["Prec"]
 
     file_name = os.path.join(temp_dest, "input.txt")
+
+    params = {"VAI": temp_forz_def.iloc[0]["VAI"],
+              "vegh": temp_forz_def.iloc[0]["vegh"],
+              "Taf": temp_forz_def.iloc[0]["Taf"],
+              "SWEsca": temp_forz_def.iloc[0]["SWEsca"],
+              "subgrid_cv": temp_forz_def.iloc[0]["subgrid_cv"]}
+
+    write_nlst(temp_dest, params, step)
+
+    del temp_forz_def["Prec"]
+
+    del temp_forz_def["VAI"]
+    del temp_forz_def["vegh"]
+    del temp_forz_def["Taf"]
+    del temp_forz_def["SWEsca"]
+    del temp_forz_def["subgrid_cv"]
 
     temp_forz_def.to_csv(file_name, sep="\t",
                          header=False,
@@ -544,6 +540,39 @@ def forcing_table(lat_idx, lon_idx):
                                      frocing_var_names["Press_var_name"],
                                      date_ini, date_end)
 
+        # Search for parameters or use the default settings
+        try:
+            vegh = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        frocing_var_names["vegh_var_name"],
+                                        date_ini, date_end)
+            VAI = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                       frocing_var_names["VAI_var_name"],
+                                       date_ini, date_end)
+        except KeyError:
+            VAI = np.repeat(cnt.VAI, len(prec))
+            vegh = np.repeat(cnt.vegh, len(prec))
+
+        try:
+            SWEsca = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                          frocing_var_names["SWEsca_var_name"],
+                                          date_ini, date_end)
+        except KeyError:
+            SWEsca = np.repeat(cnt.SWEsca, len(prec))
+
+        try:
+            Taf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                       frocing_var_names["Taf_var_name"],
+                                       date_ini, date_end)
+        except KeyError:
+            Taf = np.repeat(cnt.Taf, len(prec))
+
+        try:
+            subgrid_cv = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                              frocing_var_names["subgrid_cv_var_name"],
+                                              date_ini, date_end)
+        except KeyError:
+            subgrid_cv = np.repeat(cnt.subgrid_cv, len(prec))
+
         date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
         del_t = ifn.generate_dates(date_ini, date_end)
@@ -558,7 +587,12 @@ def forcing_table(lat_idx, lon_idx):
                                    "Ta": temp,
                                    "RH": rel_humidity,
                                    "Ua": wind,
-                                   "Ps": press})
+                                   "Ps": press,
+                                   "VAI": VAI,
+                                   "vegh": vegh,
+                                   "Taf": Taf,
+                                   "SWEsca": SWEsca,
+                                   "subgrid_cv": subgrid_cv})
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month
@@ -607,4 +641,4 @@ def unit_conversion(forcing_df):
                                     'Ua': 'float32',
                                     'Ps': 'float32'})
 
-    return(forcing_df)
+    return (forcing_df)

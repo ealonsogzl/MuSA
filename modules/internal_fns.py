@@ -44,7 +44,7 @@ def io_read(filename):
         return obj
 
 
-def reduce_size_state(df_state, time_dict, observations):
+def reduce_size_state(df_state, observations):
 
     var_to_assim = cfg.var_to_assim
     df_state = df_state.copy()

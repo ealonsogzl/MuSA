@@ -77,10 +77,10 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "point_scale"
 
 # parallelization from "sequential", "multiprocessing" or "PBS.array"
-parallelization = "multiprocessing"
+parallelization = "sequential"
 MPI = False  # Note: not tested
 nprocess = 8  # Note: if None, the number of processors will be estimated
 
@@ -178,9 +178,14 @@ lon_obs_var_name = "easting"
 
 
 # -----------------------------------
-# Forcing
+# Forcing (and some parameters)
 # -----------------------------------
 # Note: RealLat_var_name only necesary if snow17
+# Note II: param_var_names is optional. It can be used to change some of the
+# model parameters, including vegetation ones. If they are not included as
+# part of the forcing, those defined in constants.py will be used.
+# These parameters can be included within the assimilation
+
 frocing_var_names = {"SW_var_name": "SW",
                      "LW_var_name": "LW",
                      "Precip_var_name": "PRECC",
@@ -194,19 +199,18 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
                      "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
 
+param_var_names = {"vegh_var_name": "vegh",
+                   "VAI_var_name": "VAI",
+                   "SWEsca_var_name": "SWEsca",
+                   "Taf_var_name": "Taf",
+                   "subgrid_cv_var_name": "subgrid_cv"}
+
 # -----------------------------------
 # FSM configuration (Namelist)
 # -----------------------------------
 
 # Number and thickness of snow layers
 Dzsnow = [0.1, 0.2, 0.4]
-
-# SWE threshold where SCA = 1 (SWEsca) [SNFRAC = 3]
-SWEsca = 40
-# shape of the fSCA. [SNFRAC = 3]
-Taf = 4.0
-# coefficient of variation for the subgrid snow variation [SNFRAC = 4]
-subgrid_cv = 2.0
 
 # -----------------------------------
 # FSM configuration (Compilation)
