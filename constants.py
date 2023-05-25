@@ -21,18 +21,22 @@ FIX_density = 0.3
 aprox_lat = 50
 
 # -----------------------------------
-# Default parameters
+# Default fSCA parameters
 # -----------------------------------
-# Shall be used if they are not found in the forcing.
 # SWE threshold where SCA = 1 (SWEsca) [SNFRAC = 3]
 SWEsca = 40
 # shape of the fSCA. [SNFRAC = 3]
 Taf = 4.0
 # coefficient of variation for the subgrid snow variation [SNFRAC = 4]
 subgrid_cv = 2.0
-# Canopy params
-VAI = 0
-vegh = 0
+
+# -----------------------------------
+# Default vegetation characteristics
+# -----------------------------------
+VAI = 0    # Vegetation area index
+vegh = 0   # Canopy height (m)
+fsky = 1   # Sky view fraction for remote shading
+hbas = 2   # Canopy base height
 
 # -----------------------------------
 # Mean errors

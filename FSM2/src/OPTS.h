@@ -1,7 +1,7 @@
 /* Process options                                  : Possible values */
 #define ALBEDO 2   /* snow albedo                   : 1, 2            */
-#define CANMOD 1   /* forest canopy layers          : 1, 2            */
-#define CANRAD 1   /* canopy radiative properties   : 1, 2            */
+#define CANMOD 2   /* forest canopy layers          : 1, 2            */
+#define CANRAD 2   /* canopy radiative properties   : 1, 2            */
 #define CONDCT 1   /* snow thermal conductivity     : 0, 1            */
 #define DENSTY 2  /* snow density                  : 0, 1, 2         */
 #define EXCHNG 1   /* turbulent exchange            : 0, 1            */

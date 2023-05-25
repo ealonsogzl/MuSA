@@ -1,4 +1,5 @@
 &params
+ hbas = pyhbas
 /
 &gridpnts
  Nsmax = pyNSMAX
@@ -13,6 +14,7 @@
   Taf = pyTaf
 /
 &veg
+  fsky = pyfsky
   vegh = pyvegh
   VAI =  pyVAI
 /

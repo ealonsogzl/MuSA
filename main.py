@@ -62,7 +62,7 @@ def MuSA():
 
         cell_assimilation(lat_idx, lon_idx)
 
-    elif(cfg.implementation == "distributed"):
+    elif (cfg.implementation == "distributed"):
 
         grid = ifn.expand_grid()
 

@@ -97,6 +97,8 @@ def write_nlst(temp_dest, params, step):
     # Canopy parameters
     filedata = filedata.replace('pyvegh', str(params['vegh']))
     filedata = filedata.replace('pyVAI', str(params['VAI']))
+    filedata = filedata.replace('pyfsky', str(params['fsky']))
+    filedata = filedata.replace('pyhbas', str(params['hbas']))
 
     if step == 0:
         filedata = filedata.replace('pyINIT', "\n")
@@ -124,9 +126,8 @@ def model_compile():
         filedata = file.read()
 
     # Canopy options, to be updated if canopy module is enabled
-    filedata = filedata.replace('pyCANMOD', str(1))
-    filedata = filedata.replace('pyCANRAD', str(1))
-    filedata = filedata.replace('pyCANRAD', str(1))
+    filedata = filedata.replace('pyCANMOD', str(cfg.CANMOD))
+    filedata = filedata.replace('pyCANRAD', str(cfg.CANRAD))
 
     # Fortran compiler
     # filedata = filedata.replace('pyFC', cfg.FC)
@@ -334,6 +335,8 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     params = {"VAI": temp_forz_def.iloc[0]["VAI"],
               "vegh": temp_forz_def.iloc[0]["vegh"],
+              "fsky": temp_forz_def.iloc[0]["fsky"],
+              "hbas": temp_forz_def.iloc[0]["hbas"],
               "Taf": temp_forz_def.iloc[0]["Taf"],
               "SWEsca": temp_forz_def.iloc[0]["SWEsca"],
               "subgrid_cv": temp_forz_def.iloc[0]["subgrid_cv"]}
@@ -344,6 +347,8 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     del temp_forz_def["VAI"]
     del temp_forz_def["vegh"]
+    del temp_forz_def["fsky"]
+    del temp_forz_def["hbas"]
     del temp_forz_def["Taf"]
     del temp_forz_def["SWEsca"]
     del temp_forz_def["subgrid_cv"]
@@ -545,16 +550,24 @@ def forcing_table(lat_idx, lon_idx):
                                      date_ini, date_end)
 
         # Search for parameters or use the default settings
-        try:
+        try:  # vegetation parametrs
             vegh = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                         frocing_var_names["vegh_var_name"],
                                         date_ini, date_end)
             VAI = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                        frocing_var_names["VAI_var_name"],
                                        date_ini, date_end)
+            fsky = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        frocing_var_names["fsky_var_name"],
+                                        date_ini, date_end)
+            hbas = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        frocing_var_names["hbas_var_name"],
+                                        date_ini, date_end)
         except KeyError:
             VAI = np.repeat(cnt.VAI, len(prec))
             vegh = np.repeat(cnt.vegh, len(prec))
+            fsky = np.repeat(cnt.fsky, len(prec))
+            hbas = np.repeat(cnt.hbas, len(prec))
 
         try:
             SWEsca = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
@@ -594,6 +607,8 @@ def forcing_table(lat_idx, lon_idx):
                                    "Ps": press,
                                    "VAI": VAI,
                                    "vegh": vegh,
+                                   "hbas": hbas,
+                                   "fsky": fsky,
                                    "Taf": Taf,
                                    "SWEsca": SWEsca,
                                    "subgrid_cv": subgrid_cv})
