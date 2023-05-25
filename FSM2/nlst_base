@@ -13,6 +13,8 @@
   Taf = pyTaf
 /
 &veg
+  vegh = pyvegh
+  VAI =  pyVAI
 /
 &initial
   pyINIT
