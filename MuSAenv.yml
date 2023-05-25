@@ -1,8 +1,0 @@
-name: MuSAenv
-channels:
-  - defaults
-dependencies:
-  - python=3.9
-  - netcdf4
-  - pandas
-  - scipy
