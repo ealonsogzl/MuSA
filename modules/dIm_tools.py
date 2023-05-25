@@ -272,7 +272,7 @@ def forcing_table(lat_idx, lon_idx):
     # try to read the forcing from a dumped file
     if os.path.exists(final_directory) and cfg.restart_forcing:
 
-        forcing_df = pd.read_pickle(final_directory)
+        forcing_df = ifn.io_read(final_directory)
 
     else:
 
@@ -306,7 +306,7 @@ def forcing_table(lat_idx, lon_idx):
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
         # write intermediate file to avoid re-reading the nc files
-        forcing_df.to_pickle(final_directory)
+        ifn.io_write(final_directory, forcing_df)
 
         if len(del_t) != len(forcing_df.index):
             raise Exception("date_end - date_ini longuer than forcing")
@@ -335,4 +335,4 @@ def unit_conversion(forcing_df):
                                     'Ta': 'float32',
                                     'RH': 'float32'})
 
-    return(forcing_df)
+    return (forcing_df)
