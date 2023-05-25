@@ -370,7 +370,7 @@ call FSM2_PREPNC(runid,year,month,day,hour,ncid,rec,varid)
 #else
 if (maxval(VAI) > 0) open(ucan, file = trim(runid)//'subc.txt')
 !open(uflx, file = trim(runid)//'flux.txt')
-open(usta, file = trim(runid)//'stat.txt')
+open(usta, file = trim(runid)//'stat.dat',access='stream')
 #endif
 
 ! Run the model

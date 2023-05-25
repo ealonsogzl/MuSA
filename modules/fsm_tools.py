@@ -208,12 +208,16 @@ def model_read_output(fsm_path, read_dump=True):
     # HACK: column/index names and number of columns/index are hardcoded here
     # Potential incompatibility in future versions of FSM.
     #  engine="pyarrow", do not waork with spaces, come back to this.
-    state_dir = os.path.join(fsm_path, "out_stat.txt")
-    state = pd.read_table(state_dir, header=None, sep=',', engine="pyarrow")
+    state_dir = os.path.join(fsm_path, "out_stat.dat")
 
-    state.columns = ["year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE']
+    dt = np.dtype([('year', 'int32'), ('month', 'int32'), ('day', 'int32'),
+                   ('hour', 'float32'), ('snd', 'float32'),
+                   ('SWE', 'float32'), ('Tsrf', 'float32'),
+                   ('fSCA', 'float32'), ('alb', 'float32'),
+                   ('H', 'float32'), ('LE', 'float32')])
 
+    data = np.fromfile(state_dir, dtype=dt)
+    state = pd.DataFrame(data)
     # Save some memory
     state = state.astype({'year': 'int16',
                           'month': 'int8',

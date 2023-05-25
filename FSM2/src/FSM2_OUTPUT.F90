@@ -58,11 +58,12 @@ real, intent(in) :: &
 ! State outputs
 !write(usta,100) year,month,day,hour,snd,snw,svg,Tsoil,Tsnow,Tsrf,Tveg
     
-write(usta,100) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf, H, LE!,Tsnow
+!write(usta,100) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf, H, LE
 
-100 format(i4,',',i4,',',i4,',',f8.0,',',e14.6,',',e14.6,',',e14.6,',', &
-           e14.6,',',e14.6,',',e14.6,',',e14.6)
+!100 format(i4,',',i4,',',i4,',',f8.0,',',e14.6,',',e14.6,',',e14.6,',', &
+!           e14.6,',',e14.6,',',e14.6,',',e14.6)
 
+write(usta) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf, H, LE
 
 
 end subroutine FSM2_OUTPUT
