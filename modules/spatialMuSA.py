@@ -584,9 +584,6 @@ def obs_mask():
     mask = cfg.nc_maks_path
     obs_var_names = cfg.obs_var_names
 
-    if len(obs_var_names) > 1:
-        raise Exception('comprobar comportamiento con mas de una variable')
-
     files = glob.glob(nc_obs_path + "*.nc")
     # TODO: let the user define the prefix of the observations
     files.sort()
