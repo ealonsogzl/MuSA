@@ -353,6 +353,8 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
     del temp_forz_def["SWEsca"]
     del temp_forz_def["subgrid_cv"]
 
+    # TODO: Explore export to binary
+    # https://stackoverflow.com/questions/44074122/reading-in-fortran-binaries-written-with-python
     temp_forz_def.to_csv(file_name, sep="\t",
                          header=False,
                          index=False)
@@ -505,6 +507,7 @@ def forcing_table(lat_idx, lon_idx):
 
     nc_forcing_path = cfg.nc_forcing_path
     frocing_var_names = cfg.frocing_var_names
+    param_var_names = cfg.param_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
     intermediate_path = cfg.intermediate_path
@@ -552,16 +555,16 @@ def forcing_table(lat_idx, lon_idx):
         # Search for parameters or use the default settings
         try:  # vegetation parametrs
             vegh = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        frocing_var_names["vegh_var_name"],
+                                        param_var_names["vegh_var_name"],
                                         date_ini, date_end)
             VAI = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       frocing_var_names["VAI_var_name"],
+                                       param_var_names["VAI_var_name"],
                                        date_ini, date_end)
             fsky = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        frocing_var_names["fsky_var_name"],
+                                        param_var_names["fsky_var_name"],
                                         date_ini, date_end)
             hbas = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        frocing_var_names["hbas_var_name"],
+                                        param_var_names["hbas_var_name"],
                                         date_ini, date_end)
         except KeyError:
             VAI = np.repeat(cnt.VAI, len(prec))
@@ -571,21 +574,22 @@ def forcing_table(lat_idx, lon_idx):
 
         try:
             SWEsca = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                          frocing_var_names["SWEsca_var_name"],
+                                          param_var_names["SWEsca_var_name"],
                                           date_ini, date_end)
         except KeyError:
             SWEsca = np.repeat(cnt.SWEsca, len(prec))
 
         try:
             Taf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       frocing_var_names["Taf_var_name"],
+                                       param_var_names["Taf_var_name"],
                                        date_ini, date_end)
         except KeyError:
             Taf = np.repeat(cnt.Taf, len(prec))
 
         try:
-            subgrid_cv = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                              frocing_var_names["subgrid_cv_var_name"],
+            subgrid_cv = ifn.nc_array_forcing(nc_forcing_path,
+                                              lat_idx, lon_idx,
+                                              param_var_names["cv_var_name"],
                                               date_ini, date_end)
         except KeyError:
             subgrid_cv = np.repeat(cnt.subgrid_cv, len(prec))

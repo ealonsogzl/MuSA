@@ -585,7 +585,7 @@ def obs_mask():
     obs_var_names = cfg.obs_var_names
 
     if len(obs_var_names) > 1:
-        raise Exception('comprobar comportamiento con ams d euna variable')
+        raise Exception('comprobar comportamiento con mas de una variable')
 
     files = glob.glob(nc_obs_path + "*.nc")
     # TODO: let the user define the prefix of the observations
@@ -597,10 +597,9 @@ def obs_mask():
 
     array_obs = np.empty((len(obs_var_names),)+ifn.get_dims())
     array_obs[:] = np.nan
+    tmp_storage = []
 
     for cont, obs_var in enumerate(obs_var_names):
-
-        tmp_storage = []
 
         for i, ncfile in enumerate(files):
 
@@ -610,10 +609,10 @@ def obs_mask():
             tmp_storage.extend(nc_value)
             data_temp.close()
 
-        tmp_storage = np.dstack(tmp_storage)
-        tmp_storage = np.rollaxis(tmp_storage, -1)
-        tmp_storage[~np.isnan(tmp_storage)] = 1
-        tmp_storage = np.nansum(tmp_storage, axis=0)
+    tmp_storage = np.dstack(tmp_storage)
+    tmp_storage = np.moveaxis(tmp_storage, 2, 0)
+    tmp_storage[~np.isnan(tmp_storage)] = 1
+    tmp_storage = np.nansum(tmp_storage, axis=0)
 
     array_obs[cont, :, :] = tmp_storage
     array_obs = np.nansum(array_obs, axis=0)
@@ -862,7 +861,6 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
     else:  # for filters
         raise Exception('Filters not implemented yet in spatial propagation')
-        Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
     # Save ensembles, update: I cant, if save space cell without neigb will
     # show cero values

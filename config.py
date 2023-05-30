@@ -41,10 +41,11 @@ Kalman_iterations = 4  # IEnKF and IES only
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
 
-# r_cov can be a list of scalars of length equal to var_to_assim or the string 'dynamic_error'.
-# If 'dynamic_error' is selected, errors may change in space and time.
-# If this option is selected, the errors will be stored in a new variable in the observation
-# files, and will have the same dimensions as the observations.
+# r_cov can be a list of scalars of length equal to var_to_assim or the string
+# 'dynamic_error'. If 'dynamic_error' is selected, errors may change in space
+# and time. If this option is selected, the errors will be stored in a new
+# variable in the observation files, and will have the same dimensions as
+# the observations.
 r_cov = [0.04]
 add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
@@ -205,7 +206,7 @@ param_var_names = {"vegh_var_name": "vegh",
                    "hbas_var_name": "hbas",
                    "SWEsca_var_name": "SWEsca",
                    "Taf_var_name": "Taf",
-                   "subgrid_cv_var_name": "subgrid_cv"}
+                   "cv_var_name": "subgrid_cv"}
 
 # -----------------------------------
 # FSM configuration (Namelist)

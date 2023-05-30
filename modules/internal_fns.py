@@ -211,7 +211,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 #    if obs_matrix.shape[0] != len(dates_obs):
 #        raise Exception("Number of dates different of number of obs files")
 
-    return (obs_matrix, error_matrix)
+    return obs_matrix, error_matrix
 
 
 def generate_dates(date_ini, date_end):
