@@ -355,9 +355,17 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     # TODO: Explore export to binary
     # https://stackoverflow.com/questions/44074122/reading-in-fortran-binaries-written-with-python
-    temp_forz_def.to_csv(file_name, sep="\t",
-                         header=False,
-                         index=False)
+    # temp_forz_def.to_csv(file_name, sep="\t",
+    #                     header=False,
+    #                     index=False,
+    #                     chunksize=1000)
+
+    # write the csv with pyarrow
+    temp_forz_def = pa.Table.from_pandas(temp_forz_def)
+    csv.write_csv(temp_forz_def,
+                  file_name,
+                  csv.WriteOptions(include_header=False,
+                                   delimiter=' '))
 
 
 def write_dump(dump, fsm_path):
