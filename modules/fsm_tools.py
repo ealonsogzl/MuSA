@@ -188,11 +188,11 @@ def model_run(fsm_path):
    """
 
     fsm_exe_dir = os.path.join(fsm_path, "FSM2")
-    order = fsm_exe_dir + " < nlst"
-    # TODO: investigate pexpect. seems fast, but it do not wait for output
-    # https://stackoverflow.com/questions/69720755/run-a-program-from-python-several-times-whitout-initialize-different-shells
-    fsm_run_comand = subprocess.call(order, shell=True, cwd=fsm_path)
-    if fsm_run_comand != 0:
+    order = [fsm_exe_dir]
+    fsm_run_command = subprocess.call(
+        order, cwd=fsm_path, stdin=open(os.path.join(fsm_path, "nlst"), "r"))
+
+    if fsm_run_command != 0:
         raise Exception("FSM failed")
 
 
