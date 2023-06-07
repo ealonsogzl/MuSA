@@ -44,13 +44,13 @@ def myRange(start, end, step):
     yield end
 
 
-def seq_dates(i_date, f_date):
+def seq_dates(i_date, f_date, lngth = 100):
     sdate = dt.datetime.strptime(i_date, "%Y-%m-%d")
     edate = dt.datetime.strptime(f_date, "%Y-%m-%d")
 
     diff_days = edate - sdate
-    if diff_days.days > 365:
-        seq_dates = myRange(0, diff_days.days, 365)
+    if diff_days.days > lngth:
+        seq_dates = myRange(0, diff_days.days, lngth)
         date_list = [sdate + dt.timedelta(days=x) for x in seq_dates]
     else:
         date_list = [sdate, edate]

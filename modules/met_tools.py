@@ -11,10 +11,6 @@ from scipy.optimize import newton
 from scipy.special import expit, logit
 import constants as cnt
 import config as cfg
-if cfg.numerical_model == 'FSM2':
-    import modules.fsm_tools as model
-else:
-    import modules.dIm_tools as model
 import modules.filters as flt
 import modules.spatialMuSA as spM
 

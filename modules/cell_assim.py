@@ -95,7 +95,7 @@ def cell_assimilation(lat_idx, lon_idx):
 
         # store prior ensemble
         model.store_sim(prior_mean, prior_sd, Ensemble,
-                        time_dict, step)
+                        time_dict, step, save_prior=True)
 
         step_results = flt.implement_assimilation(Ensemble, step)
 

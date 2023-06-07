@@ -38,7 +38,6 @@ def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
     #      the formally when defining the covariances matrices.
     # TODO: Looking into Sect. 4.5.3. in Evensen
     # (2019, doi: 10.1007/s10596-019-9819-z)
-    # TODO: Using a deterministic rather than stochastic analysis step.
     # TODO: Augmenting with artificial momentum to get some inertia.
     # TODO: Better understand/build on the underlying tempering/annealing
     # idea in ES-MDA.

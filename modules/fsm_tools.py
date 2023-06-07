@@ -429,7 +429,7 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
 
 def store_sim(updated_Sim, sd_Sim, Ensemble,
-              time_dict, step, MCMC=False):
+              time_dict, step, MCMC=False, save_prior=False):
 
     if MCMC:
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
@@ -445,7 +445,10 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
     # Get updated columns
-    pesos = Ensemble.wgth
+    if save_prior:
+        pesos = np.ones_like(Ensemble.wgth)
+    else:
+        pesos = Ensemble.wgth
 
     for n, name_col in enumerate(list(list_state[0].columns)):
         # create matrix of colums
