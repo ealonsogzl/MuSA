@@ -124,6 +124,7 @@ class SnowEnsemble():
             return None
 
         # Ensemble generator
+        # TODO: Parallelize this loop
         for mbr in range(self.members):
 
             if step == 0 or readGSC:
@@ -203,7 +204,7 @@ class SnowEnsemble():
                                             self.out_members_kalman[mbr])
                 else:
                     state_tmp, dump_tmp =\
-                        model.model_run(forcing_sbst)
+                        model.model_run(member_forcing)
 
             else:
                 raise Exception("Numerical model not implemented")

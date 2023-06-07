@@ -136,7 +136,7 @@ def stable_forcing(forcing_df):
     return temp_forz_def
 
 
-def model_forcing_wrt(forcing_df, temp_dest):
+def model_forcing_wrt(forcing_df, temp_dest, step):
 
     return None
 
@@ -209,10 +209,7 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
     # Get updated columns
-    if save_prior:
-        pesos = np.ones_like(Ensemble.wgth)
-    else:
-        pesos = Ensemble.wgth
+    pesos = Ensemble.wgth
 
     for n, name_col in enumerate(list(list_state[0].columns)):
         # create matrix of colums
