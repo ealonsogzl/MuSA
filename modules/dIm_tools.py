@@ -35,11 +35,11 @@ def prepare_forz(forcing_sbst):
                                  forcing_sbst["RH"],
                                  forcing_sbst["Prec"])
 
-    return Temp-cnt.KELVING_CONVER, Sf*3600
+    return Temp-cnt.KELVING_CONVER, Sf*3600, forcing_sbst["DMF"].values
 
 
 @nb.njit(fastmath=True)
-def dIm(Temp, Sf, cSWE):
+def dIm(Temp, Sf, DMF, cSWE):
 
     # Initialize SWE
     SWE = np.zeros(len(Temp))
@@ -47,7 +47,7 @@ def dIm(Temp, Sf, cSWE):
     for timestep in range(len(Temp)):
 
         if Temp[timestep] > 0:
-            melt = cnt.DMF*(Temp[timestep])
+            melt = DMF[timestep]*(Temp[timestep])
         else:
             melt = 0
 
@@ -55,20 +55,21 @@ def dIm(Temp, Sf, cSWE):
         cSWE = np.maximum(cSWE, 0)
 
         SWE[timestep] = cSWE
-
+    # TODO: implement a snow density parametrization
+    # (i.g. https://www.jstor.org/stable/26152558)
     return SWE, SWE/cnt.FIX_density/1000
 
 
 def model_run(forcing_sbst, init=None):
 
-    Temp, Sf = prepare_forz(forcing_sbst)
+    Temp, Sf, DMF = prepare_forz(forcing_sbst)
 
     if init is None:
         cSWE = 0.
     else:
         cSWE = init
 
-    SWE, HS = dIm(Temp, Sf, cSWE)
+    SWE, HS = dIm(Temp, Sf, DMF, cSWE)
     init = SWE[-1]
 
     Results = pd.DataFrame({'year': forcing_sbst['year'],
@@ -199,8 +200,7 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
         list_state = copy.deepcopy(Ensemble.state_membres)
-    # remove time ids fomr FSM output
-    # TODO: modify directly FSM code to not to output time id's
+
     for lst in range(len(list_state)):
         data = list_state[lst]
         data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
@@ -263,6 +263,7 @@ def forcing_table(lat_idx, lon_idx):
 
     nc_forcing_path = cfg.nc_forcing_path
     frocing_var_names = cfg.frocing_var_names
+    param_var_names = cfg.param_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
     intermediate_path = cfg.intermediate_path
@@ -290,6 +291,12 @@ def forcing_table(lat_idx, lon_idx):
         rel_humidity = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                             frocing_var_names["RH_var_name"],
                                             date_ini, date_end)
+        try:
+            DMF = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                       param_var_names["DMF_var_name"],
+                                       date_ini, date_end)
+        except KeyError:
+            DMF = np.repeat(cnt.DMF, len(prec))
 
         date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
@@ -301,7 +308,8 @@ def forcing_table(lat_idx, lon_idx):
                                    "hours": del_t,
                                    "Prec": prec,
                                    "Ta": temp,
-                                   "RH": rel_humidity})
+                                   "RH": rel_humidity,
+                                   "DMF": DMF})
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month

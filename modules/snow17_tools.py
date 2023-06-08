@@ -44,11 +44,7 @@ def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat
     Temp = forcing_sbst['Ta'].values
     prec = forcing_sbst["Prec"].values
     p_atm = forcing_sbst["Prec"].values
-
-    try:
-        lat = forcing_sbst["lat"].values
-    except Exception:
-        lat = np.repeat(cnt.aprox_lat, len(Temp))
+    lat = forcing_sbst["XLAT"].values
 
     return time_jday, prec*3600, Temp-cnt.KELVING_CONVER, p_atm*0.01, lat
 
@@ -238,6 +234,7 @@ def forcing_table(lat_idx, lon_idx):
 
     nc_forcing_path = cfg.nc_forcing_path
     frocing_var_names = cfg.frocing_var_names
+    param_var_names = cfg.param_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
     intermediate_path = cfg.intermediate_path
@@ -265,6 +262,12 @@ def forcing_table(lat_idx, lon_idx):
         press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                      frocing_var_names["Press_var_name"],
                                      date_ini, date_end)
+        try:
+            XLAT = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        param_var_names["XLAT_var_name"],
+                                        date_ini, date_end)
+        except KeyError:
+            XLAT = np.repeat(cnt.aprox_lat, len(prec))
 
         date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
@@ -276,7 +279,8 @@ def forcing_table(lat_idx, lon_idx):
                                    "hours": del_t,
                                    "Prec": prec,
                                    "Ta": temp,
-                                   "press": press})
+                                   "press": press,
+                                   "XLAT": XLAT})
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month
