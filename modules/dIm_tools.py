@@ -31,9 +31,24 @@ else:
 def prepare_forz(forcing_sbst):
 
     Temp = forcing_sbst['Ta'].values
-    _, Sf = met.pp_psychrometric(forcing_sbst["Ta"],
-                                 forcing_sbst["RH"],
-                                 forcing_sbst["Prec"])
+    if cfg.precipitation_phase == "Harder":
+        _, Sf = met.pp_psychrometric(forcing_sbst["Ta"],
+                                     forcing_sbst["RH"],
+                                     forcing_sbst["Prec"])
+
+    elif cfg.precipitation_phase == "temp_thld":
+
+        _, Sf = met.pp_temp_thld_log(forcing_sbst["Ta"],
+                                     forcing_sbst["Prec"])
+
+    elif cfg.precipitation_phase == "Liston":
+
+        _, Sf = met.linear_liston(forcing_sbst["Ta"],
+                                  forcing_sbst["Prec"])
+
+    else:
+
+        raise Exception("Precipitation phase partitioning not implemented")
 
     return Temp-cnt.KELVING_CONVER, Sf*3600, forcing_sbst["DMF"].values
 
