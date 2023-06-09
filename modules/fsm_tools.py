@@ -243,8 +243,11 @@ def model_read_output(fsm_path, read_dump=True):
                         'unit conversion in constants.py\n'
                         u'\u2022 Wrong perturbation_strategy?\n'
                         u'\u2022 Check sd_errors/mean_errors in constants.py\n'
-                        u'\u2022 Change FORTRAN compiler\n'
-                        u'\u2022 Change da_algorithm\n')
+                        u' If this is all right try some of this:\n'
+                        u'\u2022 Change da_algorithm\n'
+                        u'\u2022 Change -Ofast to -O3 in ./FSM2/compil_base.sh\n'
+                        u'\u2022 Change FORTRAN compiler\n')
+
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
