@@ -245,7 +245,6 @@ def model_read_output(fsm_path, read_dump=True):
                         u'\u2022 Check sd_errors/mean_errors in constants.py\n'
                         u' If this is all right try some of this:\n'
                         u'\u2022 Change da_algorithm\n'
-                        u'\u2022 Change -Ofast to -O3 in ./FSM2/compil_base.sh\n'
                         u'\u2022 Change FORTRAN compiler\n')
 
 
