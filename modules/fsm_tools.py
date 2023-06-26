@@ -17,6 +17,8 @@ import modules.met_tools as met
 import secrets
 import time
 import copy
+import pdcast as pdc
+import warnings
 import pyarrow as pa
 import pyarrow.csv as csv
 import numpy as np
@@ -220,19 +222,13 @@ def model_read_output(fsm_path, read_dump=True):
 
     data = np.fromfile(state_dir, dtype=dt)
     state = pd.DataFrame(data)
-    # Save some memory
-    state = state.astype({'year': 'int16',
-                          'month': 'int8',
-                          'day': 'int8',
-                          'hour': 'int8',
-                          'snd': 'float32',
-                          'SWE': 'float32',
-                          'Tsrf': 'float32',
-                          'fSCA': 'float32',
-                          'alb': 'float32',
-                          'H': 'float32',
-                          'LE': 'float32'})
 
+    # Save some memory
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        state = pdc.downcast(state,
+                             numpy_dtypes_only=True)
     # add optional variables
     if cfg.DAsord:
         state = snd_ord(state)
@@ -246,7 +242,6 @@ def model_read_output(fsm_path, read_dump=True):
                         u' If this is all right try some of this:\n'
                         u'\u2022 Change da_algorithm\n'
                         u'\u2022 Change FORTRAN compiler\n')
-
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
@@ -666,16 +661,11 @@ def unit_conversion(forcing_df):
     forcing_df.Ua = forcing_df.Ua + forcing_offset["Ua"]
     forcing_df.Ps = forcing_df.Ps + forcing_offset["Ps"]
 
-    forcing_df = forcing_df.astype({'year': 'int16',
-                                    'month': 'int8',
-                                    'day': 'int8',
-                                    'hours': 'int8',
-                                    'SW': 'float32',
-                                    'LW': 'float32',
-                                    'Prec': 'float32',
-                                    'Ta': 'float32',
-                                    'RH': 'float32',
-                                    'Ua': 'float32',
-                                    'Ps': 'float32'})
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
 
-    return (forcing_df)
+        forcing_df = pdc.downcast(forcing_df,
+                                  numpy_dtypes_only=True)
+
+    return forcing_df

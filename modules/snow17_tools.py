@@ -13,6 +13,8 @@ import datetime as dt
 import pandas as pd
 import config as cfg
 import copy
+import pdcast as pdc
+import warnings
 import modules.filters as flt
 import modules.internal_fns as ifn
 from modules.snow17 import snow17
@@ -65,6 +67,13 @@ def model_run(forcing_sbst, init=None):
                             'SWE': SWE,
                             'snd': snd,
                             'outflow': outflow})
+
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        Results = pdc.downcast(Results,
+                               numpy_dtypes_only=True)
     # add optional variables
     if cfg.DAsord:
         Results = snd_ord(Results)
@@ -223,10 +232,6 @@ def init_result(del_t, DA=False):
         Results["snd"] = [np.nan for x in del_t]
         Results["outflow"] = [np.nan for x in del_t]
 
-        Results = Results.astype({'SWE': 'float32',
-                                  'snd': 'float32',
-                                  'outflow': 'float32'})
-
         return Results
 
 
@@ -307,12 +312,11 @@ def unit_conversion(forcing_df):
     forcing_df.Prec = forcing_df.Prec + forcing_offset["Prec"]
     forcing_df.Ta = forcing_df.Ta + forcing_offset["Ta"]
 
-    forcing_df = forcing_df.astype({'year': 'int16',
-                                    'month': 'int8',
-                                    'day': 'int8',
-                                    'hours': 'int8',
-                                    'Prec': 'float32',
-                                    'Ta': 'float32',
-                                    'press': 'float32'})
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
 
-    return (forcing_df)
+        forcing_df = pdc.downcast(forcing_df,
+                                  numpy_dtypes_only=True)
+
+    return forcing_df

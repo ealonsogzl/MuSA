@@ -31,11 +31,11 @@ restart_forcing = False
 # Data Assim
 # -----------------------------------
 
-# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL, IES-MCMC
-# or PIES
+# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL, IES-MCMC,
+# PIES
 da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
-Kalman_iterations = 4  # IEnKF and IES only
+max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
@@ -65,7 +65,7 @@ seed = None
 
 # perturbation_strategy from "normal", "lognormal",
 # "logitnormal_adi" or "logitnormal_mult"
-perturbation_strategy = ["logitnormal_adi", "logitnormal_mult"]
+perturbation_strategy = ["normal", "lognormal"]
 
 # precipitation_phase from "Harder" or "temp_thld"
 precipitation_phase = "Harder"
@@ -181,7 +181,7 @@ lon_obs_var_name = "easting"
 # -----------------------------------
 # Forcing and some parameters
 # -----------------------------------
-# Note: RealLat_var_name only necesary if snow17
+# Note: not all parameters/forcing variables are needed for all models
 # Note II: param_var_names is optional. It can be used to change some of the
 # model parameters, including vegetation ones. If they are not included as
 # part of the forcing, those defined in constants.py will be used.
@@ -193,14 +193,14 @@ frocing_var_names = {"SW_var_name": "SW",
                      "Press_var_name": "PRESS",
                      "RH_var_name": "RH",
                      "Temp_var_name": "TEMP",
-                     "Wind_var_name": "UA",
-                     "RealLat_var_name": " XLAT"}
+                     "Wind_var_name": "UA"}
 
 forcing_dim_names = {"lat_forz_var_name": "northing",
                      "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
 
-param_var_names = {"vegh_var_name": "vegh",
+param_var_names = {"RealLat_var_name": " XLAT",
+                   "vegh_var_name": "vegh",
                    "VAI_var_name": "VAI",
                    "fsky_var_name": "fsky",
                    "hbas_var_name": "hbas",

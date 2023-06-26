@@ -15,6 +15,8 @@ import pandas as pd
 import modules.met_tools as met
 import config as cfg
 import copy
+import pdcast as pdc
+import warnings
 import modules.filters as flt
 import modules.internal_fns as ifn
 if cfg.DAsord:
@@ -93,6 +95,13 @@ def model_run(forcing_sbst, init=None):
                             'hours': forcing_sbst['hours'],
                             'SWE': SWE,
                             'snd': HS})
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        Results = pdc.downcast(Results,
+                               numpy_dtypes_only=True)
+
     # add optional variables
     if cfg.DAsord:
         Results = snd_ord(Results)
@@ -268,9 +277,6 @@ def init_result(del_t, DA=False):
         Results["SWE"] = [np.nan for x in del_t]
         Results["snd"] = [np.nan for x in del_t]
 
-        Results = Results.astype({'SWE': 'float32',
-                                  'snd': 'float32'})
-
         return Results
 
 
@@ -353,12 +359,11 @@ def unit_conversion(forcing_df):
     forcing_df.Ta = forcing_df.Ta + forcing_offset["Ta"]
     forcing_df.RH = forcing_df.RH + forcing_offset["RH"]
 
-    forcing_df = forcing_df.astype({'year': 'int16',
-                                    'month': 'int8',
-                                    'day': 'int8',
-                                    'hours': 'int8',
-                                    'Prec': 'float32',
-                                    'Ta': 'float32',
-                                    'RH': 'float32'})
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        forcing_df = pdc.downcast(forcing_df,
+                                  numpy_dtypes_only=True)
 
     return (forcing_df)

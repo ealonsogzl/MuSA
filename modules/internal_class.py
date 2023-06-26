@@ -48,9 +48,10 @@ class SnowEnsemble():
         self.noise = [0 for i in range(self.members)]
 
         if cfg.da_algorithm in ['EnKF', 'IEnKF', 'ES',
-                                'IES', 'IES-MCMC', 'PIES']:
-            self.noise_kalman = [0 for i in range(self.members)]
-            self.out_members_kalman = [0 for i in range(self.members)]
+                                'IES', 'IES-MCMC', 'PIES',
+                                'AdaPBS']:
+            self.noise_iter = [0 for i in range(self.members)]
+            self.out_members_iter = [0 for i in range(self.members)]
 
         # Inicialice prior weights = 1
         self.wgth = np.ones(self.members)/self.members
@@ -69,8 +70,8 @@ class SnowEnsemble():
         if cfg.da_algorithm == 'IES-MCMC':
             self.state_members_mcmc = [0 for i in range(self.members)]
             self.noise_mcmc = [0 for i in range(self.members)]
-            self.train_parameters = [0 for i in range(cfg.Kalman_iterations+1)]
-            self.train_pred = [0 for i in range(cfg.Kalman_iterations+1)]
+            self.train_parameters = [0 for i in range(cfg.max_iterations+1)]
+            self.train_pred = [0 for i in range(cfg.max_iterations+1)]
 
     def store_train_data(self, parameters, predictions, kalman_iter):
 
@@ -169,7 +170,7 @@ class SnowEnsemble():
                 else:
                     # if kalman is used, use the posterior noise of the
                     # previous run
-                    noise_tmp = list(self.noise_kalman[mbr].values())
+                    noise_tmp = list(self.noise_iter[mbr].values())
                     noise_tmp = np.vstack(noise_tmp)
                     # Take last perturbation values
                     noise_tmp = noise_tmp[:, np.shape(noise_tmp)[1] - 1]
@@ -185,7 +186,7 @@ class SnowEnsemble():
                     if cfg.da_algorithm in ['PBS', 'PF']:
                         model.write_dump(self.out_members[mbr], self.temp_dest)
                     else:  # if kalman, write updated dump
-                        model.write_dump(self.out_members_kalman[mbr],
+                        model.write_dump(self.out_members_iter[mbr],
                                          self.temp_dest)
 
                 model.model_run(self.temp_dest)
@@ -201,7 +202,7 @@ class SnowEnsemble():
                     else:  # if kalman, write updated dump
                         state_tmp, dump_tmp =\
                             model.model_run(member_forcing,
-                                            self.out_members_kalman[mbr])
+                                            self.out_members_iter[mbr])
                 else:
                     state_tmp, dump_tmp =\
                         model.model_run(member_forcing)
@@ -229,8 +230,8 @@ class SnowEnsemble():
         self.func_shape_arr = func_shape
         # Create new perturbation parameters
 
-    def kalman_update(self, step=None, updated_pars=None,
-                      create=None, iteration=None):
+    def iter_update(self, step=None, updated_pars=None,
+                    create=None, iteration=None):
 
         if create:  # If there is observational data update the ensemble
 
@@ -250,7 +251,7 @@ class SnowEnsemble():
 
                 if cfg.numerical_model in ['FSM2']:
                     if step != 0:
-                        model.write_dump(self.out_members_kalman[mbr],
+                        model.write_dump(self.out_members_iter[mbr],
                                          self.temp_dest)
 
                     model.model_run(self.temp_dest)
@@ -263,19 +264,19 @@ class SnowEnsemble():
                     if step != 0:
                         state_tmp, dump_tmp =\
                             model.model_run(member_forcing,
-                                            self.out_members_kalman[mbr])
+                                            self.out_members_iter[mbr])
                     else:
                         state_tmp, dump_tmp =\
                             model.model_run(member_forcing)
 
                 self.state_membres[mbr] = state_tmp.copy()
 
-                self.noise_kalman[mbr] = noise_k_tmp.copy()
+                self.noise_iter[mbr] = noise_k_tmp.copy()
 
-                if (iteration == cfg.Kalman_iterations - 1 or
-                        cfg.da_algorithm in ['EnKF', 'ES']):
+                if (iteration == cfg.max_iterations - 1 or
+                        cfg.da_algorithm in ['EnKF', 'ES', 'AdaPBS']):
 
-                    self.out_members_kalman[mbr] = dump_tmp.copy()
+                    self.out_members_iter[mbr] = dump_tmp.copy()
 
             # Clean tmp directory
             try:
@@ -285,10 +286,10 @@ class SnowEnsemble():
                 pass
 
         else:  # if there is not obs data just write the kalman noise
-            self.noise_kalman = self.noise.copy()
-            self.out_members_kalman = self.out_members.copy()
+            self.noise_iter = self.noise.copy()
+            self.out_members_iter = self.out_members.copy()
 
-    def resample(self, resampled_particles):
+    def resample(self, resampled_particles, do_res=True):
 
         # Particles
         new_out = [self.out_members[x].copy() for x in resampled_particles]
@@ -298,14 +299,14 @@ class SnowEnsemble():
         new_out = [self.noise[x].copy() for x in resampled_particles]
         self.noise = new_out.copy()
 
-        if cfg.da_algorithm == 'PIES':
-            new_out = [self.noise_kalman[x].copy()
+        if cfg.da_algorithm in ['PIES', 'AdaPBS'] and do_res:
+            new_out = [self.noise_iter[x].copy()
                        for x in resampled_particles]
-            self.noise_kalman = new_out.copy()
+            self.noise_iter = new_out.copy()
 
-            new_out = [self.out_members_kalman[x].copy()
+            new_out = [self.out_members_iter[x].copy()
                        for x in resampled_particles]
-            self.out_members_kalman = new_out.copy()
+            self.out_members_iter = new_out.copy()
 
     def season_rejuvenation(self):
         for mbr in range(self.members):
@@ -318,7 +319,7 @@ class SnowEnsemble():
                         noise_tmp[cfg.vars_to_perturbate[cont]].copy()
 
                     try:
-                        self.noise_kalman[mbr][cfg.vars_to_perturbate[cont]] =\
+                        self.noise_iter[mbr][cfg.vars_to_perturbate[cont]] =\
                             noise_tmp[cfg.vars_to_perturbate[cont]].copy()
                     except AttributeError:
                         pass
@@ -339,7 +340,7 @@ class SnowEnsemble():
             model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
             # if self.step != 0:
-            model.write_dump(self.out_members_kalman[0],
+            model.write_dump(self.out_members_iter[0],
                              self.temp_dest)
 
             model.model_run(self.temp_dest)

@@ -749,7 +749,7 @@ def get_neig_info(lat_idx, lon_idx, step, j):
             continue
 
         list_state = ens_tmp.state_membres
-        predicted = flt.get_predicitons(list_state, var_to_assim)
+        predicted = flt.get_predictions(list_state, var_to_assim)
 
         obs_masked, predicted, tmp_r_cov = \
             flt.tidy_obs_pred_rcov(predicted, obs, errors)
@@ -827,7 +827,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         # Open cell to create new ensemble
         name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".\
             format(step=step-1,
-                   j=cfg.Kalman_iterations - 1,
+                   j=cfg.max_iterations - 1,
                    lat=lat_idx,
                    lon=lon_idx)
 
@@ -898,7 +898,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
 
                 # [or] Solution in case of no iterations. If not,
                 # it will not clean
-                if pbs_task_id == 0 and j > 0 or cfg.Kalman_iterations == 1:
+                if pbs_task_id == 0 and j > 0 or cfg.max_iterations == 1:
                     rm_files = glob.glob(os.path.join(cfg.save_ensemble_path,
                                                       "{step}_{j}it*.pkl.blp".
                                                       format(step=step,
@@ -908,13 +908,13 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
                             os.remove(f)
 
                     # if end of the Kalman iterations move ensembles to results
-                    if j == cfg.Kalman_iterations-1:
+                    if j == cfg.max_iterations-1:
                         for f in files:
                             shutil.move(f, cfg.output_path)
 
                 # if not first task and end of iterations, wait for
                 # ensembles in results
-                if pbs_task_id != 0 and j == cfg.Kalman_iterations-1:
+                if pbs_task_id != 0 and j == cfg.max_iterations-1:
                     files = glob.glob(os.path.join(cfg.output_path,
                                       "{step}_{j}it*.pkl.blp".format(step=step,
                                                                      j=j)))
@@ -977,7 +977,7 @@ def spatial_assim(lat_idx, lon_idx, step, j):
 
         # if no obs do nothing
         if len(neig_obs) == 0:
-            Ensemble.kalman_update(create=False)
+            Ensemble.iter_update(create=False)
 
         else:
             # create neig rho
@@ -990,7 +990,7 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                     var_tmp = [Ensemble.noise[x][var]
                                for x in range(Ensemble.members)]
                 else:
-                    var_tmp = [Ensemble.noise_kalman[x][var]
+                    var_tmp = [Ensemble.noise_iter[x][var]
                                for x in range(Ensemble.members)]
                 var_tmp = np.asarray(var_tmp)
                 var_tmp = np.squeeze(var_tmp)
@@ -1003,15 +1003,15 @@ def spatial_assim(lat_idx, lon_idx, step, j):
             prior = flt.transform_space(prior, 'to_normal')
 
             updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                       cfg.Kalman_iterations, neig_r_cov,
+                                       cfg.max_iterations, neig_r_cov,
                                        rho_AB=rho_par_predicted_obs,
                                        rho_BB=rho_predicted_obs,
                                        stochastic=False)
 
             updated_pars = flt.transform_space(updated_pars, 'from_normal')
 
-            Ensemble.kalman_update(step, updated_pars,
-                                   create=True, iteration=j)
+            Ensemble.iter_update(step, updated_pars,
+                                 create=True, iteration=j)
 
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
@@ -1019,11 +1019,11 @@ def spatial_assim(lat_idx, lon_idx, step, j):
               format(lat=lat_idx, lon=lon_idx, ex=ex))
 
         save_space_flag = False
-        Ensemble.kalman_update(create=False)
+        Ensemble.iter_update(create=False)
         return None
 
     # Save updated ensemble
-    if j < cfg.Kalman_iterations-1 and save_space_flag:
+    if j < cfg.max_iterations-1 and save_space_flag:
         Ensemble.save_space()
 
     name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".format(
@@ -1072,7 +1072,7 @@ def collect_results(lat_idx, lon_idx):
             cfg.output_path,
             "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
                 step=step,
-                j=cfg.Kalman_iterations - 1,
+                j=cfg.max_iterations - 1,
                 lat_idx=lat_idx,
                 lon_idx=lon_idx))
 

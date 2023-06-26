@@ -88,6 +88,7 @@ def safe_pool(func, inputs, nprocess):
     # here I divide the whole parallel thing in chunks, it seems to be safer.
     # But this has to be investigated, probably something with starmap_async
     # can do the trick
+    # UPDATE: using spawn instead of fork seems to help
 
     ncellsmax = 5 * nprocess  # 5 cells per process maximun
     inputs_chunk = [chunker(x, ncellsmax) for x in inputs]
@@ -378,7 +379,8 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if da_algorithm in ['PBS', 'ES', 'IES', 'S-MCMC', 'IES-MCMC', 'PIES']:
+    if da_algorithm in ['PBS', 'ES', 'IES', 'S-MCMC', 'IES-MCMC',
+                        'PIES', 'AdaPBS']:
         assimilation_steps = season_ini_cuts[:, 0]
     elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
         # HACK: I add one to easy the subset of the forcing

@@ -241,9 +241,9 @@ def pbs(obs, pred, R):
     return weights, Neff
 
 
-def PIES(obs, pred, R, priormean, priorcov, proposal):
+def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     """
-    PIES: Implmentation of the Particle-adjusted Iterative Ensemble Smoother
+    ProPBS: Implmentation of the Proposal Particle Batch Smoother
     Inputs:
         obs: Observation vector (m x 1 array)
         pred: Predicted observation ensemble matrix (m x N array)
@@ -591,7 +591,7 @@ def weighted_std(values, axis, weights):
     return np.sqrt(variance)
 
 
-def get_predicitons(list_state, var_to_assim):
+def get_predictions(list_state, var_to_assim):
 
     predicted = []
 
@@ -647,7 +647,7 @@ def tidy_predictions(predicted, mask):
 
 def get_posterior_vars(list_state, var_to_assim, wgth):
 
-    predicted = get_predicitons(list_state, var_to_assim)
+    predicted = get_predictions(list_state, var_to_assim)
     posterior = []
     for n in range(len(var_to_assim)):
 
@@ -723,13 +723,42 @@ def transform_space(parameters, trans_direction):
     return safe_pars
 
 
+def get_parameters(Ensemble, j):
+
+    param_arr = np.ones((len(cfg.vars_to_perturbate), Ensemble.members))
+
+    for cont, var in enumerate(cfg.vars_to_perturbate):
+        if j == 0:
+            var_tmp = [Ensemble.noise[x][var]
+                       for x in range(Ensemble.members)]
+        else:
+            var_tmp = [Ensemble.noise_iter[x][var]
+                       for x in range(Ensemble.members)]
+        var_tmp = np.asarray(var_tmp)
+        var_tmp = np.squeeze(var_tmp)
+        # HACK: next lines have to be modified with if time varying
+        # perturbations are implemented
+        # var_tmp = np.squeeze(var_tmp[:, mask])
+
+        # Trick to handle the shape of the noise when there is an
+        # observation in the first timestep
+        if var_tmp.ndim == 1:
+            param_arr[cont, :] = var_tmp
+        else:
+            if cfg.da_algorithm == "EnKF":
+                param_arr[cont, :] = var_tmp[:, -1]
+            else:  # da_algorithm == "IEnKF"
+                param_arr[cont, :] = var_tmp[:, 0]
+    return param_arr
+
+
 def implement_assimilation(Ensemble, step):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     mean_errors = cnt.mean_errors
     sd_errors = cnt.sd_errors
     da_algorithm = cfg.da_algorithm
-    Kalman_iterations = cfg.Kalman_iterations
+    max_iterations = cfg.max_iterations
     var_to_assim = cfg.var_to_assim
 
     Result = {}  # initialice results dict
@@ -748,14 +777,14 @@ def implement_assimilation(Ensemble, step):
 
         else:
 
-            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = get_predictions(list_state, var_to_assim)
 
             observations_sbst_masked, predicted, r_cov = \
                 tidy_obs_pred_rcov(predicted, observations, errors)
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+            if Neff/Ensemble.members < cnt.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,
@@ -776,14 +805,14 @@ def implement_assimilation(Ensemble, step):
 
         else:
 
-            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = get_predictions(list_state, var_to_assim)
 
             observations_sbst_masked, predicted, r_cov = \
                 tidy_obs_pred_rcov(predicted, observations, errors)
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+            if Neff/Ensemble.members < cnt.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,
@@ -799,23 +828,98 @@ def implement_assimilation(Ensemble, step):
 
             Result["resampled_particles"] = resampled_particles
 
-    elif da_algorithm in ["EnKF", 'IEnKF']:
-        if da_algorithm == "EnKF":
-
-            Kalman_iterations = 1
-
+    elif da_algorithm == 'AdaPBS':
+        # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
-            Ensemble.kalman_update(create=False)
+            Ensemble.season_rejuvenation()
             pass
 
         else:
-            for j in range(Kalman_iterations):
+
+            priormean = np.zeros(len(vars_to_perturbate))
+            priorsd = np.zeros(len(vars_to_perturbate))
+
+            for count, var in enumerate(vars_to_perturbate):
+                priormean[count] = mean_errors[var]
+                priorsd[count] = sd_errors[var]
+            priorcov = np.diag(priorsd**2)
+
+            j = 0  # first iteration
+            Neff = 0  # Initial Neff
+            # start to create generations of particles until no-collapse
+            while Neff/Ensemble.members < cnt.Neffthrs:
+                print(j)
+                if (j == max_iterations):
+                    print('Maximum number of iterations reached')
+                    print('(Neff: {Neff}) at cell: Lat:{lat}, Lon:{lon}'.
+                          format(lat=Ensemble.lat_idx,
+                                 lon=Ensemble.lon_idx,
+                                 Neff=int(Neff)))
+                    break
+                print('(Neff: {Neff}) at cell: Lat:{lat}, Lon:{lon}'.
+                      format(lat=Ensemble.lat_idx,
+                             lon=Ensemble.lon_idx,
+                             Neff=int(Neff)))
+
+                predicted = get_predictions(
+                    Ensemble.state_membres, var_to_assim)
+
+                observations_sbst_masked, predicted, r_cov = \
+                    tidy_obs_pred_rcov(predicted, observations, errors)
+
+                proposal = get_parameters(Ensemble, j)
+                proposal = transform_space(proposal, 'to_normal')
+                wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
+                                    priormean, priorcov, proposal)
+
+                resampled_particles = resampled_indexes(wgth)
+                Ensemble.resample(resampled_particles, do_res=j != 0)
+
+                # get resampled parameters
+                thetaprop = get_parameters(Ensemble, j)
+                # translate lognormal parameters to normal distribution
+                thetaprop = transform_space(thetaprop, 'to_normal')
+                diversity = Neff/Ensemble.members
+                # Calculate the mean vector of the proposed parameter ensemble
+                thetapropm = np.mean(thetaprop, axis=1)
+                # Calculate the covariance matrix of the proposed parameters
+                thetapropc = np.diag(np.std(thetaprop, axis=1)**2)
+                # Inflate the covariance slightly in case of degeneracy
+                thetapropc = thetapropc+0.1*(1-diversity)*priorcov
+                L = np.linalg.cholesky(thetapropc)
+
+                # Draw from this Gaussian for the next iteration.
+                thetaprop = thetapropm[:, np.newaxis] +\
+                    L@np.random.standard_normal(size=(len(vars_to_perturbate),
+                                                      Ensemble.members))
+                thetaprop = transform_space(thetaprop, 'from_normal')
+                Ensemble.iter_update(step, thetaprop,
+                                     create=True, iteration=j)
+
+                j = j+1  # update iteration counter
+
+            Ensemble.wgth = wgth
+
+            Ensemble.season_rejuvenation()
+
+    elif da_algorithm in ["EnKF", 'IEnKF']:
+        if da_algorithm == "EnKF":
+
+            max_iterations = 1
+
+        if np.isnan(Ensemble.observations).all():
+
+            Ensemble.iter_update(create=False)
+            pass
+
+        else:
+            for j in range(max_iterations):
 
                 list_state = Ensemble.state_membres
 
                 # Get ensemble of predictions
-                predicted = get_predicitons(list_state, var_to_assim)
+                predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
@@ -823,62 +927,41 @@ def implement_assimilation(Ensemble, step):
                                            errors, ret_mask=True)
                 else:
                     predicted = tidy_predictions(predicted, mask)
-                # get prior
-                prior = np.ones((len(vars_to_perturbate), len(list_state)))
-                for cont, var in enumerate(vars_to_perturbate):
-                    if j == 0:
-                        var_tmp = [Ensemble.noise[x][var]
-                                   for x in range(len(list_state))]
-                    else:
-                        var_tmp = [Ensemble.noise_kalman[x][var]
-                                   for x in range(len(list_state))]
-                    var_tmp = np.asarray(var_tmp)
-                    var_tmp = np.squeeze(var_tmp)
-                    # HACK: next lines have to be modified with if time varying
-                    # perturbations are implemented
-                    # var_tmp = np.squeeze(var_tmp[:, mask])
 
-                    # Trick to handle the shape of the noise when there is an
-                    # observation in the first timestep
-                    if var_tmp.ndim == 1:
-                        prior[cont, :] = var_tmp
-                    else:
-                        if da_algorithm == "EnKF":
-                            prior[cont, :] = var_tmp[:, -1]
-                        else:  # da_algorithm == "IEnKF"
-                            prior[cont, :] = var_tmp[:, 0]
+                # get parameters
+                param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                prior = transform_space(prior, 'to_normal')
+                param_array = transform_space(param_array, 'to_normal')
 
-                alpha = Kalman_iterations
-                updated_pars = ens_klm(prior, observations_sbst_masked,
+                alpha = max_iterations
+                updated_pars = ens_klm(param_array, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
                 updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(step, updated_pars,
-                                       create=True, iteration=j)
+                Ensemble.iter_update(step, updated_pars,
+                                     create=True, iteration=j)
 
     elif da_algorithm in ['ES', 'IES']:
 
         if da_algorithm == "ES":
 
-            Kalman_iterations = 1
+            max_iterations = 1
 
         if np.isnan(Ensemble.observations).all():
 
-            Ensemble.kalman_update(create=False)
+            Ensemble.iter_update(create=False)
             Ensemble.season_rejuvenation()
             pass
 
         else:
-            for j in range(Kalman_iterations):
+            for j in range(max_iterations):
 
                 list_state = Ensemble.state_membres
 
                 # Get ensemble of predictions
-                predicted = get_predicitons(list_state, var_to_assim)
+                predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
@@ -887,50 +970,37 @@ def implement_assimilation(Ensemble, step):
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
-                # get prior
-                prior = np.ones((len(vars_to_perturbate), len(list_state)))
-                for cont, var in enumerate(vars_to_perturbate):
-                    if j == 0:
-                        var_tmp = [Ensemble.noise[x][var]
-                                   for x in range(len(list_state))]
-                    else:
-                        var_tmp = [Ensemble.noise_kalman[x][var]
-                                   for x in range(len(list_state))]
-                    var_tmp = np.asarray(var_tmp)
-                    var_tmp = np.squeeze(var_tmp)
-                    # HACK: next lines have to be modified with time varying
-                    # perturbations
-                    # var_tmp = np.squeeze(var_tmp[:, mask])
-                    prior[cont, :] = var_tmp[:, 0]
+                # get parameters
+                param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                prior = transform_space(prior, 'to_normal')
+                param_array = transform_space(param_array, 'to_normal')
 
-                alpha = Kalman_iterations
-                updated_pars = ens_klm(prior, observations_sbst_masked,
+                alpha = max_iterations
+                updated_pars = ens_klm(param_array, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
                 updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(step, updated_pars,
-                                       create=True, iteration=j)
+                Ensemble.iter_update(step, updated_pars,
+                                     create=True, iteration=j)
             Ensemble.season_rejuvenation()
 
     elif da_algorithm == 'PIES':
         if np.isnan(Ensemble.observations).all():
 
-            Ensemble.kalman_update(create=False)
+            Ensemble.iter_update(create=False)
             Ensemble.season_rejuvenation()
             Result["resampled_particles"] = np.arange(Ensemble.members)
             pass
 
         else:
-            for j in range(Kalman_iterations):
+            for j in range(max_iterations):
 
                 list_state = Ensemble.state_membres
 
                 # Get ensemble of predictions
-                predicted = get_predicitons(list_state, var_to_assim)
+                predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
@@ -939,36 +1009,23 @@ def implement_assimilation(Ensemble, step):
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
-                # get prior
-                prior = np.ones((len(vars_to_perturbate), len(list_state)))
-                for cont, var in enumerate(vars_to_perturbate):
-                    if j == 0:
-                        var_tmp = [Ensemble.noise[x][var]
-                                   for x in range(len(list_state))]
-                    else:
-                        var_tmp = [Ensemble.noise_kalman[x][var]
-                                   for x in range(len(list_state))]
-                    var_tmp = np.asarray(var_tmp)
-                    var_tmp = np.squeeze(var_tmp)
-                    # HACK: next lines have to be modified with time varying
-                    # perturbations
-                    # var_tmp = np.squeeze(var_tmp[:, mask])
-                    prior[cont, :] = var_tmp[:, 0]
+                # get parameters
+                param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                prior = transform_space(prior, 'to_normal')
+                param_array = transform_space(param_array, 'to_normal')
 
-                alpha = Kalman_iterations
-                updated_pars = ens_klm(prior, observations_sbst_masked,
+                alpha = max_iterations
+                updated_pars = ens_klm(param_array, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
                 updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(step, updated_pars,
-                                       create=True, iteration=j)
+                Ensemble.iter_update(step, updated_pars,
+                                     create=True, iteration=j)
 
             list_state = Ensemble.state_membres
-            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = get_predictions(list_state, var_to_assim)
             predicted = tidy_predictions(predicted, mask)
 
             priormean = np.zeros(len(vars_to_perturbate))
@@ -981,10 +1038,10 @@ def implement_assimilation(Ensemble, step):
             priorcov = np.diag(priorsd**2)
             proposal = transform_space(updated_pars, 'to_normal')
 
-            wgth, Neff = PIES(observations_sbst_masked, predicted, r_cov,
-                              priormean, priorcov, proposal)
+            wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
+                                priormean, priorcov, proposal)
 
-            if int(Neff) < int(Ensemble.members * cnt.Neffthrs):
+            if Neff/Ensemble.members < cnt.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,
@@ -1002,16 +1059,16 @@ def implement_assimilation(Ensemble, step):
     elif da_algorithm in ['IES-MCMC']:
         if np.isnan(Ensemble.observations).all():
 
-            Ensemble.kalman_update(create=False)
+            Ensemble.iter_update(create=False)
             pass
 
         else:
-            for j in range(Kalman_iterations):
+            for j in range(max_iterations):
 
                 list_state = Ensemble.state_membres
 
                 # Get ensemble of predictions
-                predicted = get_predicitons(list_state, var_to_assim)
+                predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
                     observations_sbst_masked, predicted, r_cov, mask = \
@@ -1027,7 +1084,7 @@ def implement_assimilation(Ensemble, step):
                         var_tmp = [Ensemble.noise[x][var]
                                    for x in range(len(list_state))]
                     else:
-                        var_tmp = [Ensemble.noise_kalman[x][var]
+                        var_tmp = [Ensemble.noise_iter[x][var]
                                    for x in range(len(list_state))]
                     var_tmp = np.asarray(var_tmp)
                     var_tmp = np.squeeze(var_tmp)
@@ -1043,20 +1100,20 @@ def implement_assimilation(Ensemble, step):
                 # translate lognormal variables to normal distribution
                 prior = transform_space(prior, 'to_normal')
 
-                alpha = Kalman_iterations
+                alpha = max_iterations
                 updated_pars = ens_klm(prior, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
                 updated_pars = transform_space(updated_pars, 'from_normal')
 
-                Ensemble.kalman_update(step, updated_pars,
-                                       create=True, iteration=j)
+                Ensemble.iter_update(step, updated_pars,
+                                     create=True, iteration=j)
 
             # MCMC starting point
             list_state = Ensemble.state_membres
 
             # Get ensemble of predictions
-            predicted = get_predicitons(list_state, var_to_assim)
+            predicted = get_predictions(list_state, var_to_assim)
             predicted = tidy_predictions(predicted, mask)
 
             # get prior
@@ -1066,7 +1123,7 @@ def implement_assimilation(Ensemble, step):
                     var_tmp = [Ensemble.noise[x][var]
                                for x in range(len(list_state))]
                 else:
-                    var_tmp = [Ensemble.noise_kalman[x][var]
+                    var_tmp = [Ensemble.noise_iter[x][var]
                                for x in range(len(list_state))]
                 var_tmp = np.asarray(var_tmp)
                 var_tmp = np.squeeze(var_tmp)

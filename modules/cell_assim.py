@@ -119,7 +119,7 @@ def cell_assimilation(lat_idx, lon_idx):
             Ensemble.posterior_shape()
 
         # Resample if filtering
-        if(cfg.da_algorithm == "PF"):
+        if (cfg.da_algorithm == "PF"):
             Ensemble.resample(step_results["resampled_particles"])
 
     # Store OL

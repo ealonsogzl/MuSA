@@ -168,7 +168,7 @@ def MuSA():
                 # Wait untill all ensembles are created
                 spM.wait_for_ensembles(step, pbs_task_id)
 
-                for j in range(cfg.Kalman_iterations):  # Run spatial assim
+                for j in range(cfg.max_iterations):  # Run spatial assim
 
                     inputs = [grid[ids, 0], grid[ids, 1],
                               [step] * sum(ids), [j]*sum(ids)]
@@ -215,7 +215,7 @@ def MuSA():
                 # Wait untill all ensembles are created
                 spM.wait_for_ensembles(step, 0)
 
-                for j in range(cfg.Kalman_iterations):  # Run spatial assim
+                for j in range(cfg.max_iterations):  # Run spatial assim
 
                     inputs = [grid[:, 0], grid[:, 1],
                               [step] * grid.shape[0],
