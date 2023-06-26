@@ -31,8 +31,8 @@ restart_forcing = False
 # Data Assim
 # -----------------------------------
 
-# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL, IES-MCMC,
-# PIES
+# da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL, IES-MCMC
+# or PIES
 da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
@@ -65,7 +65,7 @@ seed = None
 
 # perturbation_strategy from "normal", "lognormal",
 # "logitnormal_adi" or "logitnormal_mult"
-perturbation_strategy = ["normal", "lognormal"]
+perturbation_strategy = ["logitnormal_adi", "logitnormal_mult"]
 
 # precipitation_phase from "Harder" or "temp_thld"
 precipitation_phase = "Harder"
