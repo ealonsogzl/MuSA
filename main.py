@@ -222,6 +222,7 @@ def MuSA():
                               [j] * grid.shape[0]]
 
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
+                    print(j)
 
                     # Wait untill all ensembles are updated and remove prior
                     spM.wait_for_ensembles(step, 0, j)
@@ -262,4 +263,5 @@ def check_platform():
 if __name__ == "__main__":
 
     check_platform()
+    mp.set_start_method("spawn")
     MuSA()

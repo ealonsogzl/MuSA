@@ -431,6 +431,7 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
     # Store colums
     for n, name_col in enumerate(ol_data.columns):
+        #OL_FSM[name_col] = ol_data.iloc[range(time_dict['Assimilaiton_steps'][1]), [n]].to_numpy()
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
