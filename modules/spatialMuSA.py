@@ -848,7 +848,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                                 time_dict["Assimilaiton_steps"][step + 1]]\
         .copy()
 
-    Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
+    #Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
     if time_dict["Assimilaiton_steps"][step] in ini_DA_window:
         GSC_filename = (str(gsc_count) + '_GSC.nc')
@@ -1103,10 +1103,10 @@ def collect_results(lat_idx, lon_idx):
             step_results[var_p + "_noise_mean"] = noise_tmp_avg
             step_results[var_p + "_noise_sd"] = noise_tmp_sd
 
-        model.storeDA(DA_Results, step_results, Ensemble.observations,
+        model.storeDA(DA_Results, step_results, Ensemble.observations, Ensemble.errors,
                       time_dict, step)
 
-        model.store_updatedsim(updated_FSM, sd_FSM, Ensemble,
+        model.store_sim(updated_FSM, sd_FSM, Ensemble,
                                time_dict, step)
 
     # the whole OL is stored in the last Ensemble
