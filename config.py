@@ -46,7 +46,7 @@ ensemble_members = 100
 # and time. If this option is selected, the errors will be stored in a new
 # variable in the observation files, and will have the same dimensions as
 # the observations.
-r_cov = [0.04]
+r_cov = [0.04]  # 0.4
 add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
 var_to_assim = ["snd"]

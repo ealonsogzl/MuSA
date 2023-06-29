@@ -132,9 +132,9 @@ def gexpit(xt, bPmin, bPmax):
     return x
 
 
-def create_noise(perturbation_strategy, n_steps, mean, std_dev, bPmin, bPmax):
+def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
 
-    if(cfg.seed is not None):
+    if (cfg.seed is not None):
         np.random.seed(cfg.seed)
 
     if perturbation_strategy == "normal":
@@ -147,6 +147,9 @@ def create_noise(perturbation_strategy, n_steps, mean, std_dev, bPmin, bPmax):
 
     elif perturbation_strategy in ["logitnormal_mult",
                                    "logitnormal_adi"]:
+
+        bPmax = cnt.upper_bounds[var]
+        bPmin = cnt.lower_bounds[var]
 
         norm_noise = np.random.normal(mean, std_dev, 1)
         norm_noise = np.repeat(norm_noise, n_steps)
@@ -209,9 +212,6 @@ def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None, member=None,
     perturbation_strategy = cfg.perturbation_strategy
     mean_errors = cnt.mean_errors
     sd_errors = cnt.sd_errors
-    upper_bounds = cnt.upper_bounds
-    lower_bounds = cnt.lower_bounds
-
     n_steps = forcing_copy.shape[0]
 
     # Create dict to store the perturbing parameters
@@ -242,8 +242,7 @@ def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None, member=None,
             noise_coef = create_noise(strategy_tmp, n_steps,
                                       mean_errors[var_tmp],
                                       sd_errors[var_tmp],
-                                      lower_bounds[var_tmp],
-                                      upper_bounds[var_tmp])
+                                      var_tmp)
 
         noise_coef = add_process_noise(noise_coef, var_tmp, strategy_tmp)
         # If lognormal perturbation multiplicate, else add

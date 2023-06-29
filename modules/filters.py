@@ -342,7 +342,8 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R):
     mcmc_storage[:] = np.nan
 
     # Init chain
-    phic = np.reshape(starting_parameters.T[0, :], (1, 2))
+    phic = np.reshape(starting_parameters.T[0, :],
+                      (1, starting_parameters.shape[0]))
     nll, sd = gp_emul.predict(phic, return_std=True)
 
     Uc = neglogpost(nll, phic, SD0, m0)
@@ -845,22 +846,7 @@ def implement_assimilation(Ensemble, step):
                 priorsd[count] = sd_errors[var]
             priorcov = np.diag(priorsd**2)
 
-            j = 0  # first iteration
-            Neff = 0  # Initial Neff
-            # start to create generations of particles until no-collapse
-            while Neff/Ensemble.members < cnt.Neffthrs:
-                print(j)
-                if (j == max_iterations):
-                    print('Maximum number of iterations reached')
-                    print('(Neff: {Neff}) at cell: Lat:{lat}, Lon:{lon}'.
-                          format(lat=Ensemble.lat_idx,
-                                 lon=Ensemble.lon_idx,
-                                 Neff=int(Neff)))
-                    break
-                print('(Neff: {Neff}) at cell: Lat:{lat}, Lon:{lon}'.
-                      format(lat=Ensemble.lat_idx,
-                             lon=Ensemble.lon_idx,
-                             Neff=int(Neff)))
+            for j in range(max_iterations):
 
                 predicted = get_predictions(
                     Ensemble.state_membres, var_to_assim)
@@ -870,15 +856,18 @@ def implement_assimilation(Ensemble, step):
 
                 proposal = get_parameters(Ensemble, j)
                 proposal = transform_space(proposal, 'to_normal')
+
                 wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
                                     priormean, priorcov, proposal)
+                print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
+                                                     j=j))
 
                 resampled_particles = resampled_indexes(wgth)
                 Ensemble.resample(resampled_particles, do_res=j != 0)
 
                 # get resampled parameters
                 thetaprop = get_parameters(Ensemble, j)
-                # translate lognormal parameters to normal distribution
+                # transform to normal space
                 thetaprop = transform_space(thetaprop, 'to_normal')
                 diversity = Neff/Ensemble.members
                 # Calculate the mean vector of the proposed parameter ensemble
@@ -896,8 +885,22 @@ def implement_assimilation(Ensemble, step):
                 thetaprop = transform_space(thetaprop, 'from_normal')
                 Ensemble.iter_update(step, thetaprop,
                                      create=True, iteration=j)
+                # exit if not collapsed
+                if (Neff/Ensemble.members > cnt.Neffthrs):
+                    break
 
-                j = j+1  # update iteration counter
+            # Last iteration wgth, the scheme does at least 1 iter
+
+            predicted = get_predictions(
+                Ensemble.state_membres, var_to_assim)
+
+            observations_sbst_masked, predicted, r_cov = \
+                tidy_obs_pred_rcov(predicted, observations, errors)
+
+            proposal = get_parameters(Ensemble, j)
+            proposal = transform_space(proposal, 'to_normal')
+            wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
+                                priormean, priorcov, proposal)
 
             Ensemble.wgth = wgth
 
@@ -1078,30 +1081,17 @@ def implement_assimilation(Ensemble, step):
                     predicted = tidy_predictions(predicted, mask)
 
                 # get prior
-                prior = np.ones((len(vars_to_perturbate), len(list_state)))
-                for cont, var in enumerate(vars_to_perturbate):
-                    if j == 0:
-                        var_tmp = [Ensemble.noise[x][var]
-                                   for x in range(len(list_state))]
-                    else:
-                        var_tmp = [Ensemble.noise_iter[x][var]
-                                   for x in range(len(list_state))]
-                    var_tmp = np.asarray(var_tmp)
-                    var_tmp = np.squeeze(var_tmp)
-                    # HACK: next lines have to be modified with time varying
-                    # perturbations
-                    # var_tmp = np.squeeze(var_tmp[:, mask])
-                    prior[cont, :] = var_tmp[:, 0]
+                param_array = get_parameters(Ensemble, j)
 
                 # Store parameters for gaussian process regresion
 
-                Ensemble.store_train_data(prior, predicted, j)
+                Ensemble.store_train_data(param_array, predicted, j)
 
                 # translate lognormal variables to normal distribution
-                prior = transform_space(prior, 'to_normal')
+                param_array = transform_space(param_array, 'to_normal')
 
                 alpha = max_iterations
-                updated_pars = ens_klm(prior, observations_sbst_masked,
+                updated_pars = ens_klm(param_array, observations_sbst_masked,
                                        predicted, alpha, r_cov)
 
                 updated_pars = transform_space(updated_pars, 'from_normal')
@@ -1117,22 +1107,9 @@ def implement_assimilation(Ensemble, step):
             predicted = tidy_predictions(predicted, mask)
 
             # get prior
-            prior = np.ones((len(vars_to_perturbate), len(list_state)))
-            for cont, var in enumerate(vars_to_perturbate):
-                if j == 0:
-                    var_tmp = [Ensemble.noise[x][var]
-                               for x in range(len(list_state))]
-                else:
-                    var_tmp = [Ensemble.noise_iter[x][var]
-                               for x in range(len(list_state))]
-                var_tmp = np.asarray(var_tmp)
-                var_tmp = np.squeeze(var_tmp)
-                # HACK: next lines have to be modified with time varying
-                # perturbations
-                # var_tmp = np.squeeze(var_tmp[:, mask])
-                prior[cont, :] = var_tmp[:, 0]
+            param_array = get_parameters(Ensemble, j)
 
-            Ensemble.store_train_data(prior, predicted, j+1)
+            Ensemble.store_train_data(param_array, predicted, j+1)
 
             # Start MCMC
             starting_parameters = np.concatenate(Ensemble.train_parameters,
@@ -1162,7 +1139,7 @@ def implement_assimilation(Ensemble, step):
             # translate to log space
             post_sample = transform_space(post_sample, 'from_normal')
 
-            Ensemble.create_MCMC(post_sample)
+            Ensemble.create_MCMC(post_sample, step)
 
             # Generate new parameters at the end of the season
             Ensemble.season_rejuvenation()

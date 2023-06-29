@@ -1125,4 +1125,4 @@ def collect_results(lat_idx, lon_idx):
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)
 
-    ifn.io_write(filename, cell_data)
+    ifn.io_write(filename, ifn.downcast_output(cell_data))

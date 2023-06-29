@@ -70,6 +70,7 @@ class SnowEnsemble():
         if cfg.da_algorithm == 'IES-MCMC':
             self.state_members_mcmc = [0 for i in range(self.members)]
             self.noise_mcmc = [0 for i in range(self.members)]
+            self.out_members_mcmc = [0 for i in range(self.members)]
             self.train_parameters = [0 for i in range(cfg.max_iterations+1)]
             self.train_pred = [0 for i in range(cfg.max_iterations+1)]
 
@@ -324,7 +325,7 @@ class SnowEnsemble():
                     except AttributeError:
                         pass
 
-    def create_MCMC(self, mcmc_storage):
+    def create_MCMC(self, mcmc_storage, step):
 
         # create temporal model dir
         self.temp_dest = model.model_copy(self.lat_idx, self.lon_idx)
@@ -339,20 +340,37 @@ class SnowEnsemble():
 
             model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
-            # if self.step != 0:
-            model.write_dump(self.out_members_iter[0],
-                             self.temp_dest)
+            if cfg.numerical_model in ['FSM2']:
+                if step != 0:
 
-            model.model_run(self.temp_dest)
+                    model.write_dump(self.out_members_mcmc[mbr],
+                                     self.temp_dest)
 
-            state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
+                model.model_run(self.temp_dest)
+
+                state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
+
+            elif cfg.numerical_model in ['dIm', 'snow17']:
+                if step != 0:
+                    state_tmp, dump_tmp =\
+                        model.model_run(member_forcing,
+                                        self.out_members_mcmc[mbr])
+                else:
+                    state_tmp, dump_tmp =\
+                        model.model_run(member_forcing)
+
+            else:
+                raise Exception("Numerical model not implemented")
 
             self.state_members_mcmc[mbr] = state_tmp.copy()
-
+            self.out_members_mcmc[mbr] = dump_tmp.copy()
             self.noise_mcmc[mbr] = noise_k_tmp.copy()
 
         # Clean tmp directory
-        shutil.rmtree(os.path.split(self.temp_dest)[0], ignore_errors=True)
+        try:
+            shutil.rmtree(os.path.split(self.temp_dest)[0], ignore_errors=True)
+        except TypeError:
+            pass
 
     def save_space(self):
 

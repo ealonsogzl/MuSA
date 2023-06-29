@@ -365,5 +365,9 @@ def unit_conversion(forcing_df):
 
         forcing_df = pdc.downcast(forcing_df,
                                   numpy_dtypes_only=True)
+    # HACK: Do not allow float16 in DMF, otherwise numba crash. This is a
+    # temporalhack while numba developers implement half precission floats
+    # in CPU
+    forcing_df["DMF"] = forcing_df["DMF"].astype('float32')
 
     return (forcing_df)
