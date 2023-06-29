@@ -36,8 +36,7 @@ subgrid_cv = 2.0
 VAI = 0    # Vegetation area index
 vegh = 0   # Canopy height (m)
 fsky = 1   # Sky view fraction for remote shading
-hbas = 2   # Canopy base height
-
+hbas = 2   # Canopy base height (m)
 # -----------------------------------
 # Mean errors
 # -----------------------------------

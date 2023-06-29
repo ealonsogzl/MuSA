@@ -1056,10 +1056,10 @@ def collect_results(lat_idx, lon_idx):
     ini_DA_window = domain_steps()
 
     # create filenames
-    DA_Results = ifn.init_result(del_t, DA=True)
-    updated_FSM = ifn.init_result(del_t)
-    sd_FSM = ifn.init_result(del_t)
-    OL_FSM = ifn.init_result(del_t)
+    DA_Results = model.init_result(del_t, DA=True)
+    updated_FSM = model.init_result(del_t)
+    sd_FSM = model.init_result(del_t)
+    OL_FSM = model.init_result(del_t)
 
     # HACK: fake time_dict
     time_dict = {'Assimilaiton_steps':
@@ -1125,4 +1125,4 @@ def collect_results(lat_idx, lon_idx):
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)
 
-    ifn.io_write(filename, cell_data)
+    ifn.io_write(filename, ifn.downcast_output(cell_data))

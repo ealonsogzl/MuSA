@@ -138,7 +138,8 @@ def cell_assimilation(lat_idx, lon_idx):
         cell_data['mcmc_Sim'] = mcmc_Sim
         cell_data['mcmcSD_Sim'] = mcmcSD_Sim
 
-    ifn.io_write(filename, cell_data)
+    # downcast and write output
+    ifn.io_write(filename, ifn.downcast_output(cell_data))
 
     # Save ensemble
     if save_ensemble:

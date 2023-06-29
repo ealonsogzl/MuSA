@@ -846,7 +846,6 @@ def implement_assimilation(Ensemble, step):
                 priorsd[count] = sd_errors[var]
             priorcov = np.diag(priorsd**2)
 
-            # start to create generations of particles until no-collapse
             for j in range(max_iterations):
 
                 predicted = get_predictions(
@@ -857,21 +856,18 @@ def implement_assimilation(Ensemble, step):
 
                 proposal = get_parameters(Ensemble, j)
                 proposal = transform_space(proposal, 'to_normal')
+
                 wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
                                     priormean, priorcov, proposal)
                 print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
                                                      j=j))
-                # exit if not collapsed
-                if (Neff/Ensemble.members > cnt.Neffthrs):
-                    print('Reached!')
-                    break
 
                 resampled_particles = resampled_indexes(wgth)
                 Ensemble.resample(resampled_particles, do_res=j != 0)
 
                 # get resampled parameters
                 thetaprop = get_parameters(Ensemble, j)
-                # translate lognormal parameters to normal distribution
+                # transform to normal space
                 thetaprop = transform_space(thetaprop, 'to_normal')
                 diversity = Neff/Ensemble.members
                 # Calculate the mean vector of the proposed parameter ensemble
@@ -879,7 +875,7 @@ def implement_assimilation(Ensemble, step):
                 # Calculate the covariance matrix of the proposed parameters
                 thetapropc = np.diag(np.std(thetaprop, axis=1)**2)
                 # Inflate the covariance slightly in case of degeneracy
-                thetapropc = thetapropc+0.051*(1-diversity)*priorcov
+                thetapropc = thetapropc+0.1*(1-diversity)*priorcov
                 L = np.linalg.cholesky(thetapropc)
 
                 # Draw from this Gaussian for the next iteration.
@@ -889,6 +885,22 @@ def implement_assimilation(Ensemble, step):
                 thetaprop = transform_space(thetaprop, 'from_normal')
                 Ensemble.iter_update(step, thetaprop,
                                      create=True, iteration=j)
+                # exit if not collapsed
+                if (Neff/Ensemble.members > cnt.Neffthrs):
+                    break
+
+            # Last iteration wgth, the scheme does at least 1 iter
+
+            predicted = get_predictions(
+                Ensemble.state_membres, var_to_assim)
+
+            observations_sbst_masked, predicted, r_cov = \
+                tidy_obs_pred_rcov(predicted, observations, errors)
+
+            proposal = get_parameters(Ensemble, j)
+            proposal = transform_space(proposal, 'to_normal')
+            wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
+                                priormean, priorcov, proposal)
 
             Ensemble.wgth = wgth
 

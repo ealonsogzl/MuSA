@@ -25,6 +25,8 @@ else:
     raise Exception('Model not implemented')
 import pickle
 import blosc
+import warnings
+import pdcast as pdc
 if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
 
@@ -66,6 +68,18 @@ def reduce_size_state(df_state, observations):
             df_state[col] = 0
 
     return df_state
+
+
+def downcast_output(output):
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        for n in output.keys():
+
+            output[n] = pdc.downcast(output[n],
+                                     numpy_dtypes_only=True)
+    return output
 
 
 def chunker(seq, size):
