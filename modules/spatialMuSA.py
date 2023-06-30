@@ -910,7 +910,8 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
                     # if end of the Kalman iterations move ensembles to results
                     if j == cfg.max_iterations-1:
                         for f in files:
-                            shutil.move(f, cfg.output_path)
+                            if not cfg.save_ensemble:
+                                shutil.move(f, cfg.output_path)
 
                 # if not first task and end of iterations, wait for
                 # ensembles in results
@@ -1068,13 +1069,22 @@ def collect_results(lat_idx, lon_idx):
     for step in range(len(ini_DA_window)):
 
         # create ensemble name
-        fname = os.path.join(
-            cfg.output_path,
-            "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
-                step=step,
-                j=cfg.max_iterations - 1,
-                lat_idx=lat_idx,
-                lon_idx=lon_idx))
+        if not cfg.save_ensemble:
+            fname = os.path.join(
+                cfg.output_path,
+                "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
+                    step=step,
+                    j=cfg.max_iterations - 1,
+                    lat_idx=lat_idx,
+                    lon_idx=lon_idx))
+        else:
+            fname = os.path.join(
+                cfg.save_ensemble_path,
+                "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
+                    step=step,
+                    j=cfg.max_iterations - 1,
+                    lat_idx=lat_idx,
+                    lon_idx=lon_idx))            
 
         # Open file
         try:
@@ -1084,7 +1094,8 @@ def collect_results(lat_idx, lon_idx):
 
         # Rm de ensemble file
         if os.path.isfile(fname):
-            os.remove(fname)
+            if not cfg.save_ensemble:
+                os.remove(fname)
 
         step_results = {}
         # extract psoterior parameters
