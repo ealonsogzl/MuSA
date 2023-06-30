@@ -36,7 +36,8 @@ subgrid_cv = 2.0
 VAI = 0    # Vegetation area index
 vegh = 0   # Canopy height (m)
 fsky = 1   # Sky view fraction for remote shading
-hbas = 2   # Canopy base height (m)
+hbas = 2   # Canopy base height
+
 # -----------------------------------
 # Mean errors
 # -----------------------------------
@@ -105,15 +106,15 @@ dyn_noise = {"SW": 0.01,
 forcing_offset = {"SW": 0,
                   "LW": 0,
                   "Prec": 0,
-                  "Ta": 0,
+                  "Ta": KELVING_CONVER,
                   "RH": 0,
                   "Ua": 0,
                   "Ps": 0}
 
-forcing_multiplier = {"SW": 1,
-                      "LW": 1,
-                      "Prec": 1,
-                      "Ta": 1,
+forcing_multiplier = {"SW": 0.1,
+                      "LW": 0.1,
+                      "Prec": 0.01/60/60,
+                      "Ta": 0.01,
                       "RH": 1,
-                      "Ua": 1,
-                      "Ps": 1}
+                      "Ua": 0.01,
+                      "Ps": 100}

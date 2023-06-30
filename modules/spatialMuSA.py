@@ -34,6 +34,8 @@ elif cfg.numerical_model == 'snow17':
     import modules.snow17_tools as model
 else:
     raise Exception('Model not implemented')
+import copy
+
 
 
 def GC(d, c):
@@ -910,8 +912,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
                     # if end of the Kalman iterations move ensembles to results
                     if j == cfg.max_iterations-1:
                         for f in files:
-                            if not cfg.save_ensemble:
-                                shutil.move(f, cfg.output_path)
+                            shutil.move(f, cfg.output_path)
 
                 # if not first task and end of iterations, wait for
                 # ensembles in results
@@ -1065,26 +1066,22 @@ def collect_results(lat_idx, lon_idx):
     # HACK: fake time_dict
     time_dict = {'Assimilaiton_steps':
                  np.append(ini_DA_window, len(del_t))}
+        
+    # Initialice Ensemble list if enabled in cfg
+    if cfg.save_ensemble:
+        ensemble_list = []
+        
     # loop over DA steps
     for step in range(len(ini_DA_window)):
 
-        # create ensemble name
-        if not cfg.save_ensemble:
-            fname = os.path.join(
-                cfg.output_path,
-                "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
-                    step=step,
-                    j=cfg.max_iterations - 1,
-                    lat_idx=lat_idx,
-                    lon_idx=lon_idx))
-        else:
-            fname = os.path.join(
-                cfg.save_ensemble_path,
-                "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
-                    step=step,
-                    j=cfg.max_iterations - 1,
-                    lat_idx=lat_idx,
-                    lon_idx=lon_idx))            
+        fname = os.path.join(
+            cfg.output_path,
+            "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
+                step=step,
+                j=cfg.max_iterations - 1,
+                lat_idx=lat_idx,
+                lon_idx=lon_idx))
+        
 
         # Open file
         try:
@@ -1094,9 +1091,13 @@ def collect_results(lat_idx, lon_idx):
 
         # Rm de ensemble file
         if os.path.isfile(fname):
-            if not cfg.save_ensemble:
-                os.remove(fname)
-
+            os.remove(fname)
+                
+        if cfg.save_ensemble:
+            # deepcopy necesary to not to change all
+            Ensemble_tmp = copy.deepcopy(Ensemble)
+            ensemble_list.append(Ensemble_tmp)
+            
         step_results = {}
         # extract psoterior parameters
         for cont, var_p in enumerate(cfg.vars_to_perturbate):
@@ -1137,3 +1138,10 @@ def collect_results(lat_idx, lon_idx):
     filename = os.path.join(cfg.output_path, filename)
 
     ifn.io_write(filename, ifn.downcast_output(cell_data))
+
+    # Save ensemble
+    if cfg.save_ensemble:
+        name_ensemble = "ensbl_" + str(lat_idx) +\
+            "_" + str(lon_idx) + ".pkl.blp"
+        name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
+        ifn.io_write(name_ensemble, ensemble_list)
