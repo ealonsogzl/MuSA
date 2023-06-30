@@ -48,7 +48,8 @@ class SnowEnsemble():
         self.noise = [0 for i in range(self.members)]
 
         if cfg.da_algorithm in ['EnKF', 'IEnKF', 'ES',
-                                'IES', 'IES-MCMC', 'PIES',
+                                'IES', 'IES-MCMC_AI',
+                                'IES-MCMC', 'PIES',
                                 'AdaPBS']:
             self.noise_iter = [0 for i in range(self.members)]
             self.out_members_iter = [0 for i in range(self.members)]
@@ -67,7 +68,7 @@ class SnowEnsemble():
         self.observations = []
 
         # MCMC storage
-        if cfg.da_algorithm == 'IES-MCMC':
+        if cfg.da_algorithm in ['IES-MCMC_AI', 'IES-MCMC']:
             self.state_members_mcmc = [0 for i in range(self.members)]
             self.noise_mcmc = [0 for i in range(self.members)]
             self.out_members_mcmc = [0 for i in range(self.members)]

@@ -24,6 +24,8 @@ else:
 import modules.met_tools as met
 from sklearn.gaussian_process import GaussianProcessRegressor
 import sklearn.gaussian_process.kernels as krn
+import shutil
+import os
 
 
 def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
@@ -321,7 +323,100 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     return w, Neff
 
 
-def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R):
+def mcmc(Ensemble, observations_sbst_masked, R,
+         chain_len=200000, adaptative=True):
+
+    vars_to_perturbate = cfg.vars_to_perturbate
+    SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
+    m0 = np.asarray([cnt.mean_errors[x] for x in vars_to_perturbate])
+
+    # starting ensemble
+    starting_parameters = Ensemble.train_parameters[-2]
+    starting_parameters = transform_space(starting_parameters, 'to_normal')
+    predicted = Ensemble.train_pred[-2][:, 0]
+
+    # NOTE:
+    # the initial conditions will be defined by a random particle after the
+    # IES. This is fine for years 0 but not optimal for the following seasons.
+    # Here it might make sense to use PIES and use the highest weight
+    init_conditions = Ensemble.out_members_iter[0]
+
+    # create tmp storage of the model
+    temp_dest = model.model_copy(Ensemble.lat_idx, Ensemble.lon_idx)
+
+    # Init chain
+    phic = np.reshape(starting_parameters.T[0, :],
+                      (1, starting_parameters.shape[0]))
+    nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
+    # AQUI!
+    Uc = neglogpost(nll, phic, SD0, m0)
+    mcmc_storage = np.zeros((chain_len, len(vars_to_perturbate)))
+    mcmc_storage[:] = np.nan
+    sigp = 0.1  # MCMC parameter
+    accepted = 0
+
+    for nsteps in range(chain_len):
+
+        r = np.random.randn(len(vars_to_perturbate))
+
+        prop = sigp*r
+        phip = phic+prop
+        phip = transform_space(phip.T, 'from_normal').T
+
+        # run the model
+        # create forcing candidate
+        forcing_mcmcstep, noise_mcmc = met.perturb_parameters(Ensemble.forcing,
+                                                              noise=phip.T,
+                                                              update=True)
+        phip = transform_space(phip.T, 'to_normal').T
+        # Write init conditions or dump file from previous run if step != 0
+        if cfg.numerical_model in ['FSM2']:
+            if Ensemble.step != 0:
+                model.write_dump(init_conditions, temp_dest)
+            # create open loop simulation
+            model.model_run(temp_dest)
+            # read model outputs
+            state_tmp, dump_tmp =\
+                model.model_read_output(temp_dest)
+
+        elif cfg.numerical_model in ['dIm', 'snow17']:
+            if Ensemble.step != 0:
+                state_tmp, dump_tmp =\
+                    model.model_run(forcing_mcmcstep, temp_dest)
+            else:
+                state_tmp, dump_tmp =\
+                    model.model_run(forcing_mcmcstep)
+
+        mcmc_step_simulations = get_predictions([state_tmp], cfg.var_to_assim)
+        _, predicted, _ = \
+            tidy_obs_pred_rcov(mcmc_step_simulations,
+                               Ensemble.observations,
+                               Ensemble.errors)
+
+        nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
+        Up = neglogpost(nll, phip, SD0, m0)
+
+        mh = min(1, np.exp(-Up+Uc))
+        u = np.random.rand(1)
+        accept = (mh > u)
+        if accept:
+            phic = phip
+            Uc = Up
+            accepted = accepted + 1
+
+        mcmc_storage[nsteps] = phic
+
+    # Clean tmp directory
+    try:
+        shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
+    except TypeError:
+        pass
+
+    return accepted, mcmc_storage
+
+
+def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
+            chain_len=200000, adaptative=True):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
@@ -331,7 +426,6 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R):
     gp_emul = gp_emulator(X_train=starting_parameters.T, y_train=nll)
 
     # MCMC parameters
-    chain_len = 200000
     # Rinv = None
     sigp = 0.1
 
@@ -873,7 +967,8 @@ def implement_assimilation(Ensemble, step):
                 # Calculate the mean vector of the proposed parameter ensemble
                 thetapropm = np.mean(thetaprop, axis=1)
                 # Calculate the covariance matrix of the proposed parameters
-                thetapropc = np.diag(np.std(thetaprop, axis=1)**2)
+                thetapropA = (thetaprop.T - thetapropm).T
+                thetapropc = (thetapropA@thetapropA.T) / Ensemble.members
                 # Inflate the covariance slightly in case of degeneracy
                 thetapropc = thetapropc+0.1*(1-diversity)*priorcov
                 L = np.linalg.cholesky(thetapropc)
@@ -1099,6 +1194,70 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.iter_update(step, updated_pars,
                                      create=True, iteration=j)
 
+            # Run the MCMC
+            accepted, mcmc_storage = mcmc(Ensemble, observations_sbst_masked,
+                                          r_cov, chain_len=cfg.mcmc_chain_len,
+                                          adaptative=True)
+
+            # Burn in:  discard the first 10% samples
+            ini = int(mcmc_storage.shape[0] * 0.1)
+            end = mcmc_storage.shape[0]
+            mcmc_storage = mcmc_storage[ini:end, :]
+
+            # Sample n number of members
+            idx = np.random.randint(mcmc_storage.shape[0],
+                                    size=Ensemble.members)
+            post_sample = mcmc_storage[idx, :].T
+
+            # Create Ensemble from mcmc
+            # translate to log space
+            post_sample = transform_space(post_sample, 'from_normal')
+
+            Ensemble.create_MCMC(post_sample, step)
+
+            # Generate new parameters at the end of the season
+            Ensemble.season_rejuvenation()
+
+    elif da_algorithm in ['IES-MCMC_AI']:
+        if np.isnan(Ensemble.observations).all():
+
+            Ensemble.iter_update(create=False)
+            pass
+
+        else:
+            for j in range(max_iterations):
+
+                list_state = Ensemble.state_membres
+
+                # Get ensemble of predictions
+                predicted = get_predictions(list_state, var_to_assim)
+
+                if j == 0:
+                    observations_sbst_masked, predicted, r_cov, mask = \
+                        tidy_obs_pred_rcov(predicted, observations,
+                                           errors, ret_mask=True)
+                else:
+                    predicted = tidy_predictions(predicted, mask)
+
+                # get prior
+                param_array = get_parameters(Ensemble, j)
+
+                # Store parameters for gaussian process regresion
+
+                Ensemble.store_train_data(param_array, predicted, j)
+
+                # translate lognormal variables to normal distribution
+                param_array = transform_space(param_array, 'to_normal')
+
+                alpha = max_iterations
+                updated_pars = ens_klm(param_array, observations_sbst_masked,
+                                       predicted, alpha, r_cov)
+
+                updated_pars = transform_space(updated_pars, 'from_normal')
+
+                Ensemble.iter_update(step, updated_pars,
+                                     create=True, iteration=j)
+
             # MCMC starting point
             list_state = Ensemble.state_membres
 
@@ -1122,7 +1281,8 @@ def implement_assimilation(Ensemble, step):
 
             # Run MCMC with gaussian emulator
             accepted, mcmc_storage = AI_mcmc(starting_parameters, predicted,
-                                             observations_sbst_masked, r_cov)
+                                             observations_sbst_masked, r_cov,
+                                             chain_len=cfg.mcmc_chain_len)
 
             # Burn in:  discard the first 10% samples
 

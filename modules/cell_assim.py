@@ -65,7 +65,7 @@ def cell_assimilation(lat_idx, lon_idx):
     prior_sd = model.init_result(
         time_dict["del_t"])       # prior_sd simulation
 
-    if cfg.da_algorithm == 'IES-MCMC':
+    if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
         mcmc_Sim = model.init_result(time_dict["del_t"])
         mcmcSD_Sim = model.init_result(time_dict["del_t"])
 
@@ -110,7 +110,7 @@ def cell_assimilation(lat_idx, lon_idx):
         model.store_sim(updated_Sim, sd_Sim, Ensemble,
                         time_dict, step)
 
-        if cfg.da_algorithm == 'IES-MCMC':
+        if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
             model.store_sim(mcmc_Sim, mcmcSD_Sim, Ensemble,
                             time_dict, step, MCMC=True)
 
@@ -134,7 +134,7 @@ def cell_assimilation(lat_idx, lon_idx):
                  "prior_mean": prior_mean,
                  "prior_sd": prior_sd}
 
-    if cfg.da_algorithm == 'IES-MCMC':
+    if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
         cell_data['mcmc_Sim'] = mcmc_Sim
         cell_data['mcmcSD_Sim'] = mcmcSD_Sim
 
