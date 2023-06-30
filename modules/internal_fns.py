@@ -32,6 +32,7 @@ if cfg.MPI:
 
 
 def io_write(filename, obj):
+    # TODO: Explore more compression options
     with open(filename, "wb") as f:
         pickled_data = pickle.dumps(obj)
         compressed_pickle = blosc.compress(pickled_data)
@@ -393,7 +394,7 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if da_algorithm in ['PBS', 'ES', 'IES', 'S-MCMC', 'IES-MCMC',
+    if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
                         'PIES', 'AdaPBS']:
         assimilation_steps = season_ini_cuts[:, 0]
     elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
