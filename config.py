@@ -32,13 +32,13 @@ restart_forcing = False
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
-# IES-MCMC_AI, IES-MCMC or PIES
+# IES-MCMC_AI, IES-MCMC, PIES or AdaPBS
 da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
-resampling_algorithm = "bootstrapping"
+resampling_algorithm = "no_resampling"
 ensemble_members = 100
 mcmc_chain_len = 20000  # Number of iterations in case of MCMC
 # r_cov can be a list of scalars of length equal to var_to_assim or the string
