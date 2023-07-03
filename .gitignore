@@ -130,7 +130,3 @@ dmypy.json
 
 mydir
 HELPER/
-
-/config.py
-/constants.py
-/DATA/
