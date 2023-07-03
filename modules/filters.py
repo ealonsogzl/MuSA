@@ -7,6 +7,7 @@ Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 
 """
 
+import numba as nb
 import numpy as np
 from numpy.random import random
 from scipy import special
