@@ -381,6 +381,9 @@ def mcmc(Ensemble, observations_sbst_masked, R,
                                                               noise=phip.T,
                                                               update=True)
         phip = transform_space(phip.T, 'to_normal').T
+
+        # write perturbed forcing
+        model.model_forcing_wrt(forcing_mcmcstep, temp_dest, Ensemble.step)
         # Write init conditions or dump file from previous run if step != 0
         if cfg.numerical_model in ['FSM2']:
             if Ensemble.step != 0:

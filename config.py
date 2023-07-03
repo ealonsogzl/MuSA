@@ -42,7 +42,7 @@ resampling_algorithm = "bootstrapping"
 ensemble_members = 100
 
 # MCMC parameters
-chain_len = 20000  # Length of the mcmcm
+chain_len = 20000   # Length of the mcmcm
 adaptive = True    # Update proposal covariance for next step.
 histcov = True     # Use posterior IES covariance as proposal covariance
 burn_in = 0.1      # discard the first x proportion of samples
