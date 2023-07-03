@@ -40,7 +40,12 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "bootstrapping"
 ensemble_members = 100
-mcmc_chain_len = 20000  # Number of iterations in case of MCMC
+
+# MCMC parameters
+chain_len = 20000  # Length of the mcmcm
+adaptive = True    # Update proposal covariance for next step.
+histcov = True     # Use posterior IES covariance as proposal covariance
+
 # r_cov can be a list of scalars of length equal to var_to_assim or the string
 # 'dynamic_error'. If 'dynamic_error' is selected, errors may change in space
 # and time. If this option is selected, the errors will be stored in a new

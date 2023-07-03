@@ -7,7 +7,6 @@ Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 
 """
 
-import numba as nb
 import numpy as np
 from numpy.random import random
 from scipy import special
@@ -325,13 +324,15 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
 
 
 def mcmc(Ensemble, observations_sbst_masked, R,
-         chain_len=200000, adaptive=True, histcov=True):
+         chain_len=cfg.chain_len,
+         adaptive=cfg.adaptive,
+         histcov=cfg.histcov):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
     m0 = np.asarray([cnt.mean_errors[x] for x in vars_to_perturbate])
 
-    # starting ensemble 
+    # starting ensemble
     starting_parameters = Ensemble.train_parameters[-2]
     starting_parameters = transform_space(starting_parameters, 'to_normal')
     predicted = Ensemble.train_pred[-2][:, 0]
@@ -349,27 +350,28 @@ def mcmc(Ensemble, observations_sbst_masked, R,
     phic = np.reshape(starting_parameters.T[0, :],
                       (1, starting_parameters.shape[0]))
     nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
-    # AQUI!
+
     Uc = neglogpost(nll, phic, SD0, m0)
     mcmc_storage = np.zeros((chain_len, len(vars_to_perturbate)))
     mcmc_storage[:] = np.nan
     sigp = 0.1  # Gaussian proposal width. Only used if histcov is False
-    Np=len(vars_to_perturbate)
+    Np = len(vars_to_perturbate)
     # Using ensemble Kalman methods to speed up the burn in was insired
     # by Zhang et al. (2020, https://doi.org/10.1029/2019WR025474)
-    if histcov==True: # Posterior IES covariance as proposal covariance
-        Ne=starting_parameters.shape[0]
-        anom=(starting_parameters.T-m0).T
-        C0=(anom@anom.T)/Ne # Posterior covariance of IES (in transformed space)
-    else: # Isotropic covariance as proposal covariance
-        C0=(sigp**2)*np.eye(Np) 
-    Sc=np.linalg.cholesky(C0)
-    Id=np.eye(Np)
-    
+    if histcov:  # Posterior IES covariance as proposal covariance
+        Ne = starting_parameters.shape[0]
+        anom = (starting_parameters.T-m0).T
+        # Posterior covariance of IES (in transformed space)
+        C0 = (anom@anom.T)/Ne
+    else:  # Isotropic covariance as proposal covariance
+        C0 = (sigp**2)*np.eye(Np)
+    Sc = np.linalg.cholesky(C0)
+    Id = np.eye(Np)
+
     accepted = 0
     for nsteps in range(chain_len):
-        r=np.random.randn(Np)
-        prop=Sc@r
+        r = np.random.randn(Np)
+        prop = Sc@r
         phip = phic+prop
         phip = transform_space(phip.T, 'from_normal').T
 
@@ -415,30 +417,27 @@ def mcmc(Ensemble, observations_sbst_masked, R,
             accepted = accepted + 1
 
         mcmc_storage[nsteps] = phic
-        # IF adaptive, update proposal covariance for next step.
+        # If adaptive, update proposal covariance for next step.
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
-        if adaptive==True:
-            mhopt=0.234 # Hard coded hyper-parameters for RAM
-            gam=2.0/3.0
-            stepc=nsteps+1 # Step counter with 1-based indexing.
-            eta=min(1,Np*stepc**(-gam))
-            rinner=r@r
-            router=np.outer(r,r)
-            roi=router/rinner
-            Cp=Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
-            Sc=np.linalg.cholesky(Cp)
-            
-            
+        if adaptive:
+            mhopt = 0.234  # Hard coded hyper-parameters for RAM
+            gam = 2.0/3.0
+            stepc = nsteps+1  # Step counter with 1-based indexing.
+            eta = min(1, Np*stepc**(-gam))
+            rinner = r@r
+            router = np.outer(r, r)
+            roi = router/rinner
+            Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
+            Sc = np.linalg.cholesky(Cp)
 
     # Clean tmp directory
     try:
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
-    printstr='mcmc done, acceptance rate=%4.2f' % ((1.0*accepted)/nsteps)
+    printstr = 'mcmc done, acceptance rate=%4.2f' % ((1.0*accepted)/nsteps)
     print(printstr)
     return accepted, mcmc_storage
-
 
 
 def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
