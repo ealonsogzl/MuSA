@@ -32,8 +32,8 @@ restart_forcing = False
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
-# IES-MCMC_AI, IES-MCMC or PIES
-da_algorithm = 'IES-MCMC'
+# IES-MCMC_AI, IES-MCMC, AdaPBS or PIES
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -45,6 +45,7 @@ ensemble_members = 100
 chain_len = 20000  # Length of the mcmcm
 adaptive = True    # Update proposal covariance for next step.
 histcov = True     # Use posterior IES covariance as proposal covariance
+burn_in = 0.1      # discard the first x proportion of samples
 
 # r_cov can be a list of scalars of length equal to var_to_assim or the string
 # 'dynamic_error'. If 'dynamic_error' is selected, errors may change in space

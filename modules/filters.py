@@ -441,7 +441,7 @@ def mcmc(Ensemble, observations_sbst_masked, R,
 
 
 def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
-            chain_len=200000, adaptive=True):
+            chain_len=cfg.chain_len, adaptive=cfg.adaptive):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
@@ -1221,11 +1221,11 @@ def implement_assimilation(Ensemble, step):
 
             # Run the MCMC
             accepted, mcmc_storage = mcmc(Ensemble, observations_sbst_masked,
-                                          r_cov, chain_len=cfg.mcmc_chain_len,
+                                          r_cov, chain_len=cfg.chain_len,
                                           adaptive=True)
 
-            # Burn in:  discard the first 10% samples
-            ini = int(mcmc_storage.shape[0] * 0.1)
+            # Burn in:  discard the first samples
+            ini = int(mcmc_storage.shape[0] * cfg.burn_in)
             end = mcmc_storage.shape[0]
             mcmc_storage = mcmc_storage[ini:end, :]
 
@@ -1309,9 +1309,9 @@ def implement_assimilation(Ensemble, step):
                                              observations_sbst_masked, r_cov,
                                              chain_len=cfg.mcmc_chain_len)
 
-            # Burn in:  discard the first 10% samples
+            # Burn in:  discard the first samples
 
-            ini = int(mcmc_storage.shape[0] * 0.1)
+            ini = int(mcmc_storage.shape[0] * cfg.burn_in)
             end = mcmc_storage.shape[0]
             mcmc_storage = mcmc_storage[ini:end, :]
 
