@@ -43,8 +43,8 @@ ensemble_members = 100
 
 # MCMC parameters
 chain_len = 20000   # Length of the mcmcm
-adaptive = False    # Update proposal covariance for next step.
-histcov = False     # Use posterior IES covariance as proposal covariance
+adaptive = True    # Update proposal covariance for next step.
+histcov = True     # Use posterior IES covariance as proposal covariance
 burn_in = 0.1      # discard the first x proportion of samples
 
 # r_cov can be a list of scalars of length equal to var_to_assim or the string
