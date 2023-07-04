@@ -603,10 +603,13 @@ def obs_mask():
         for i, ncfile in enumerate(files):
 
             data_temp = nc.Dataset(ncfile)
-            nc_value = data_temp.variables[obs_var][:, :, :]
-            nc_value = nc_value.filled(np.nan)
-            tmp_storage.extend(nc_value)
-            data_temp.close()
+            try:
+                nc_value = data_temp.variables[obs_var][:, :, :]
+                nc_value = nc_value.filled(np.nan)
+                tmp_storage.extend(nc_value)
+                data_temp.close()
+            except:
+                pass
 
     tmp_storage = np.dstack(tmp_storage)
     tmp_storage = np.moveaxis(tmp_storage, 2, 0)
