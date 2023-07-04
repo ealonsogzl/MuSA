@@ -360,13 +360,17 @@ def mcmc(Ensemble, observations_sbst_masked, R,
     # by Zhang et al. (2020, https://doi.org/10.1029/2019WR025474)
     if histcov:  # Posterior IES covariance as proposal covariance
         Ne = starting_parameters.shape[0]
-        anom = (starting_parameters.T-m0).T
+        # Anom is based on IES posterior mean, not prior mean
+        mpo=np.mean(starting_parameters,1)
+        anom = (starting_parameters.T-mpo).T 
         # Posterior covariance of IES (in transformed space)
         C0 = (anom@anom.T)/Ne
+        C0=0.01*C0 # Scale this to not be too large
     else:  # Isotropic covariance as proposal covariance
         C0 = (sigp**2)*np.eye(Np)
     Sc = np.linalg.cholesky(C0)
     Id = np.eye(Np)
+    #import pdb; pdb.set_trace()
 
     accepted = 0
     for nsteps in range(chain_len):
@@ -432,13 +436,14 @@ def mcmc(Ensemble, observations_sbst_masked, R,
             roi = router/rinner
             Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
             Sc = np.linalg.cholesky(Cp)
+            
 
     # Clean tmp directory
     try:
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
-    printstr = 'mcmc done, acceptance rate=%4.2f' % ((1.0*accepted)/nsteps)
+    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (adaptive,(1.0*accepted)/nsteps)
     print(printstr)
     return accepted, mcmc_storage
 
@@ -456,6 +461,11 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
     # MCMC parameters
     # Rinv = None
     sigp = 0.1
+    Np=len(vars_to_perturbate)
+    C0=(sigp**2)*np.eye(Np)
+    Sc=np.linalg.cholesky(C0)
+    Id=np.eye(Np)
+    
 
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
     m0 = np.asarray([cnt.mean_errors[x] for x in vars_to_perturbate])
@@ -476,7 +486,7 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
 
         r = np.random.randn(len(vars_to_perturbate))
 
-        prop = sigp*r
+        prop = Sc@r
         phip = phic+prop
 
         nll, sd = gp_emul.predict(phip, return_std=True)
@@ -491,7 +501,22 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
             accepted = accepted + 1
 
         mcmc_storage[nsteps] = phic
-
+        
+        # If adaptive, update proposal covariance for next step.
+        # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
+        if adaptive:
+            mhopt = 0.234  # Hard coded hyper-parameters for RAM
+            gam = 2.0/3.0
+            stepc = nsteps+1  # Step counter with 1-based indexing.
+            eta = min(1, Np*stepc**(-gam))
+            rinner = r@r
+            router = np.outer(r, r)
+            roi = router/rinner
+            Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
+            Sc = np.linalg.cholesky(Cp)
+        
+    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (adaptive,(1.0*accepted)/nsteps)
+    print(printstr)
     return accepted, mcmc_storage
 
 
@@ -1225,7 +1250,8 @@ def implement_assimilation(Ensemble, step):
             # Run the MCMC
             accepted, mcmc_storage = mcmc(Ensemble, observations_sbst_masked,
                                           r_cov, chain_len=cfg.chain_len,
-                                          adaptive=True)
+                                          adaptive=cfg.adaptive,
+                                          histcov=cfg.histcov)
 
             # Burn in:  discard the first samples
             ini = int(mcmc_storage.shape[0] * cfg.burn_in)
@@ -1310,7 +1336,8 @@ def implement_assimilation(Ensemble, step):
             # Run MCMC with gaussian emulator
             accepted, mcmc_storage = AI_mcmc(starting_parameters, predicted,
                                              observations_sbst_masked, r_cov,
-                                             chain_len=cfg.mcmc_chain_len)
+                                             chain_len=cfg.chain_len,
+                                             adaptive=cfg.adaptive)
 
             # Burn in:  discard the first samples
 
