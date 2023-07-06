@@ -324,9 +324,7 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
 
 
 def mcmc(Ensemble, observations_sbst_masked, R,
-         chain_len=cfg.chain_len,
-         adaptive=cfg.adaptive,
-         histcov=cfg.histcov):
+         chain_len, adaptive, histcov):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
@@ -361,16 +359,16 @@ def mcmc(Ensemble, observations_sbst_masked, R,
     if histcov:  # Posterior IES covariance as proposal covariance
         Ne = starting_parameters.shape[0]
         # Anom is based on IES posterior mean, not prior mean
-        mpo=np.mean(starting_parameters,1)
-        anom = (starting_parameters.T-mpo).T 
+        mpo = np.mean(starting_parameters, 1)
+        anom = (starting_parameters.T-mpo).T
         # Posterior covariance of IES (in transformed space)
         C0 = (anom@anom.T)/Ne
-        C0=0.01*C0 # Scale this to not be too large
+        C0 = 0.01*C0  # Scale this to not be too large
     else:  # Isotropic covariance as proposal covariance
         C0 = (sigp**2)*np.eye(Np)
     Sc = np.linalg.cholesky(C0)
     Id = np.eye(Np)
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
     accepted = 0
     for nsteps in range(chain_len):
@@ -436,20 +434,20 @@ def mcmc(Ensemble, observations_sbst_masked, R,
             roi = router/rinner
             Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
             Sc = np.linalg.cholesky(Cp)
-            
 
     # Clean tmp directory
     try:
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
-    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (adaptive,(1.0*accepted)/nsteps)
+    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (
+        adaptive, (1.0*accepted)/nsteps)
     print(printstr)
     return accepted, mcmc_storage
 
 
 def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
-            chain_len=cfg.chain_len, adaptive=cfg.adaptive):
+            chain_len, adaptive):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
@@ -461,11 +459,10 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
     # MCMC parameters
     # Rinv = None
     sigp = 0.1
-    Np=len(vars_to_perturbate)
-    C0=(sigp**2)*np.eye(Np)
-    Sc=np.linalg.cholesky(C0)
-    Id=np.eye(Np)
-    
+    Np = len(vars_to_perturbate)
+    C0 = (sigp**2)*np.eye(Np)
+    Sc = np.linalg.cholesky(C0)
+    Id = np.eye(Np)
 
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
     m0 = np.asarray([cnt.mean_errors[x] for x in vars_to_perturbate])
@@ -501,7 +498,7 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
             accepted = accepted + 1
 
         mcmc_storage[nsteps] = phic
-        
+
         # If adaptive, update proposal covariance for next step.
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
         if adaptive:
@@ -514,8 +511,9 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
             roi = router/rinner
             Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
             Sc = np.linalg.cholesky(Cp)
-        
-    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (adaptive,(1.0*accepted)/nsteps)
+
+    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (
+        adaptive, (1.0*accepted)/nsteps)
     print(printstr)
     return accepted, mcmc_storage
 
