@@ -186,9 +186,10 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
         for i, ncfile in enumerate(files):
             
-            try:
+            data_temp = nc.Dataset(ncfile)
             
-                data_temp = nc.Dataset(ncfile)
+            if obs_var in data_temp.variables.keys():
+            
                 nc_value = data_temp.variables[obs_var][:, lat_idx, lon_idx]
                 # Check if masked
                 # TODO: Check if there is a better way to do this
@@ -217,12 +218,11 @@ def obs_array(dates_obs, lat_idx, lon_idx):
                 else:
     
                     tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
-            except:
+            else:
                 tmp_obs_storage.extend([np.nan])
                 tmp_error_storage.extend([np.nan])
             data_temp.close()
 
-        print(len(tmp_obs_storage))
         array_obs[obs_idx] = tmp_obs_storage
         array_error[obs_idx] = tmp_error_storage
 
@@ -235,7 +235,6 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     # check if num of dates == num of observations
 #    if obs_matrix.shape[0] != len(dates_obs):
 #        raise Exception("Number of dates different of number of obs files")
-    print(obs_matrix.shape)
     return obs_matrix, error_matrix
 
 
