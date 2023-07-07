@@ -608,8 +608,8 @@ def obs_mask():
                 nc_value = nc_value.filled(np.nan)
                 tmp_storage.extend(nc_value)
                 data_temp.close()
-            
 
+            
     tmp_storage = np.dstack(tmp_storage)
     tmp_storage = np.moveaxis(tmp_storage, 2, 0)
     tmp_storage[~np.isnan(tmp_storage)] = 1
