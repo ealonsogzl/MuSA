@@ -51,14 +51,16 @@ def reduce_size_state(df_state, observations):
 
     var_to_assim = cfg.var_to_assim
     df_state = df_state.copy()
-
+    
     for count, col in enumerate(df_state.columns):
 
         if col in var_to_assim:
+            pos = var_to_assim.index(col)
             mask = np.ones(len(df_state.index), bool)
+            
             if observations.ndim > 1:
 
-                mask[~np.isnan(observations[:, count])] = 0
+                mask[~np.isnan(observations[:, pos])] = 0
             else:
                 mask[~np.isnan(observations)] = 0
 
@@ -183,35 +185,42 @@ def obs_array(dates_obs, lat_idx, lon_idx):
         tmp_error_storage = []
 
         for i, ncfile in enumerate(files):
-
+            
             data_temp = nc.Dataset(ncfile)
-            nc_value = data_temp.variables[obs_var][:, lat_idx, lon_idx]
-            # Check if masked
-            # TODO: Check if there is a better way to do this
-            if np.ma.is_masked(nc_value):
-                nc_value = nc_value.filled(np.nan)
-            else:
-                nc_value = np.ma.getdata(nc_value)
-
-            tmp_obs_storage.extend(nc_value)
-
-            # do the same conditionally for errors
-
-            if r_cov == 'dynamic_error':
-                nc_value = data_temp.variables[cfg.obs_error_var_names[cont]
-                                               ][:, lat_idx, lon_idx]
+            
+            if obs_var in data_temp.variables.keys():
+            
+                nc_value = data_temp.variables[obs_var][:, lat_idx, lon_idx]
                 # Check if masked
                 # TODO: Check if there is a better way to do this
                 if np.ma.is_masked(nc_value):
                     nc_value = nc_value.filled(np.nan)
                 else:
                     nc_value = np.ma.getdata(nc_value)
+    
+                tmp_obs_storage.extend(nc_value)
+            
 
-                tmp_error_storage.extend(nc_value)
+                # do the same conditionally for errors
+    
+                if r_cov == 'dynamic_error':
+                    
+                    nc_value = data_temp.variables[cfg.obs_error_var_names[cont]
+                                                   ][:, lat_idx, lon_idx]
+                    # Check if masked
+                    # TODO: Check if there is a better way to do this
+                    if np.ma.is_masked(nc_value):
+                        nc_value = nc_value.filled(np.nan)
+                    else:
+                        nc_value = np.ma.getdata(nc_value)
+    
+                    tmp_error_storage.extend(nc_value)
+                else:
+    
+                    tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
             else:
-
-                tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
-
+                tmp_obs_storage.extend([np.nan])
+                tmp_error_storage.extend([np.nan])
             data_temp.close()
 
         array_obs[obs_idx] = tmp_obs_storage
@@ -226,7 +235,6 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     # check if num of dates == num of observations
 #    if obs_matrix.shape[0] != len(dates_obs):
 #        raise Exception("Number of dates different of number of obs files")
-
     return obs_matrix, error_matrix
 
 
