@@ -742,18 +742,25 @@ def get_neig_info(lat_idx, lon_idx, step, j):
 
     var_to_assim = cfg.var_to_assim
     # r_cov = cfg.r_cov
+    
+    var_to_prop = cfg.var_to_prop
+    if var_to_prop == False:
+        var_to_prop = var_to_assim
+    
+    pos = []
+    [pos.append(var_to_assim.index(x)) for x in var_to_prop]
 
     for count, file in enumerate(files):
 
         ens_tmp = ifn.io_read(file)
-        obs = ens_tmp.observations
-        errors = ens_tmp.errors
+        obs = ens_tmp.observations[:,pos]
+        errors = ens_tmp.errors[:,pos]
 
         if np.isnan(obs).all():
             continue
 
         list_state = ens_tmp.state_membres
-        predicted = flt.get_predictions(list_state, var_to_assim)
+        predicted = flt.get_predictions(list_state, var_to_prop)
 
         obs_masked, predicted, tmp_r_cov = \
             flt.tidy_obs_pred_rcov(predicted, obs, errors)
