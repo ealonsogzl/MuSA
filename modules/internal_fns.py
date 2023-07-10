@@ -391,7 +391,7 @@ def simulation_steps(observations, dates_obs):
         obs_idx = obs_idx[check]
     else:
         obs_values = observations[obs_idx, :]
-        check = np.all(~np.isnan(obs_values), axis=1)
+        check = ~np.all(np.isnan(obs_values), axis=1)
         obs_idx = obs_idx[check]
 
     days = [date.day for date in del_t]
