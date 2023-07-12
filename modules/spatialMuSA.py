@@ -753,8 +753,13 @@ def get_neig_info(lat_idx, lon_idx, step, j):
     for count, file in enumerate(files):
 
         ens_tmp = ifn.io_read(file)
-        obs = ens_tmp.observations[:,pos]
-        errors = ens_tmp.errors[:,pos]
+
+        if len(var_to_prop)>1:
+            obs = ens_tmp.observations[:,pos]
+            errors = ens_tmp.errors[:,pos]
+        else:
+            obs = ens_tmp.observations
+            errors = ens_tmp.errors
 
         if np.isnan(obs).all():
             continue
