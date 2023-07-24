@@ -199,7 +199,7 @@ def MuSA():
             spM.generate_prior_maps_onenode(ini_DA_window)
 
             # create obs mask
-            spM.generate_obs_mask(0)
+            # spM.generate_obs_mask(0)
 
             # DA loop
             for gsc_count, step in enumerate(range(len(ini_DA_window))):
