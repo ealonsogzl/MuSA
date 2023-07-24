@@ -244,7 +244,9 @@ def forcing_table(lat_idx, lon_idx):
                                     str(lon_idx) + ".pkl"))
 
     # try to read the forcing from a dumped file
-    if os.path.exists(final_directory) and cfg.restart_forcing:
+    if os.path.exists(final_directory) and (cfg.restart_forcing or
+                                            cfg.implementation ==
+                                            "Spatial_propagation"):
 
         forcing_df = ifn.io_read(final_directory)
 

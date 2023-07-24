@@ -150,7 +150,7 @@ def MuSA():
             spM.generate_prior_maps(GSC_filenames, ini_DA_window, pbs_task_id)
 
             # create obs mask
-            spM.generate_obs_mask(pbs_task_id)
+            # spM.generate_obs_mask(pbs_task_id)
 
             # DA_loop
             # create a pool inside each task

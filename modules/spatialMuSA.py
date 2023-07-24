@@ -658,15 +658,15 @@ def read_distances(lat_idx, lon_idx):
     distances[distances > c*c] = np.nan
 
     # obs mask array
-    name_mask_file = "obs_mask.blp"
-    name_mask_file = os.path.join(spatial_propagation_storage_path,
-                                  name_mask_file)
+    # name_mask_file = "obs_mask.blp"
+    # name_mask_file = os.path.join(spatial_propagation_storage_path,
+    #                             name_mask_file)
 
-    data_mask = ifn.io_read(name_mask_file)
+    # data_mask = ifn.io_read(name_mask_file)
 
-    data_mask = data_mask.flatten()
+    # data_mask = data_mask.flatten()
 
-    distances[data_mask < 1] = np.nan
+    # distances[data_mask < 1] = np.nan
 
     return distances
 
@@ -685,16 +685,17 @@ def create_neigb(lat_idx, lon_idx, step, j):
     neigb = np.concatenate((lats_neig, lons_neig), axis=0).T.astype(int)
 
     if j == 0:
-        neigb = ["{step}pri_ensbl_{lat}_{lon}.pkl.blp".format(step=step,
-                                                              lat=neigb[x, 0],
-                                                              lon=neigb[x, 1])
-                 for x in range(neigb.shape[0])]
+        neigb = ["{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
+            step=step,
+            lat=neigb[x, 0],
+            lon=neigb[x, 1])
+            for x in range(neigb.shape[0])]
 
         neigb = [os.path.join(cfg.save_ensemble_path, neigb[x])
                  for x in range(len(neigb))]
 
     else:
-        neigb = ["{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".
+        neigb = ["{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".
                  format(step=step,
                         j=j-1,
                         lat=neigb[x, 0],
@@ -706,11 +707,11 @@ def create_neigb(lat_idx, lon_idx, step, j):
 
     # add current cell
     if j == 0:
-        current_path = "{step}pri_ensbl_{lat}_{lon}.pkl.blp".format(
+        current_path = "{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
             step=step, lat=lat_idx, lon=lon_idx)
 
     else:
-        current_path = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".\
+        current_path = "{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".\
             format(step=step,
                    j=j-1,
                    lat=lat_idx,
@@ -749,7 +750,10 @@ def get_neig_info(lat_idx, lon_idx, step, j):
 
     for count, file in enumerate(files):
 
-        ens_tmp = ifn.io_read(file)
+        try:  # If the file do not have observations, it will fail
+            ens_tmp = ifn.io_read(file)
+        except FileNotFoundError:
+            continue
 
         if len(var_to_prop) > 1:
             obs = ens_tmp.observations[:, pos]
@@ -757,9 +761,6 @@ def get_neig_info(lat_idx, lon_idx, step, j):
         else:
             obs = ens_tmp.observations
             errors = ens_tmp.errors
-
-        if np.isnan(obs).all():
-            continue
 
         list_state = ens_tmp.state_membres
         predicted = flt.get_predictions(list_state, var_to_prop)
@@ -841,6 +842,8 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
                                 time_dict["Assimilaiton_steps"][step + 1]]\
         .copy()
+
+    obs_flag = ~np.isnan(observations_sbst).all()
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
@@ -850,11 +853,12 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         Ensemble = SnowEnsemble(lat_idx, lon_idx, time_dict)
     else:
         # Open cell to create new ensemble
-        name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".\
+        name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
             format(step=step-1,
                    j=cfg.max_iterations - 1,
                    lat=lat_idx,
-                   lon=lon_idx)
+                   lon=lon_idx,
+                   obs=obs_flag)
 
         file = os.path.join(cfg.output_path, name_ensemble)
 
@@ -874,9 +878,11 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     # Save ensembles, update: I cant, if save space cell without neigb will
     # show cero values
     # Ensemble.save_space()
-    name_ensemble = "{step}pri_ensbl_{lat}_{lon}.pkl.blp".format(step=step,
-                                                                 lat=lat_idx,
-                                                                 lon=lon_idx)
+    name_ensemble = "{step}pri_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
+        step=step,
+        lat=lat_idx,
+        lon=lon_idx,
+        obs=obs_flag)
 
     name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
     ifn.io_write(name_ensemble, Ensemble)
@@ -960,17 +966,18 @@ def spatial_assim(lat_idx, lon_idx, step, j):
 
     # Open cell to assim
     if j == 0:
-        file = "{step}pri_ensbl_{lat}_{lon}.pkl.blp".format(step=step,
-                                                            lat=lat_idx,
-                                                            lon=lon_idx)
+        file = "{step}pri_ensbl_{lat}_{lon}_obs*.pkl.blp".format(step=step,
+                                                                 lat=lat_idx,
+                                                                 lon=lon_idx)
     else:
-        file = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".format(step=step,
-                                                               j=j-1,
-                                                               lat=lat_idx,
-                                                               lon=lon_idx)
+        file = "{step}_{j}it_ensbl_{lat}_{lon}_obs*.pkl.blp".format(step=step,
+                                                                    j=j-1,
+                                                                    lat=lat_idx,
+                                                                    lon=lon_idx)
 
     file = os.path.join(cfg.save_ensemble_path, file)
-
+    file = glob.glob(file)[0]  # trick to find the local ensemble
+    # in both obs:TRUE/FALSE using wildcards
     try:  # If current cell do not exist return None
 
         Ensemble = ifn.io_read(file)
@@ -1038,8 +1045,13 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     if j < cfg.max_iterations-1 and save_space_flag:
         Ensemble.save_space()
 
-    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}.pkl.blp".format(
-        step=step, j=j, lat=lat_idx, lon=lon_idx)
+    obs_flag = ~np.isnan(Ensemble.observations).all()
+    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
+        format(step=step-1,
+               j=cfg.max_iterations - 1,
+               lat=lat_idx,
+               lon=lon_idx,
+               obs=obs_flag)
 
     name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
     ifn.io_write(name_ensemble, Ensemble)
@@ -1086,11 +1098,12 @@ def collect_results(lat_idx, lon_idx):
 
         fname = os.path.join(
             cfg.output_path,
-            "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}.pkl.blp".format(
+            "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}_obs*.pkl.blp".format(
                 step=step,
                 j=cfg.max_iterations - 1,
                 lat_idx=lat_idx,
                 lon_idx=lon_idx))
+        fname = glob.glob(fname)[0]
 
         # Open file
         try:
