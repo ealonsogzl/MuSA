@@ -6,7 +6,7 @@ Note that not all the options will be used in all the experimental setups.
 
 """
 # Note: not all options have been tested with dIm and snow17
-numerical_model = 'dIm'  # model to use from FSM2, dIm or snow17
+numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
 # -----------------------------------
 # Directories
 # -----------------------------------
@@ -33,7 +33,7 @@ restart_forcing = False
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS or PIES
-da_algorithm = 'IES-MCMC'
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,

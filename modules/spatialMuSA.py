@@ -558,7 +558,6 @@ def prepare_forcing(lat_idx, lon_idx):
     observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
     time_dict = ifn.simulation_steps(observations, dates_obs)
     main_forcing = model.forcing_table(lat_idx, lon_idx)
-    main_forcing = model.unit_conversion(main_forcing)
 
     return main_forcing, time_dict, observations, errors
 
@@ -830,6 +829,18 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
     main_forcing, time_dict, observations, errors = prepare_forcing(lat_idx,
                                                                     lon_idx)
+    # subset forcing and observations
+    # subset forcing, errors and observations
+    observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
+                                     time_dict["Assimilaiton_steps"][step
+                                                                     + 1]]
+    error_sbst = errors[time_dict["Assimilaiton_steps"][step]:
+                        time_dict["Assimilaiton_steps"][step
+                                                        + 1]]
+
+    forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
+                                time_dict["Assimilaiton_steps"][step + 1]]\
+        .copy()
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
@@ -848,19 +859,6 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         file = os.path.join(cfg.output_path, name_ensemble)
 
         Ensemble = ifn.io_read(file)
-
-    # subset forcing and observations
-    # subset forcing, errors and observations
-    observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
-                                     time_dict["Assimilaiton_steps"][step
-                                                                     + 1]]
-    error_sbst = errors[time_dict["Assimilaiton_steps"][step]:
-                        time_dict["Assimilaiton_steps"][step
-                                                        + 1]]
-
-    forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
-                                time_dict["Assimilaiton_steps"][step + 1]]\
-        .copy()
 
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 

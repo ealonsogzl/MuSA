@@ -261,6 +261,6 @@ def check_platform():
 
 if __name__ == "__main__":
     if cfg.parallelization == "multiprocessing":
-        mp.set_start_method('spawn')
+        mp.set_start_method('spawn', force=True)
     check_platform()
     MuSA()
