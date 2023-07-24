@@ -17,19 +17,12 @@ import modules.spatialMuSA as spM
 
 def pp_psychrometric(ta2, rh2, precc):
 
-    ta2 = np.asarray(ta2)
-    rh2 = np.asarray(rh2)
-    precc = np.asarray(precc)
-
     ta2_c = ta2 - cnt.KELVING_CONVER             # temp in [ºC]
 
     # L = latent heat of sublimation or vaporisation [J kg**-1]
     latn_h = np.where(ta2_c >= 0,
                       1000 * (2501 - (2.361 * ta2_c)),
-                      ta2_c)
-    latn_h = np.where(latn_h < 0,
-                      1000 * (2834.1 - 0.29 * latn_h - 0.004 * latn_h**2),
-                      latn_h)
+                      1000 * (2834.1 - 0.29 * ta2_c - 0.004 * ta2_c**2))
 
     # thermal conduc of air [J (msK)**-1]
     thr_cond = 0.000063 * ta2 + 0.00673
@@ -66,9 +59,6 @@ def pp_psychrometric(ta2, rh2, precc):
 
 def pp_temp_thld_log(ta2, precc):
 
-    ta2 = np.asarray(ta2)
-    precc = np.asarray(precc)
-
     m_prec = 0.3051  # Parameter influencing the temp range with mixed precc
     thres_prec = 273.689  # Threshold where 50% falls as rain/snow
     # Parameter influencing the temperature range with mixed precipitation
@@ -85,9 +75,6 @@ def pp_temp_thld_log(ta2, precc):
 
 
 def linear_liston(ta2, precc):
-
-    ta2 = np.asarray(ta2)
-    precc = np.asarray(precc)
 
     temp_C = ta2-cnt.KELVING_CONVER
 

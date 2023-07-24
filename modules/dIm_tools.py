@@ -25,28 +25,28 @@ if cfg.DAsord:
 
 if cfg.DAsord:
     model_columns = ("year", "month", "day", "hour",
-                     "SWE", "snd", tuple(cfg.DAord_names))
+                     "SWE", "snd", "fSCA", tuple(cfg.DAord_names))
 else:
-    model_columns = ("year", "month", "day", "hour", "SWE", "snd")
+    model_columns = ("year", "month", "day", "hour", "SWE", "snd", "fSCA")
 
 
 def prepare_forz(forcing_sbst):
 
     Temp = forcing_sbst['Ta'].values
     if cfg.precipitation_phase == "Harder":
-        _, Sf = met.pp_psychrometric(forcing_sbst["Ta"],
-                                     forcing_sbst["RH"],
-                                     forcing_sbst["Prec"])
+        _, Sf = met.pp_psychrometric(forcing_sbst["Ta"].values,
+                                     forcing_sbst["RH"].values,
+                                     forcing_sbst["Prec"].values)
 
     elif cfg.precipitation_phase == "temp_thld":
 
-        _, Sf = met.pp_temp_thld_log(forcing_sbst["Ta"],
-                                     forcing_sbst["Prec"])
+        _, Sf = met.pp_temp_thld_log(forcing_sbst["Ta"].values,
+                                     forcing_sbst["Prec"].values)
 
     elif cfg.precipitation_phase == "Liston":
 
-        _, Sf = met.linear_liston(forcing_sbst["Ta"],
-                                  forcing_sbst["Prec"])
+        _, Sf = met.linear_liston(forcing_sbst["Ta"].values,
+                                  forcing_sbst["Prec"].values)
 
     else:
 
@@ -57,24 +57,26 @@ def prepare_forz(forcing_sbst):
 
 @nb.njit(fastmath=True)
 def dIm(Temp, Sf, DMF, cSWE):
+    # Initialize arrays with zeros
+    n = len(Temp)
+    SWE = np.zeros(n, dtype=np.float32)
 
-    # Initialize SWE
-    SWE = np.zeros(len(Temp))
+    melt = np.where(Temp > 0, DMF * Temp, 0)
 
-    for timestep in range(len(Temp)):
+    for timestep in range(n):
 
-        if Temp[timestep] > 0:
-            melt = DMF[timestep]*(Temp[timestep])
-        else:
-            melt = 0
-
-        cSWE = cSWE + Sf[timestep] - melt
+        # update SWE
+        cSWE += Sf[timestep] - melt[timestep]
         cSWE = np.maximum(cSWE, 0)
 
         SWE[timestep] = cSWE
-    # TODO: implement a snow density parametrization
-    # (i.g. https://www.jstor.org/stable/26152558)
-    return SWE, SWE/cnt.FIX_density/1000
+
+    snd = SWE / cnt.FIX_density / 1000
+    fsca = snd / (snd + 0.1)
+
+    snd = snd.astype('float32')
+    fsca = fsca.astype('float32')
+    return SWE, snd, fsca
 
 
 def model_run(forcing_sbst, init=None):
@@ -86,7 +88,7 @@ def model_run(forcing_sbst, init=None):
     else:
         cSWE = init
 
-    SWE, HS = dIm(Temp, Sf, DMF, cSWE)
+    SWE, HS, fSCA = dIm(Temp, Sf, DMF, cSWE)
     init = SWE[-1]
 
     Results = pd.DataFrame({'year': forcing_sbst['year'],
@@ -94,13 +96,8 @@ def model_run(forcing_sbst, init=None):
                             'day': forcing_sbst['day'],
                             'hours': forcing_sbst['hours'],
                             'SWE': SWE,
-                            'snd': HS})
-    # Save some space
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-
-        Results = pdc.downcast(Results,
-                               numpy_dtypes_only=True)
+                            'snd': HS,
+                            'fSCA': fSCA})
 
     # add optional variables
     if cfg.DAsord:
@@ -118,6 +115,12 @@ def write_nlst(temp_dest, step):
 
 
 def model_compile():
+
+    _ = dIm(np.array([0., 0.], dtype="float32"),
+            np.array([0., 0.], dtype="float32"),
+            np.array([0., 0.], dtype="float32"),
+            0.)
+
     return None
 
 
@@ -266,7 +269,7 @@ def init_result(del_t, DA=False):
 
     else:
         # Concatenate
-        col_names = ["Date", "SWE", "snd"]
+        col_names = ["Date", "SWE", "snd", "fSCA"]
 
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
@@ -276,6 +279,7 @@ def init_result(del_t, DA=False):
 
         Results["SWE"] = [np.nan for x in del_t]
         Results["snd"] = [np.nan for x in del_t]
+        Results["fSCA"] = [np.nan for x in del_t]
 
         return Results
 
@@ -337,6 +341,7 @@ def forcing_table(lat_idx, lon_idx):
         forcing_df["day"] = forcing_df["day"].dt.day
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
+        forcing_df = unit_conversion(forcing_df)
         # write intermediate file to avoid re-reading the nc files
         ifn.io_write(final_directory, forcing_df)
 
@@ -365,6 +370,7 @@ def unit_conversion(forcing_df):
 
         forcing_df = pdc.downcast(forcing_df,
                                   numpy_dtypes_only=True)
+
     # HACK: Do not allow float16 in DMF, otherwise numba crash. This is a
     # temporalhack while numba developers implement half precission floats
     # in CPU

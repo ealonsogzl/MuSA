@@ -230,6 +230,13 @@ Dzsnow = [0.1, 0.2, 0.4]
 # FSM configuration (Compilation)
 # -----------------------------------
 
+# Optimization flag. Choose from -O (no optimization), -O1, -O2, -O3 or -Ofast.
+# Note: -O3 is recommended. -Ofast may be slightly faster (~10%), but its
+# numerical accuracy is lower.
+# Note II: Can be used to pass any other flag(s) to gfortran if you know
+# what you are doing
+OPTIMIZATION = '-O3'
+
 # Parameterizations, see FSM2 documentation
 ALBEDO = 2
 CONDCT = 1

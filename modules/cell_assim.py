@@ -6,12 +6,15 @@ Main function performing DA over a cell
 Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
 """
 import os
+import copy
+import pdcast as pdc
+import warnings
 import numpy as np
 import config as cfg
 import modules.internal_fns as ifn
 import modules.filters as flt
 from modules.internal_class import SnowEnsemble
-import copy
+
 if cfg.numerical_model == 'FSM2':
     import modules.fsm_tools as model
 elif cfg.numerical_model == 'dIm':
@@ -44,8 +47,6 @@ def cell_assimilation(lat_idx, lon_idx):
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
-
-    main_forcing = model.unit_conversion(main_forcing)
 
     time_dict = ifn.simulation_steps(observations, dates_obs)
 
@@ -126,6 +127,22 @@ def cell_assimilation(lat_idx, lon_idx):
     model.storeOL(OL_Sim, Ensemble, observations_sbst,
                   time_dict, step)
 
+    # Save some space
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        DA_Results = pdc.downcast(DA_Results,
+                                  numpy_dtypes_only=True)
+        OL_Sim = pdc.downcast(OL_Sim,
+                              numpy_dtypes_only=True)
+        updated_Sim = pdc.downcast(updated_Sim,
+                                   numpy_dtypes_only=True)
+        sd_Sim = pdc.downcast(sd_Sim,
+                              numpy_dtypes_only=True)
+        prior_mean = pdc.downcast(prior_mean,
+                                  numpy_dtypes_only=True)
+        prior_sd = pdc.downcast(prior_sd,
+                                numpy_dtypes_only=True)
     # Write results
     cell_data = {"DA_Results": DA_Results,
                  "OL_Sim": OL_Sim,
@@ -135,6 +152,14 @@ def cell_assimilation(lat_idx, lon_idx):
                  "prior_sd": prior_sd}
 
     if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+
+            mcmc_Sim = pdc.downcast(mcmc_Sim,
+                                    numpy_dtypes_only=True)
+            mcmcSD_Sim = pdc.downcast(mcmcSD_Sim,
+                                      numpy_dtypes_only=True)
+
         cell_data['mcmc_Sim'] = mcmc_Sim
         cell_data['mcmcSD_Sim'] = mcmcSD_Sim
 

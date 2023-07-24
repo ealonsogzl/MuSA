@@ -68,12 +68,6 @@ def model_run(forcing_sbst, init=None):
                             'snd': snd,
                             'outflow': outflow})
 
-    # Save some space
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-
-        Results = pdc.downcast(Results,
-                               numpy_dtypes_only=True)
     # add optional variables
     if cfg.DAsord:
         Results = snd_ord(Results)
@@ -292,6 +286,7 @@ def forcing_table(lat_idx, lon_idx):
         forcing_df["day"] = forcing_df["day"].dt.day
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
+        forcing_df = unit_conversion(forcing_df)
         # write intermediate file to avoid re-reading the nc files
         ifn.io_write(final_directory, forcing_df)
 

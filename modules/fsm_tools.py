@@ -32,9 +32,14 @@ if cfg.DAsord:
     model_columns = ("year", "month", "day", "hour", "snd",
                      "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE',
                      tuple(cfg.DAord_names))
+    # , "Tsnow1", "Tsnow2", "Tsnow3",
+
 else:
     model_columns = ("year", "month", "day", "hour", "snd",
                      "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE')
+    # , "Tsnow1", "Tsnow2", "Tsnow3",)
+# TODO: create a smarter function that changes the compilation of FSM and
+# pd colum names dynamically to reduce/increase the model outputs.
 
 
 def model_copy(y_id, x_id):
@@ -133,8 +138,8 @@ def model_compile():
     filedata = filedata.replace('pyCANMOD', str(cfg.CANMOD))
     filedata = filedata.replace('pyCANRAD', str(cfg.CANRAD))
 
-    # Fortran compiler
-    # filedata = filedata.replace('pyFC', cfg.FC)
+    # Fortran optimization
+    filedata = filedata.replace('pyOPT', cfg.OPTIMIZATION)
 
     # Parameterizations
     filedata = filedata.replace('pyALBEDO', str(cfg.ALBEDO))
@@ -219,16 +224,19 @@ def model_read_output(fsm_path, read_dump=True):
                    ('SWE', 'float32'), ('Tsrf', 'float32'),
                    ('fSCA', 'float32'), ('alb', 'float32'),
                    ('H', 'float32'), ('LE', 'float32')])
+    # ('Tsnow1', 'float32'), ('Tsnow2', 'float32'),
+    # ('Tsnow3', 'float32')
 
     data = np.fromfile(state_dir, dtype=dt)
     state = pd.DataFrame(data)
 
-    # Save some memory
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+    # Save some memory (downcast is slow and excessive)
+    # TODO: directly change the types in the FSM code
+    state['year'] = state.year.astype('uint16')
+    state['month'] = state.month.astype('uint8')
+    state['day'] = state.day.astype('uint8')
+    state['hour'] = state.hour.astype('uint8')
 
-        state = pdc.downcast(state,
-                             numpy_dtypes_only=True)
     # add optional variables
     if cfg.DAsord:
         state = snd_ord(state)
@@ -308,19 +316,19 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     if cfg.precipitation_phase == "Harder":
 
-        Rf, Sf = met.pp_psychrometric(temp_forz_def["Ta"],
-                                      temp_forz_def["RH"],
-                                      temp_forz_def["Prec"])
+        Rf, Sf = met.pp_psychrometric(temp_forz_def["Ta"].values,
+                                      temp_forz_def["RH"].values,
+                                      temp_forz_def["Prec"].values)
 
     elif cfg.precipitation_phase == "temp_thld":
 
-        Rf, Sf = met.pp_temp_thld_log(temp_forz_def["Ta"],
-                                      temp_forz_def["Prec"])
+        Rf, Sf = met.pp_temp_thld_log(temp_forz_def["Ta"].values,
+                                      temp_forz_def["Prec"].values)
 
     elif cfg.precipitation_phase == "Liston":
 
-        Rf, Sf = met.linear_liston(temp_forz_def["Ta"],
-                                   temp_forz_def["Prec"])
+        Rf, Sf = met.linear_liston(temp_forz_def["Ta"].values,
+                                   temp_forz_def["Prec"].values)
 
     else:
 
@@ -363,6 +371,7 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
     csv.write_csv(temp_forz_def,
                   file_name,
                   csv.WriteOptions(include_header=False,
+                                   batch_size=8760,
                                    delimiter=' '))
 
 
@@ -431,7 +440,6 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
     # Store colums
     for n, name_col in enumerate(ol_data.columns):
-        #OL_FSM[name_col] = ol_data.iloc[range(time_dict['Assimilaiton_steps'][1]), [n]].to_numpy()
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
@@ -632,6 +640,7 @@ def forcing_table(lat_idx, lon_idx):
         forcing_df["day"] = forcing_df["day"].dt.day
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
+        forcing_df = unit_conversion(forcing_df)
         # write intermediate file to avoid re-reading the nc files
         ifn.io_write(final_directory, forcing_df)
 
