@@ -37,7 +37,6 @@ else:
 import copy
 
 
-
 def GC(d, c):
 
     # d = np.abs(d, out=d) # necesary with negative distances
@@ -609,7 +608,6 @@ def obs_mask():
                 tmp_storage.extend(nc_value)
                 data_temp.close()
 
-            
     tmp_storage = np.dstack(tmp_storage)
     tmp_storage = np.moveaxis(tmp_storage, 2, 0)
     tmp_storage[~np.isnan(tmp_storage)] = 1
@@ -742,11 +740,11 @@ def get_neig_info(lat_idx, lon_idx, step, j):
 
     var_to_assim = cfg.var_to_assim
     # r_cov = cfg.r_cov
-    
+
     var_to_prop = cfg.var_to_prop
-    if var_to_prop == False:
+    if not var_to_prop:
         var_to_prop = var_to_assim
-    
+
     pos = []
     [pos.append(var_to_assim.index(x)) for x in var_to_prop]
 
@@ -754,9 +752,9 @@ def get_neig_info(lat_idx, lon_idx, step, j):
 
         ens_tmp = ifn.io_read(file)
 
-        if len(var_to_prop)>1:
-            obs = ens_tmp.observations[:,pos]
-            errors = ens_tmp.errors[:,pos]
+        if len(var_to_prop) > 1:
+            obs = ens_tmp.observations[:, pos]
+            errors = ens_tmp.errors[:, pos]
         else:
             obs = ens_tmp.observations
             errors = ens_tmp.errors
@@ -864,7 +862,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                                 time_dict["Assimilaiton_steps"][step + 1]]\
         .copy()
 
-    #Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
+    # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
     if time_dict["Assimilaiton_steps"][step] in ini_DA_window:
         GSC_filename = (str(gsc_count) + '_GSC.nc')
@@ -1080,11 +1078,11 @@ def collect_results(lat_idx, lon_idx):
     # HACK: fake time_dict
     time_dict = {'Assimilaiton_steps':
                  np.append(ini_DA_window, len(del_t))}
-        
+
     # Initialice Ensemble list if enabled in cfg
     if cfg.save_ensemble:
         ensemble_list = []
-        
+
     # loop over DA steps
     for step in range(len(ini_DA_window)):
 
@@ -1095,7 +1093,6 @@ def collect_results(lat_idx, lon_idx):
                 j=cfg.max_iterations - 1,
                 lat_idx=lat_idx,
                 lon_idx=lon_idx))
-        
 
         # Open file
         try:
@@ -1106,12 +1103,12 @@ def collect_results(lat_idx, lon_idx):
         # Rm de ensemble file
         if os.path.isfile(fname):
             os.remove(fname)
-                
+
         if cfg.save_ensemble:
             # deepcopy necesary to not to change all
             Ensemble_tmp = copy.deepcopy(Ensemble)
             ensemble_list.append(Ensemble_tmp)
-            
+
         step_results = {}
         # extract psoterior parameters
         for cont, var_p in enumerate(cfg.vars_to_perturbate):
@@ -1129,11 +1126,11 @@ def collect_results(lat_idx, lon_idx):
             step_results[var_p + "_noise_mean"] = noise_tmp_avg
             step_results[var_p + "_noise_sd"] = noise_tmp_sd
 
-        model.storeDA(DA_Results, step_results, Ensemble.observations, Ensemble.errors,
-                      time_dict, step)
+        model.storeDA(DA_Results, step_results, Ensemble.observations,
+                      Ensemble.errors, time_dict, step)
 
         model.store_sim(updated_FSM, sd_FSM, Ensemble,
-                               time_dict, step)
+                        time_dict, step)
 
     # the whole OL is stored in the last Ensemble
     try:
