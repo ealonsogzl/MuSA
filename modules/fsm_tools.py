@@ -521,7 +521,7 @@ def init_result(del_t, DA=False):
         return Results
 
 
-def forcing_table(lat_idx, lon_idx):
+def forcing_table(lat_idx, lon_idx, step=0):
 
     nc_forcing_path = cfg.nc_forcing_path
     frocing_var_names = cfg.frocing_var_names
@@ -537,8 +537,9 @@ def forcing_table(lat_idx, lon_idx):
 
     # try to read the forcing from a dumped file
     if os.path.exists(final_directory) and (cfg.restart_forcing or
-                                            cfg.implementation ==
-                                            "Spatial_propagation"):
+                                            (cfg.implementation ==
+                                             "Spatial_propagation" and
+                                             step != 0)):
 
         forcing_df = ifn.io_read(final_directory)
 

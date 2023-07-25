@@ -560,12 +560,12 @@ def domain_steps():
     return season_ini_cuts
 
 
-def prepare_forcing(lat_idx, lon_idx):
+def prepare_forcing(lat_idx, lon_idx, step):
 
     dates_obs = ifn.get_dates_obs()
     observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
     time_dict = ifn.simulation_steps(observations, dates_obs)
-    main_forcing = model.forcing_table(lat_idx, lon_idx)
+    main_forcing = model.forcing_table(lat_idx, lon_idx, step)
 
     return main_forcing, time_dict, observations, errors
 
@@ -837,7 +837,8 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
 def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
     main_forcing, time_dict, observations, errors = prepare_forcing(lat_idx,
-                                                                    lon_idx)
+                                                                    lon_idx,
+                                                                    step)
     # subset forcing and observations
     # subset forcing, errors and observations
     observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
