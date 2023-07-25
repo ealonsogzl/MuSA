@@ -178,17 +178,25 @@ def get_topo_arr():
 
     shape = (side, side)
 
-    v = np.lib.stride_tricks.sliding_window_view(dem_arr, shape)
-    v = np.mean(v, (2, 3))
+    try:
+        v = np.lib.stride_tricks.sliding_window_view(dem_arr, shape)
+        v = np.mean(v, (2, 3))
 
-    v = np.pad(v, ((dem_arr.shape[0] - v.shape[0])//2,
-                   (dem_arr.shape[1] - v.shape[1])//2), 'constant',
-               constant_values=np.nan)
-    TPI = dem_arr - v
-    TPI = fill_nan_arr(TPI)
+        v = np.pad(v, ((dem_arr.shape[0] - v.shape[0])//2,
+                       (dem_arr.shape[1] - v.shape[1])//2), 'constant',
+                   constant_values=np.nan)
+        TPI = dem_arr - v
+        TPI = fill_nan_arr(TPI)
+    except Exception:
+        print('Unable to calculate TPI, assuming flat terrain')
+        TPI = np.zeros_like(dem_arr)
 
     # winstral wind parameter
-    winstral_sx = Sx(dem_arr)
+    try:
+        winstral_sx = Sx(dem_arr)
+    except Exception:
+        print('Unable to calculate Sx parameter, assuming flat terrain')
+        winstral_sx = np.zeros_like(dem_arr)
 
     topo_dic = {
         'Ys': Y,
@@ -768,10 +776,10 @@ def get_neig_info(lat_idx, lon_idx, step, j):
         obs_masked, predicted, tmp_r_cov = \
             flt.tidy_obs_pred_rcov(predicted, obs, errors)
 
-        if predicted.ndim == 1:  # F**k numpy
+        if predicted.ndim == 1:
             predicted = predicted[np.newaxis, :]
 
-        if tmp_r_cov.ndim == 0:  # F**k numpy
+        if tmp_r_cov.ndim == 0:
             tmp_r_cov = tmp_r_cov[np.newaxis]
 
         lat_idx_ng = ens_tmp.lat_idx
@@ -903,7 +911,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
     while True:
         if len(grid) == len(files):
             # try to desyncrhonice to speedup IO
-            time.sleep(1 + int(np.random.randint(0, 20, 1)))
+            time.sleep(float(np.random.rand(1)))
             # free a bit of space, remove previous iteration from first task
             if j is not None:
                 # try to remove prior files
@@ -940,7 +948,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
                         if len(grid) == len(files):
                             break
                         else:
-                            time.sleep(5)
+                            time.sleep(2)
                             files = glob.glob(
                                 os.path.join(
                                     cfg.output_path,
@@ -950,7 +958,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
             break
 
         else:
-            time.sleep(5)
+            time.sleep(2)
             if j is None:
                 files = glob.glob(os.path.join(cfg.save_ensemble_path,
                                   "{step}pri*.pkl.blp".format(step=step)))
@@ -1047,8 +1055,8 @@ def spatial_assim(lat_idx, lon_idx, step, j):
 
     obs_flag = ~np.isnan(Ensemble.observations).all()
     name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
-        format(step=step-1,
-               j=cfg.max_iterations - 1,
+        format(step=step,
+               j=j,
                lat=lat_idx,
                lon=lon_idx,
                obs=obs_flag)

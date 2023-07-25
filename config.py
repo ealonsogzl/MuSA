@@ -84,7 +84,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "point_scale"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated
@@ -92,7 +92,7 @@ implementation = "point_scale"
 var_to_prop = False
 
 # parallelization from "sequential", "multiprocessing" or "PBS.array"
-parallelization = "sequential"
+parallelization = "multiprocessing"
 MPI = False  # Note: not tested
 nprocess = 8  # Note: if None, the number of processors will be estimated
 
@@ -115,7 +115,7 @@ c = [5, 5]
 # Calculate the distances internally (topo_dict_external = None) or read an
 # external file with the dimensions
 topo_dict_external = None
-dist_algo = 'mahalanobis'
+dist_algo = 'euclidean'
 
 # Optionally perform dimension reduction
 dimension_reduction = 'None'  # LMDS, PCA or None
@@ -126,18 +126,18 @@ closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
 # Topographical dimensions to compute the distances
 topographic_features = {'Ys': True,     # Latitude
                         'Xs': True,     # Longitude
-                        'Zs': True,    # Elevation
-                        'slope': True,  # Slope
-                        'DAH': True,   # Diurnal Anisotropic Heat
-                        'TPI': True,   # Topographic Position Index
-                        'Sx': True}    # Upwind Slope index (Winstral)
+                        'Zs': False,    # Elevation
+                        'slope': False,  # Slope
+                        'DAH': False,   # Diurnal Anisotropic Heat
+                        'TPI': False,   # Topographic Position Index
+                        'Sx': False}    # Upwind Slope index (Winstral)
 
 # Topographical hyperparameters
 DEM_res = 5              # DEM resolution
 TPI_size = 25            # TPI window size
 Sx_dmax = 15             # Sx search distance
 Sx_angle = 315           # Sx main wind direction angle
-nc_dem_varname = "DEM_full"     # Name of the elevation variable in the DEM
+nc_dem_varname = "DEM"     # Name of the elevation variable in the DEM
 
 # -----------------------------------
 # Observations
