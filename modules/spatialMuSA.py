@@ -810,7 +810,11 @@ def get_neig_info(lat_idx, lon_idx, step, j):
 def add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov):
 
 	var_to_assim = set(cfg.var_to_assim)
-	var_to_prop = set(cfg.var_to_prop)
+	
+	if cfg.var_to_prop != False:
+		var_to_prop = set(cfg.var_to_prop)
+	else:
+		var_to_prop = set(cfg.var_to_assim)
 
 	var_rem = list(var_to_assim - var_to_prop)
 
@@ -839,7 +843,11 @@ def add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov):
 def add_local_coords(Ensemble,curren_lat, current_lon, neig_lat, neig_long):
 
 	var_to_assim = set(cfg.var_to_assim)
-	var_to_prop = set(cfg.var_to_prop)
+	
+	if cfg.var_to_prop != False:
+		var_to_prop = set(cfg.var_to_prop)
+	else:
+		var_to_prop = set(cfg.var_to_assim)
 
 	var_rem = list(var_to_assim - var_to_prop)
 
@@ -1051,17 +1059,22 @@ def spatial_assim(lat_idx, lon_idx, step, j):
         neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = \
             get_neig_info(lat_idx, lon_idx, step, j)
         
-        #add the local observations
-        neig_obs, neig_pred_obs, neig_r_cov = \
-        	add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov)
+        #in case var_to_prop exists, get_neig_info gets only the neigborhood obs and not the local observation:
+        #add the local observations and coordinates in case of var_to_prop != False.
+        if cfg.var_to_prop != False:
+		    neig_obs, neig_pred_obs, neig_r_cov = \
+		    	add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov)
+		    	
+		    #add the coordinates of the local obs
+            neig_lat,neig_long = \
+            	add_local_coords(Ensemble,lat_idx, lon_idx, neig_lat, neig_long)
 
         # if no obs do nothing
         if len(neig_obs) == 0:
             Ensemble.iter_update(create=False)
 
         else:
-        	#add the coordinates of the local obs
-            neig_lat,neig_long = add_local_coords(Ensemble,lat_idx, lon_idx, neig_lat, neig_long)
+        	
 
 			# create neig rho
             rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(lat_idx, lon_idx, neig_lat, neig_long)
