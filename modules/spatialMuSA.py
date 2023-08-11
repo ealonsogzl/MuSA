@@ -737,14 +737,15 @@ def create_neigb(lat_idx, lon_idx, step, j):
 def get_neig_info(lat_idx, lon_idx, step, j):
 
     files = create_neigb(lat_idx, lon_idx, step, j)
-    if len(files) == 0:
-        return None
-
+    
     neig_obs = []
     neig_pred_obs = []
     neig_r_cov = []
     neig_lat = []
     neig_long = []
+    
+    if len(files) == 0:
+        return neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long
 
     var_to_assim = cfg.var_to_assim
     # r_cov = cfg.r_cov
@@ -1062,7 +1063,8 @@ def spatial_assim(lat_idx, lon_idx, step, j):
         #in case var_to_prop exists, get_neig_info gets only the neigborhood obs and not the local observation:
         #add the local observations and coordinates in case of var_to_prop != False.
         if cfg.var_to_prop != False:
-		    neig_obs, neig_pred_obs, neig_r_cov = \
+            
+            neig_obs, neig_pred_obs, neig_r_cov = \
 		    	add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov)
 		    	
 		    #add the coordinates of the local obs
