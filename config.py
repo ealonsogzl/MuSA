@@ -86,10 +86,10 @@ save_ensemble = False
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
 implementation = "distributed"
 
-# if implementation = "Spatial_propagation" : specify which observation
-# variables are spatially propagated
-# if var_to_prop = False -> than all the var_to_assim are spatially propagated
-var_to_prop = False
+# if implementation = "Spatial_propagation" : specify which observation variables are spatially propagated in a list
+# if var_to_prop = var_to_assim -> than all the var_to_assim are spatially propagated
+# if var_to_prop = [] -> no observations are spatially propagated
+var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "PBS.array"
 parallelization = "multiprocessing"
