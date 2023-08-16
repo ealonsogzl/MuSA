@@ -402,7 +402,7 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(hours) == 0))
 
     if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
-                        'PIES', 'AdaPBS']:
+                        'PIES', 'AdaPBS', 'AdaMuPBS']:
         assimilation_steps = season_ini_cuts[:, 0]
     elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
         # HACK: I add one to easy the subset of the forcing

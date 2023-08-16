@@ -10,7 +10,7 @@ import modules.internal_fns as ifn
 import matplotlib.pyplot as plt
 
 # name of the file to be visualized
-output_file = './DATA/RESULTS/cell_0_2.pkl.blp'
+name = './DATA/RESULTS/cell_0_2.pkl.blp'
 
 
 def main(name):
@@ -93,5 +93,4 @@ def main(name):
 
 
 if __name__ == "__main__":
-    main(output_file)
-
+    main(name)

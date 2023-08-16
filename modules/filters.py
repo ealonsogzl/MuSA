@@ -323,6 +323,87 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     return w, Neff
 
 
+def AMIS(obs, pred, R, prim, pric, propm, propc, props):
+    """
+    AMIS: Adaptive Multiple Importance Sampling
+    Inputs:
+        obs: Observation vector (No x 1 array)
+        pred: Predicted observation ensemble (No x Ne x Nl array)
+        R: Observation error covariance 'matrix' (No x 1 array, or scalar)
+        prim: The mean (vector) of the prior (Np x 1 array)
+        pric: The covariance (matrix) of the prior (Np x Np array)
+        propm: Means of the DM proposal (Np x Nl)
+        propc: Covariances of the DM proposal (Np x Nl)
+        proposal: Samples from the DM proposal (Np x Ne x Nl array)
+    Outputs:
+        w: Posterior weights (Ne x 1 array)
+    Dimensions
+        Ne is the number of ensemble members, Np is the number of state
+        variables and/or parameters, No is the number of observations, Nl
+        is the number of iterations thus far.
+
+    This AMIS scheme is based on the work of Cornuet et al. (2012) which is
+    based on combining the Population Monte Carlo approach with the
+    so-called deterministic mixture (DM) approach of Owen and Zhou (2000).
+    It is less wasteful, more stable, and often faster to converge than
+    simpler AIS algorithms.
+
+    Code by: K. Aalstad (August 2023) based on an earlier Matlab version.
+    """
+
+    # Dimensions.
+    No = np.shape(pred)[0]
+    Ne = np.shape(pred)[1]
+    Nl = np.shape(pred)[2]
+    # Np=np.shape(propm)[0]
+
+    # Checks on the observation error covariance matrix.
+    if np.size(R) == 1:
+        R = R*np.ones(No)
+    elif np.size(R) == No:
+        pass
+    else:
+        raise Exception('R must be a scalar, m x 1 vector.')
+
+    phi = np.zeros([Ne, Nl])  # negative log of target
+    lsepsi = np.zeros([Ne, Nl])  # logsumexp of the DM proposal
+    for ell in range(Nl):
+        # Terms related to the target
+        propell = props[:, :, ell]  # Np x Ne
+        A0ell = (propell.T-prim).T
+        phi0ell = 0.5*(A0ell.T)@np.linalg.solve(pric, A0ell)  # Ne x Ne
+        phi0ell = np.diag(phi0ell)  # Ne
+        predell = pred[:, :, ell]  # No x Ne
+        residuell = (obs-predell.T).T  # No x Ne
+        phidell = 0.5*(1/R)@(residuell**2)  # Ne
+        phi[:, ell] = phi0ell+phidell
+
+        psij = np.zeros([Ne, Nl])
+        for j in range(Nl):
+            mj = propm[:, j]
+            Cj = propc[:, :, j]
+            cj = np.linalg.det(2*np.pi*Cj)**(-0.5)
+            lcj = np.log(cj)
+            Aj = (propell.T-mj).T
+            psi = 0.5*(Aj.T)@np.linalg.solve(Cj, Aj)
+            psi = np.diag(psi)
+            psi = psi-lcj
+            psij[:, j] = psi
+        psijx = np.max(psij, 1)  # Ne
+        psijs = (psij.T-psijx).T  # Ne x Nl
+        lsepsiell = psijx+np.log(np.sum(np.exp(psijs), 1))
+        lsepsi[:, ell] = lsepsiell
+
+    logw = -phi-lsepsi
+    logw = logw.flatten('F')  # Purposely flattening column major order
+    logw = logw-np.max(logw)
+    w = np.exp(logw)
+    w = w/np.sum(w)
+    Neff = 1/np.sum(w**2)
+
+    return w, Neff
+
+
 def mcmc(Ensemble, observations_sbst_masked, R,
          chain_len, adaptive, histcov):
 
@@ -1007,6 +1088,11 @@ def implement_assimilation(Ensemble, step):
                 print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
                                                      j=j))
 
+                # exit if not collapsed
+                if (Neff/Ensemble.members > cnt.Neffthrs):
+                    Ensemble.wgth = wgth
+                    break
+
                 resampled_particles = resampled_indexes(wgth)
                 Ensemble.resample(resampled_particles, do_res=j != 0)
 
@@ -1021,7 +1107,8 @@ def implement_assimilation(Ensemble, step):
                 thetapropA = (thetaprop.T - thetapropm).T
                 thetapropc = (thetapropA@thetapropA.T) / Ensemble.members
                 # Inflate the covariance slightly in case of degeneracy
-                thetapropc = thetapropc+0.1*(1-diversity)*priorcov
+                # thetapropc = thetapropc+0.1*(1-diversity)*priorcov
+                thetapropc = thetapropc+(0.5**(8*j))*(1-diversity)*priorcov
                 L = np.linalg.cholesky(thetapropc)
 
                 # Draw from this Gaussian for the next iteration.
@@ -1031,24 +1118,108 @@ def implement_assimilation(Ensemble, step):
                 thetaprop = transform_space(thetaprop, 'from_normal')
                 Ensemble.iter_update(step, thetaprop,
                                      create=True, iteration=j)
+
+            Ensemble.season_rejuvenation()
+
+    elif da_algorithm == 'AdaMuPBS':
+        # Check if there are observations to assim, or all weitgs = 1
+        if np.isnan(Ensemble.observations).all():
+
+            Ensemble.season_rejuvenation()
+            pass
+
+        else:
+
+            priormean = np.zeros(len(vars_to_perturbate))
+            priorsd = np.zeros(len(vars_to_perturbate))
+
+            for count, var in enumerate(vars_to_perturbate):
+                priormean[count] = mean_errors[var]
+                priorsd[count] = sd_errors[var]
+            priorcov = np.diag(priorsd**2)
+
+            for j in range(max_iterations):
+
+                predicted = get_predictions(
+                    Ensemble.state_membres, var_to_assim)
+
+                observations_sbst_masked, predicted, r_cov = \
+                    tidy_obs_pred_rcov(predicted, observations, errors)
+
+                proposal = get_parameters(Ensemble, j)
+                proposal = transform_space(proposal, 'to_normal')
+
+                if j == 0:
+                    No = np.size(observations_sbst_masked)
+                    Ne = Ensemble.members
+                    Nl = max_iterations
+                    Np = np.shape(proposal)[0]
+                    predall = np.zeros([No, Ne, Nl])
+                    predall[:] = np.nan
+                    propsall = np.zeros([Np, Ne, Nl])
+                    propsall[:] = np.nan
+                    propmall = np.zeros([Np, Nl])
+                    propmall[:] = np.nan
+                    propmall[:, j] = priormean
+                    propcall = np.zeros([Np, Np, Nl])
+                    propcall[:] = np.nan
+                    propcall[:, :, j] = priorcov
+                    adapt_thresh = cnt.Neffthrs
+
+                propsall[:, :, j] = proposal
+                predall[:, :, j] = predicted
+                ells = np.arange(j+1)
+                obs = observations_sbst_masked.flatten()
+                wgth, Neff = AMIS(obs, predall[:, :, ells],
+                                  r_cov, priormean, priorcov,
+                                  propmall[:, ells], propcall[:, :, ells],
+                                  propsall[:, :, ells])
+
+                print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
+                                                     j=j))
+
+                diversity = Neff/Ne
+                doadapt = diversity < adapt_thresh
+                notlast = (j+1) < max_iterations
+                w = wgth.flatten('F')
+
+                # Can instead always set clip to 1 if you don't want to clip
+                if doadapt and notlast:
+                    clip = int(np.round(adapt_thresh*Ne))
+                    ws = -np.sort(-w)
+                    wc = ws[clip-1]
+                    toclip = w > wc
+                    w[toclip] = wc
+                    w = w/np.sum(w)
+
+                Nw = np.size(w)
+                pinds = np.arange(Nw)
+                reinds = np.random.choice(pinds, Ne, p=w)
+                thetap = propsall[:, :, ells]
+                thetap = np.reshape(thetap, [Np, Nw], order='F')
+                thetap = thetap[:, reinds]
+                pm = np.mean(thetap, axis=1)
+                A = (thetap.T-pm).T
+                pc = (A@A.T)/Ne
+
+                # Draw from this Gaussian for the next adaptive iteration
+                # if there will be one
+                if doadapt and notlast:
+                    L = np.linalg.cholesky(pc)
+                    Z = np.random.randn(Np, Ne)
+                    thetap = (pm+(L@Z).T).T
+                    propcall[:, :, j+1] = pc
+                    propmall[:, j+1] = pm
+
+                # Update parameters for next iteration (it is just
+                # resampling if not adapt and/or last)
+
+                thetap = transform_space(thetap, 'from_normal')
+                Ensemble.iter_update(step, thetap, create=True, iteration=j)
+
                 # exit if not collapsed
-                if (Neff/Ensemble.members > cnt.Neffthrs):
+                if not doadapt:
                     break
-
-            # Last iteration wgth, the scheme does at least 1 iter
-
-            predicted = get_predictions(
-                Ensemble.state_membres, var_to_assim)
-
-            observations_sbst_masked, predicted, r_cov = \
-                tidy_obs_pred_rcov(predicted, observations, errors)
-
-            proposal = get_parameters(Ensemble, j)
-            proposal = transform_space(proposal, 'to_normal')
-            wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
-                                priormean, priorcov, proposal)
-
-            Ensemble.wgth = wgth
 
             Ensemble.season_rejuvenation()
 

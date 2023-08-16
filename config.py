@@ -6,7 +6,7 @@ Note that not all the options will be used in all the experimental setups.
 
 """
 # Note: not all options have been tested with dIm and snow17
-numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
+numerical_model = 'dIm'  # model to use from FSM2, dIm or snow17
 # -----------------------------------
 # Directories
 # -----------------------------------
@@ -32,13 +32,13 @@ restart_forcing = False
 # -----------------------------------
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
-# IES-MCMC_AI, IES-MCMC, AdaPBS or PIES
+# IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
 da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
-resampling_algorithm = "bootstrapping"
+resampling_algorithm = "no_resampling"
 ensemble_members = 100
 
 # MCMC parameters
@@ -86,9 +86,10 @@ save_ensemble = False
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
 implementation = "distributed"
 
-# if implementation = "Spatial_propagation" : specify which observation variables are spatially propagated in a list
-# if var_to_prop = var_to_assim -> than all the var_to_assim are spatially propagated
-# if var_to_prop = [] -> no observations are spatially propagated
+# if implementation = "Spatial_propagation" : specify which observation
+# variables are spatially propagated in a list
+# if var_to_prop = var_to_assim -> All the variables are spatially propagated
+# if var_to_prop = [] -> Any variable is spatially propagated
 var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "PBS.array"
