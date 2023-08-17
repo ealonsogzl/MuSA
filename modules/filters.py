@@ -1184,14 +1184,19 @@ def implement_assimilation(Ensemble, step):
                 w = wgth.flatten('F')
 
                 # Can instead always set clip to 1 if you don't want to clip
-                if doadapt and notlast:
+                doclip=doadapt and notlast
+                if doclip:
                     clip = int(np.round(adapt_thresh*Ne))
                     ws = -np.sort(-w)
                     wc = ws[clip-1]
-                    toclip = w > wc
-                    w[toclip] = wc
-                    w = w/np.sum(w)
-
+                    nonzero=wc>0
+                    if nonzero:
+                        toclip=w>wc
+                        w[toclip]=wc
+                        w=w/np.sum(w)
+                    else:
+                        doclip=False
+                        
                 Nw = np.size(w)
                 pinds = np.arange(Nw)
                 reinds = np.random.choice(pinds, Ne, p=w)
@@ -1199,8 +1204,11 @@ def implement_assimilation(Ensemble, step):
                 thetap = np.reshape(thetap, [Np, Nw], order='F')
                 thetap = thetap[:, reinds]
                 pm = np.mean(thetap, axis=1)
-                A = (thetap.T-pm).T
-                pc = (A@A.T)/Ne
+                if doclip:
+                    A = (thetap.T-pm).T
+                    pc = (A@A.T)/Ne
+                else:
+                    pc=np.copy(priorcov)*(0.5**j)
 
                 # Draw from this Gaussian for the next adaptive iteration
                 # if there will be one
