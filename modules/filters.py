@@ -1011,7 +1011,7 @@ def implement_assimilation(Ensemble, step):
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if Neff/Ensemble.members < cnt.Neffthrs:
+            if Neff/Ensemble.members < cfg.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,
@@ -1039,7 +1039,7 @@ def implement_assimilation(Ensemble, step):
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if Neff/Ensemble.members < cnt.Neffthrs:
+            if Neff/Ensemble.members < cfg.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,
@@ -1089,7 +1089,7 @@ def implement_assimilation(Ensemble, step):
                                                      j=j))
 
                 # exit if not collapsed
-                if (Neff/Ensemble.members > cnt.Neffthrs):
+                if (Neff/Ensemble.members > cfg.Neffthrs):
                     Ensemble.wgth = wgth
                     break
 
@@ -1164,7 +1164,7 @@ def implement_assimilation(Ensemble, step):
                     propcall = np.zeros([Np, Np, Nl])
                     propcall[:] = np.nan
                     propcall[:, :, j] = priorcov
-                    adapt_thresh = cnt.Neffthrs
+                    adapt_thresh = cfg.Neffthrs
 
                 propsall[:, :, j] = proposal
                 predall[:, :, j] = predicted
@@ -1184,19 +1184,19 @@ def implement_assimilation(Ensemble, step):
                 w = wgth.flatten('F')
 
                 # Can instead always set clip to 1 if you don't want to clip
-                doclip=doadapt and notlast
+                doclip = doadapt and notlast
                 if doclip:
                     clip = int(np.round(adapt_thresh*Ne))
                     ws = -np.sort(-w)
                     wc = ws[clip-1]
-                    nonzero=wc>0
+                    nonzero = wc > 0
                     if nonzero:
-                        toclip=w>wc
-                        w[toclip]=wc
-                        w=w/np.sum(w)
+                        toclip = w > wc
+                        w[toclip] = wc
+                        w = w/np.sum(w)
                     else:
-                        doclip=False
-                        
+                        doclip = False
+
                 Nw = np.size(w)
                 pinds = np.arange(Nw)
                 reinds = np.random.choice(pinds, Ne, p=w)
@@ -1208,7 +1208,7 @@ def implement_assimilation(Ensemble, step):
                     A = (thetap.T-pm).T
                     pc = (A@A.T)/Ne
                 else:
-                    pc=np.copy(priorcov)*(0.5**j)
+                    pc = np.copy(priorcov)*(0.5**j)
 
                 # Draw from this Gaussian for the next adaptive iteration
                 # if there will be one
@@ -1369,7 +1369,7 @@ def implement_assimilation(Ensemble, step):
             wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
                                 priormean, priorcov, proposal)
 
-            if Neff/Ensemble.members < cnt.Neffthrs:
+            if Neff/Ensemble.members < cfg.Neffthrs:
                 print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
                       format(lat=Ensemble.lat_idx,
                              lon=Ensemble.lon_idx,

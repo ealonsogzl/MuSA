@@ -15,7 +15,6 @@ MW = 0.01801528                 # Molecular weight of water [kg mol**-1]
 LF = 334000                     # latent heat of fusion [J kg**-1]
 SCA0 = 0.25                     # fSCA threshold for SCA [-]
 sdfrac = 0.7                    # fraction of the sd_errors to use if collapse
-Neffthrs = 0.1                  # Low Neff threshold
 DMF = 3/24                      # Degree melt index
 FIX_density = 0.3
 aprox_lat = 50
@@ -33,10 +32,12 @@ subgrid_cv = 2.0
 # -----------------------------------
 # Default vegetation characteristics
 # -----------------------------------
+
 VAI = 0    # Vegetation area index
 vegh = 0   # Canopy height (m)
 fsky = 1   # Sky view fraction for remote shading
 hbas = 2   # Canopy base height (m)
+
 # -----------------------------------
 # Mean errors
 # -----------------------------------

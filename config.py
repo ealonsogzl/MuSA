@@ -33,14 +33,14 @@ restart_forcing = False
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
-da_algorithm = 'AdaMuPBS'
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
-max_iterations = 40  # IEnKF, IES, IES-MCMC and AdaPBS
+max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
-
+Neffthrs = 0.1           # Low Neff threshold
 # MCMC parameters
 chain_len = 20000   # Length of the mcmcm
 adaptive = True    # Update proposal covariance for next step.
