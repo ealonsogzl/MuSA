@@ -33,9 +33,9 @@ restart_forcing = False
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = 'AdaMuPBS'
 redraw_prior = False  # PF and PBS only
-max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
+max_iterations = 40  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
@@ -52,7 +52,7 @@ burn_in = 0.1      # discard the first x proportion of samples
 # and time. If this option is selected, the errors will be stored in a new
 # variable in the observation files, and will have the same dimensions as
 # the observations.
-r_cov = [0.04]
+r_cov = [0.0004]
 add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
 var_to_assim = ["snd"]
@@ -84,7 +84,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "point_scale"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -93,7 +93,7 @@ implementation = "distributed"
 var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "PBS.array"
-parallelization = "multiprocessing"
+parallelization = "sequential"
 MPI = False  # Note: not tested
 nprocess = 8  # Note: if None, the number of processors will be estimated
 
