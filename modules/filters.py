@@ -1287,7 +1287,6 @@ def implement_assimilation(Ensemble, step):
 
         else:
             for j in range(max_iterations):
-                print(j)
 
                 list_state = Ensemble.state_membres
 
