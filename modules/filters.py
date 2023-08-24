@@ -1059,6 +1059,7 @@ def implement_assimilation(Ensemble, step):
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
+            Ensemble.iter_update(create=False)
             Ensemble.season_rejuvenation()
             pass
 
@@ -1125,6 +1126,7 @@ def implement_assimilation(Ensemble, step):
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
+            Ensemble.iter_update(create=False)
             Ensemble.season_rejuvenation()
             pass
 
@@ -1285,6 +1287,7 @@ def implement_assimilation(Ensemble, step):
 
         else:
             for j in range(max_iterations):
+                print(j)
 
                 list_state = Ensemble.state_membres
 
