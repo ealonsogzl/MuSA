@@ -8,6 +8,7 @@ subroutine SNOW(dt,SWEsca,Taf,cv,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,
 #include "OPTS.h"
 
 use CONSTANTS, only: &
+  e0,                &! Saturation vapour pressure at Tm (Pa)
   g,                 &! Acceleration due to gravity (m/s^2)
   hcap_ice,          &! Specific heat capacity of ice (J/K/kg)
   hcap_wat,          &! Specific heat capacity of water (J/K/kg)
@@ -16,6 +17,7 @@ use CONSTANTS, only: &
   mu_wat,            &! Dynamic viscosity of water (kg/m/s)
   rho_ice,           &! Density of ice (kg/m^3)
   rho_wat,           &! Density of water (kg/m^3)
+  Rwat,              &! Gas constant for water vapour (J/K/kg)
   Tm                  ! Melting point (K)
 
 use LAYERS, only: &
@@ -91,12 +93,17 @@ integer :: &
 real :: &
   coldcont,          &! Layer cold content (J/m^2)
   dnew,              &! New snow layer thickness (m)
+  dpdT,              &! Derivative of saturation vapour density (kg/m^3/K)
   dSice,             &! Change in layer ice content (kg/m^2)
+  dTdz,              &! Snow temperature gradient (K/m)
   Esnow,             &! Snow sublimation rate (kg/m^2/s)
   ggr,               &! Grain area growth rate (m^2/s)
   mass,              &! Mass of overlying snow (kg/m^2)
+  qv,                &! Vertical vapour flux in snow (kg/m^2/s)
   rhos,              &! Density of snow layer (kg/m^3)
   SliqMax,           &! Maximum liquid content for layer (kg/m^2)
+  Tl,                &! Snow layer lower boundary temperature (K)
+  Tu,                &! Snow layer upper boundary temperature (K)
   wt,                &! Layer weighting
   snet,              &
   melt_liston
@@ -262,6 +269,7 @@ if (Nsnow > 0) then
     end do
 #endif
 
+#if SGRAIN == 1
   ! Snow grain growth
   do k = 1, Nsnow
     ggr = 2e-13
@@ -274,6 +282,26 @@ if (Nsnow > 0) then
     end if
     Rgrn(k) = Rgrn(k) + dt*ggr/Rgrn(k)
   end do
+#endif
+#if SGRAIN == 2
+  ! Temperature gradient dependent snow grain growth
+  do k = 1, Nsnow
+    Tu = Tsrf
+    if (k > 1) Tu = (Dsnw(k-1)*Tsnow(k) + Dsnw(k)*Tsnow(k-1)) / (Dsnw(k) + Dsnw(k-1))
+    Tl = (Dzsoil(1)*Tsnow(k) + Dsnw(k)*Tsoil(1)) / (Dsnw(k) + Dzsoil(1))
+    if (k < Nsnow) Tl = (Dsnw(k+1)*Tsnow(k) + Dsnw(k)*Tsnow(k+1)) / (Dsnw(k) + Dsnw(k+1))
+    dTdz = abs(Tu - Tl) / Dsnw(k)
+    thetaw(k) = Sliq(k)/(rho_wat*Dsnw(k))
+    if (thetaw(k) < 1e-4) then
+      dpdT = (e0/(Rwat*Tsnow(k)**2))*(Ls/(Rwat*Tsnow(k) - 1))*exp((Ls/Rwat)*(1/Tm - 1/Tsnow(k)))
+      qv = 9.2e-5*(Tsnow(k)/Tm)**6*dpdT*dTdz
+      ggr = 1.25e-7*min(qv, 1e-6)
+    else
+      ggr = 1e-12*min(thetaw(k) + 0.05, 0.14)
+    end if
+    Rgrn(k) = Rgrn(k) + dt*ggr/Rgrn(k)
+  end do
+#endif
 
 end if  ! Existing snowpack
 

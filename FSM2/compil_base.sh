@@ -12,6 +12,7 @@ cat > OPTS.h << EOF
 #define DENSTY pyDENSITY  /* snow density                  : 0, 1, 2         */
 #define EXCHNG pyEXCHNG   /* turbulent exchange            : 0, 1            */
 #define HYDROL pyHYDROL   /* snow hydraulics               : 0, 1, 2         */
+#define SGRAIN pySGRAIN   /* snow grain growth             : 1, 2            */
 #define SNFRAC pySNFRAC   /* snow cover fraction           : 1, 2            */
 /* Driving data options                             : Possible values */
 #define DRIV1D 1   /* 1D driving data format        : 1, 2            */

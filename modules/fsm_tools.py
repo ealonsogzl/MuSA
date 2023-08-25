@@ -188,6 +188,7 @@ def model_compile():
     filedata = filedata.replace('pyDENSITY', str(cfg.DENSITY))
     filedata = filedata.replace('pyEXCHNG', str(cfg.EXCHNG))
     filedata = filedata.replace('pyHYDROL', str(cfg.HYDROL))
+    filedata = filedata.replace('pySGRAIN', str(cfg.SGRAIN))
     filedata = filedata.replace('pySNFRAC', str(cfg.SNFRAC))
 
     compile_path = os.path.join(fsm_path, "compil.sh")

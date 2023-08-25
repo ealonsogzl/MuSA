@@ -6,6 +6,7 @@
 #define DENSTY 2  /* snow density                  : 0, 1, 2         */
 #define EXCHNG 1   /* turbulent exchange            : 0, 1            */
 #define HYDROL 2   /* snow hydraulics               : 0, 1, 2         */
+#define SGRAIN 2   /* snow grain growth             : 1, 2            */
 #define SNFRAC 2   /* snow cover fraction           : 1, 2            */
 /* Driving data options                             : Possible values */
 #define DRIV1D 1   /* 1D driving data format        : 1, 2            */
