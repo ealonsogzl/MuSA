@@ -999,7 +999,8 @@ def implement_assimilation(Ensemble, step):
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
-            Ensemble.season_rejuvenation()
+            Result["resampled_particles"] = np.arange(Ensemble.members)
+
             pass
 
         else:
@@ -1023,7 +1024,8 @@ def implement_assimilation(Ensemble, step):
 
             Ensemble.wgth = wgth
 
-            Ensemble.season_rejuvenation()
+            resampled_particles = resampled_indexes(wgth)
+            Result["resampled_particles"] = resampled_particles
 
     elif da_algorithm == "PF":
         if np.isnan(Ensemble.observations).all():
@@ -1060,7 +1062,6 @@ def implement_assimilation(Ensemble, step):
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
-            Ensemble.season_rejuvenation()
             pass
 
         else:
@@ -1120,14 +1121,11 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.iter_update(step, thetaprop,
                                      create=True, iteration=j)
 
-            Ensemble.season_rejuvenation()
-
     elif da_algorithm == 'AdaMuPBS':
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
-            Ensemble.season_rejuvenation()
             pass
 
         else:
@@ -1231,8 +1229,6 @@ def implement_assimilation(Ensemble, step):
                 if not doadapt:
                     break
 
-            Ensemble.season_rejuvenation()
-
     elif da_algorithm in ["EnKF", 'IEnKF']:
         if da_algorithm == "EnKF":
 
@@ -1282,7 +1278,7 @@ def implement_assimilation(Ensemble, step):
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
-            Ensemble.season_rejuvenation()
+
             pass
 
         else:
@@ -1314,13 +1310,11 @@ def implement_assimilation(Ensemble, step):
 
                 Ensemble.iter_update(step, updated_pars,
                                      create=True, iteration=j)
-            Ensemble.season_rejuvenation()
 
     elif da_algorithm == 'PIES':
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
-            Ensemble.season_rejuvenation()
             Result["resampled_particles"] = np.arange(Ensemble.members)
             pass
 
@@ -1382,7 +1376,7 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.lowNeff = False
 
             Ensemble.wgth = wgth
-            Ensemble.season_rejuvenation()
+
             resampled_particles = resampled_indexes(wgth)
             Result["resampled_particles"] = resampled_particles
 
@@ -1447,9 +1441,6 @@ def implement_assimilation(Ensemble, step):
             post_sample = transform_space(post_sample, 'from_normal')
 
             Ensemble.create_MCMC(post_sample, step)
-
-            # Generate new parameters at the end of the season
-            Ensemble.season_rejuvenation()
 
     elif da_algorithm in ['IES-MCMC_AI']:
         if np.isnan(Ensemble.observations).all():
@@ -1534,9 +1525,6 @@ def implement_assimilation(Ensemble, step):
             post_sample = transform_space(post_sample, 'from_normal')
 
             Ensemble.create_MCMC(post_sample, step)
-
-            # Generate new parameters at the end of the season
-            Ensemble.season_rejuvenation()
 
     else:
         raise Exception("Assim not implemented")
