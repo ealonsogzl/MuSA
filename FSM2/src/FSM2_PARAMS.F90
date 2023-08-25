@@ -12,8 +12,8 @@ implicit none
 #if SETPAR == 1
 namelist /params/ acn0,acns,avg0,avgs,cvai,gsnf,hbas,kext,leaf,svai,   &
                   tunl,wcan,                                           &
-                  asmn,asmx,eta0,hfsn,kfix,rcld,rfix,rgr0,rhof,rmlt,   &
-                  Salb,snda,Talb,tcld,tmlt,trho,Wirr,z0sn,             &
+                  asmn,asmx,eta0,hfsn,kfix,rcld,rfix,rgr0,rhof,rhow,   &
+                  rmlt, Salb,snda,Talb,tcld,tmlt,trho,Wirr,z0sn,       &
                   fcly,fsnd,gsat,z0sf 
 
 ! Vegetation parameters
