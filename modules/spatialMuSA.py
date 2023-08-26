@@ -92,7 +92,7 @@ def fill_nan_arr(array):
                            (x_grid, y_grid), method='nearest')
 
     return interp_grid
-
+ 
 
 def regrid(data, out_x, out_y):
     m = max(data.shape[0], data.shape[1])
@@ -663,7 +663,7 @@ def read_distances(lat_idx, lon_idx):
     distances = f.variables["Dist"][idrow, :]
     f.close()
 
-    distances[distances > c*c] = np.nan
+    distances[distances > c*2] = np.nan
 
     # obs mask array
     # name_mask_file = "obs_mask.blp"
