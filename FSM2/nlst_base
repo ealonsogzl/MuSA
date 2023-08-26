@@ -1,5 +1,39 @@
 &params
+ asmn = pyasmn      
+ asmx = pyasmx           
+ eta0 = pyeta0         
+ hfsn = pyhfsn           
+ kfix = pykfix          
+ rcld = pyrcld            
+ rfix = pyrfix           
+ rgr0 = pyrgr0           
+ rhof = pyrhof           
+ rhow = pyrhow           
+ rmlt = pyrmlt            
+ Salb = pySalb             
+ snda = pysnda         
+ Talb = pyTalb           
+ tcld = pytcld         
+ tmlt = pytmlt        
+ trho = pytrho      
+ Wirr = pyWirr           
+ z0sn = pyz0sn    
+ fcly = pyfcly
+ fsnd = pyfsnd
+ gsat = pygsat
+ z0sf = pyz0sf
+ acn0 = pyacn0
+ acns = pyacns
+ avg0 = pyavg0
+ avgs = pyavgs
+ cvai = pycvai
+ gsnf = pygsnf
  hbas = pyhbas
+ kext = pykext
+ leaf = pyleaf
+ svai = pysvai
+ tunl = pytunl
+ wcan = pywcan
 /
 &gridpnts
  Nsmax = pyNSMAX
@@ -12,8 +46,10 @@
   dt=3600
   SWEsca = pySWEsca
   Taf = pyTaf
+  cv = pyCV
 /
 &veg
+  alb0 = pyalb0
   fsky = pyfsky
   vegh = pyvegh
   VAI =  pyVAI

@@ -120,8 +120,12 @@ def cell_assimilation(lat_idx, lon_idx):
             Ensemble.posterior_shape()
 
         # Resample if filtering
-        if (cfg.da_algorithm == "PF"):
+        if cfg.da_algorithm in ["PF", "PBS"]:
             Ensemble.resample(step_results["resampled_particles"])
+        # Optionally, creating new parameters per season (after resampling)
+        if cfg.da_algorithm in ["PBS", "AdaPBS", "AdaMupbs", "ES",
+                                "IES", "PIES", "IES-MCMC"]:
+            Ensemble.season_rejuvenation()
 
     # Store OL
     model.storeOL(OL_Sim, Ensemble, observations_sbst,
