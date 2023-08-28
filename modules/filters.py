@@ -26,6 +26,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 import sklearn.gaussian_process.kernels as krn
 import shutil
 import os
+import statsmodels.stats.correlation_tools as ct
 
 
 def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
@@ -447,7 +448,14 @@ def mcmc(Ensemble, observations_sbst_masked, R,
         C0 = 0.01*C0  # Scale this to not be too large
     else:  # Isotropic covariance as proposal covariance
         C0 = (sigp**2)*np.eye(Np)
-    Sc = np.linalg.cholesky(C0)
+
+    while True:
+        try:
+            Sc = np.linalg.cholesky(C0)
+            break
+        except np.linalg.LinAlgError:
+            C0 = ct.cov_nearest(C0, method="clipped")
+
     Id = np.eye(Np)
     # import pdb; pdb.set_trace()
 
@@ -514,8 +522,13 @@ def mcmc(Ensemble, observations_sbst_masked, R,
             router = np.outer(r, r)
             roi = router/rinner
             Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
-            Sc = np.linalg.cholesky(Cp)
 
+            while True:
+                try:
+                    Sc = np.linalg.cholesky(Cp)
+                    break
+                except np.linalg.LinAlgError:
+                    Cp = ct.cov_nearest(Cp, method="clipped")
     # Clean tmp directory
     try:
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
@@ -542,7 +555,12 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
     sigp = 0.1
     Np = len(vars_to_perturbate)
     C0 = (sigp**2)*np.eye(Np)
-    Sc = np.linalg.cholesky(C0)
+    while True:
+        try:
+            Sc = np.linalg.cholesky(C0)
+            break
+        except np.linalg.LinAlgError:
+            C0 = ct.cov_nearest(C0, method="clipped")
     Id = np.eye(Np)
 
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
@@ -591,7 +609,12 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
             router = np.outer(r, r)
             roi = router/rinner
             Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
-            Sc = np.linalg.cholesky(Cp)
+            while True:
+                try:
+                    Sc = np.linalg.cholesky(Cp)
+                    break
+                except np.linalg.LinAlgError:
+                    Cp = ct.cov_nearest(Cp, method="clipped")
 
     printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (
         adaptive, (1.0*accepted)/nsteps)
@@ -1111,7 +1134,14 @@ def implement_assimilation(Ensemble, step):
                 # Inflate the covariance slightly in case of degeneracy
                 # thetapropc = thetapropc+0.1*(1-diversity)*priorcov
                 thetapropc = thetapropc+(0.5**(8*j))*(1-diversity)*priorcov
-                L = np.linalg.cholesky(thetapropc)
+
+                while True:
+                    try:
+                        L = np.linalg.cholesky(thetapropc)
+                        break
+                    except np.linalg.LinAlgError:
+                        thetapropc = ct.cov_nearest(
+                            thetapropc, method="clipped")
 
                 # Draw from this Gaussian for the next iteration.
                 thetaprop = thetapropm[:, np.newaxis] +\
@@ -1212,8 +1242,16 @@ def implement_assimilation(Ensemble, step):
 
                 # Draw from this Gaussian for the next adaptive iteration
                 # if there will be one
+
                 if doadapt and notlast:
-                    L = np.linalg.cholesky(pc)
+
+                    while True:
+                        try:
+                            L = np.linalg.cholesky(pc)
+                            break
+                        except np.linalg.LinAlgError:
+                            pc = ct.cov_nearest(pc, method="clipped")
+
                     Z = np.random.randn(Np, Ne)
                     thetap = (pm+(L@Z).T).T
                     propcall[:, :, j+1] = pc
@@ -1534,14 +1572,40 @@ def implement_assimilation(Ensemble, step):
     for cont, var_p in enumerate(vars_to_perturbate):
 
         # Get perturbation parameters"""
-        noise_ens_temp = [Ensemble.noise[x][var_p]
-                          for x in range(len(Ensemble.noise))]
-        noise_ens_temp = np.vstack(noise_ens_temp)
+        # breakpoint()
+        if cfg.da_algorithm in ["PF", "PBS"]:
+            noise_ens_temp = [Ensemble.noise[x][var_p]
+                              for x in range(len(Ensemble.noise))]
+            noise_ens_temp = np.vstack(noise_ens_temp)
 
-        noise_tmp_avg = np.average(noise_ens_temp, axis=0,
-                                   weights=Ensemble.wgth)
-        noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
-                                    weights=Ensemble.wgth)
+            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
+                                       weights=Ensemble.wgth)
+            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
+                                        weights=Ensemble.wgth)
+
+        elif cfg.da_algorithm in ["PBS", "AdaPBS", "AdaMuPBS", "ES",
+                                  "IES", "PIES"]:
+            noise_ens_temp = [Ensemble.noise_iter[x][var_p]
+                              for x in range(len(Ensemble.noise_iter))]
+            noise_ens_temp = np.vstack(noise_ens_temp)
+
+            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
+                                       weights=Ensemble.wgth)
+            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
+                                        weights=Ensemble.wgth)
+
+        elif cfg.da_algorithm in ["IES-MCMC_AI", "IES-MCMC"]:
+
+            noise_ens_temp = post_sample[cont, :]
+            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
+                                       weights=Ensemble.wgth)
+            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
+                                        weights=Ensemble.wgth)
+
+            noise_tmp_avg = np.repeat(noise_tmp_avg, Ensemble.forcing.shape[0])
+            noise_tmp_sd = np.repeat(noise_tmp_sd, Ensemble.forcing.shape[0])
+        else:
+            raise Exception("Assim algo not implemented")
 
         Result[var_p + "_noise_mean"] = noise_tmp_avg
         Result[var_p + "_noise_sd"] = noise_tmp_sd

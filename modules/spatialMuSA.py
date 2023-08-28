@@ -737,20 +737,20 @@ def create_neigb(lat_idx, lon_idx, step, j):
 def get_neig_info(lat_idx, lon_idx, step, j):
 
     files = create_neigb(lat_idx, lon_idx, step, j)
-    
+
     neig_obs = []
     neig_pred_obs = []
     neig_r_cov = []
     neig_lat = []
     neig_long = []
-    
+
     var_to_assim = cfg.var_to_assim
     var_to_prop = cfg.var_to_prop
 
     pos = []
     [pos.append(var_to_assim.index(x)) for x in var_to_prop]
 
-    if (len(files) == 0 or len(pos)==0):
+    if (len(files) == 0 or len(pos) == 0):
         return neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long
 
     for count, file in enumerate(files):
@@ -815,35 +815,35 @@ def add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov):
     pos = []
     [pos.append(var_to_assim.index(x)) for x in var_rem]
 
-    if len(Ensemble.observations.shape)>1:
+    if len(Ensemble.observations.shape) > 1:
         observations = Ensemble.observations[:, pos]
         errors = Ensemble.errors[:, pos]
-        
+
     else:
         observations = Ensemble.observations
         errors = Ensemble.errors
-        
+
     predicted = flt.get_predictions(Ensemble.state_membres, var_rem)
-    
+
     observations_sbst_masked, predicted, r_cov = \
-                flt.tidy_obs_pred_rcov(predicted, observations, errors)
-    
-    if neig_obs != []:            
-        
-        neig_obs = np.concatenate((neig_obs,observations_sbst_masked),axis=0)
-        neig_pred_obs = np.concatenate((neig_pred_obs,predicted),axis=0)
-        neig_r_cov = np.concatenate((neig_r_cov,r_cov),axis=0)
-    
+        flt.tidy_obs_pred_rcov(predicted, observations, errors)
+
+    if neig_obs != []:
+
+        neig_obs = np.concatenate((neig_obs, observations_sbst_masked), axis=0)
+        neig_pred_obs = np.concatenate((neig_pred_obs, predicted), axis=0)
+        neig_r_cov = np.concatenate((neig_r_cov, r_cov), axis=0)
+
     else:
-        
+
         neig_obs = observations_sbst_masked
         neig_pred_obs = predicted
         neig_r_cov = r_cov
-        
+
     return neig_obs, neig_pred_obs, neig_r_cov
 
 
-def add_local_coords(Ensemble,curren_lat, current_lon, neig_lat, neig_long):
+def add_local_coords(Ensemble, curren_lat, current_lon, neig_lat, neig_long):
 
     var_to_assim = set(cfg.var_to_assim)
     var_to_prop = set(cfg.var_to_prop)
@@ -851,22 +851,24 @@ def add_local_coords(Ensemble,curren_lat, current_lon, neig_lat, neig_long):
     var_rem = list(var_to_assim - var_to_prop)
 
     var_to_assim = cfg.var_to_assim
-    
+
     pos = []
     [pos.append(var_to_assim.index(x)) for x in var_rem]
 
-    if len(Ensemble.observations.shape)>1:
-        n = np.logical_not(np.isnan(Ensemble.observations[:,pos])).sum()
+    if len(Ensemble.observations.shape) > 1:
+        n = np.logical_not(np.isnan(Ensemble.observations[:, pos])).sum()
     else:
         n = np.logical_not(np.isnan(Ensemble.observations)).sum()
-    
-    if neig_lat != []:   
-        neig_lat = np.concatenate((neig_lat,np.repeat(curren_lat,n)[:,np.newaxis]))
-        neig_long = np.concatenate((neig_long,np.repeat(current_lon,n)[:,np.newaxis]))
+
+    if neig_lat != []:
+        neig_lat = np.concatenate(
+            (neig_lat, np.repeat(curren_lat, n)[:, np.newaxis]))
+        neig_long = np.concatenate(
+            (neig_long, np.repeat(current_lon, n)[:, np.newaxis]))
     else:
-        neig_lat = np.repeat(curren_lat,n)[:,np.newaxis]
-        neig_long= np.repeat(current_lon,n)[:,np.newaxis]
-        
+        neig_lat = np.repeat(curren_lat, n)[:, np.newaxis]
+        neig_long = np.repeat(current_lon, n)[:, np.newaxis]
+
     return neig_lat, neig_long
 
 
@@ -1065,28 +1067,29 @@ def spatial_assim(lat_idx, lon_idx, step, j):
         save_space_flag = True
         neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = \
             get_neig_info(lat_idx, lon_idx, step, j)
-        
-        #in case var_to_prop != var_to_assim, get_neig_info gets only the neigborhood obs and not the local observation:
-        #add the local observations and coordinates in case some variables are not spatially propagated.
+
+        # in case var_to_prop != var_to_assim, get_neig_info gets only the neigborhood obs and not the local observation:
+        # add the local observations and coordinates in case some variables are not spatially propagated.
         if cfg.var_to_prop != cfg.var_to_assim:
-            
+
             neig_obs, neig_pred_obs, neig_r_cov = \
                 add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov)
-            
-            #add the coordinates of the local obs
-            neig_lat,neig_long = \
-                add_local_coords(Ensemble,lat_idx, lon_idx, neig_lat, neig_long)
+
+            # add the coordinates of the local obs
+            neig_lat, neig_long = \
+                add_local_coords(Ensemble, lat_idx, lon_idx,
+                                 neig_lat, neig_long)
 
         # if no obs do nothing
         if len(neig_obs) == 0:
             Ensemble.iter_update(create=False)
 
         else:
-            
 
             # create neig rho
-            rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(lat_idx, lon_idx, neig_lat, neig_long)
-            
+            rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(
+                lat_idx, lon_idx, neig_lat, neig_long)
+
             prior = np.ones((len(vars_to_perturbate), Ensemble.members))
             for cont, var in enumerate(vars_to_perturbate):
                 if j == 0:
