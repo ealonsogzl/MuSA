@@ -383,7 +383,7 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         for j in range(Nl):
             mj = propm[:, j]
             Cj = propc[:, :, j]
-            cj = np.linalg.det(2*np.pi*Cj)**(-0.5)
+            cj = safe_det(2*np.pi*Cj)**(-0.5)
             lcj = np.log(cj)
             Aj = (propell.T-mj).T
             psi = 0.5*(Aj.T)@np.linalg.solve(Cj, Aj)
@@ -620,6 +620,11 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
         adaptive, (1.0*accepted)/nsteps)
     print(printstr)
     return accepted, mcmc_storage
+
+
+def safe_det(A):
+    (sign, logabsdet) = np.linalg.slogdet(A)
+    return sign * np.exp(logabsdet)
 
 
 def negloglik(predicted, observations_sbst_masked, R):
