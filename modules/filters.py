@@ -502,7 +502,7 @@ def mcmc(Ensemble, observations_sbst_masked, R,
         nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
         Up = neglogpost(nll, phip, SD0, m0)
 
-        mh = min(1, np.exp(-Up+Uc))
+        mh = min(1, np.exp(np.float128(-Up+Uc)))
         u = np.random.rand(1)
         accept = (mh > u)
         if accept:
