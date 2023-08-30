@@ -115,12 +115,6 @@ def write_nlst(temp_dest, step):
 
 
 def model_compile():
-
-    _ = dIm(np.array([0., 0.], dtype="float32"),
-            np.array([0., 0.], dtype="float32"),
-            np.array([0., 0.], dtype="float32"),
-            0.)
-
     return None
 
 
