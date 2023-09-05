@@ -237,13 +237,18 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     return obs_matrix, error_matrix
 
 
-def generate_dates(date_ini, date_end):
+def generate_dates(date_ini, date_end, timestep=1):
 
     del_t = [date_ini]
     date_time = date_ini
     while date_time < date_end:
-        date_time += dt.timedelta(hours=1)
+        date_time += dt.timedelta(hours=timestep)
+
         del_t.append(date_time)
+    if date_end != del_t[-1]:
+        raise Exception(' Wrong date_ini or date_end (or both), '
+                        'not compatible (or worng) time_step')
+
     del_t = np.asarray(del_t)
     return del_t
 

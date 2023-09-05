@@ -229,7 +229,7 @@ def init_result(del_t, DA=False):
         return Results
 
 
-def forcing_table(lat_idx, lon_idx, step):
+def forcing_table(lat_idx, lon_idx, step=0):
 
     nc_forcing_path = cfg.nc_forcing_path
     frocing_var_names = cfg.frocing_var_names

@@ -6,7 +6,7 @@ Note that not all the options will be used in all the experimental setups.
 
 """
 # Note: not all options have been tested with dIm and snow17
-numerical_model = 'dIm'  # model to use from FSM2, dIm or snow17
+numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
 # -----------------------------------
 # Directories
 # -----------------------------------
@@ -52,7 +52,7 @@ burn_in = 0.1      # discard the first x proportion of samples
 # and time. If this option is selected, the errors will be stored in a new
 # variable in the observation files, and will have the same dimensions as
 # the observations.
-r_cov = [0.0004]
+r_cov = [0.04]
 add_dynamic_noise = False
 # var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
 var_to_assim = ["snd"]

@@ -217,7 +217,7 @@ def snow17(time, prec, tair, p_atm, lat, init, dt=24, scf=1.0, rvs=1,
     return model_swe, model_swe/cnt.FIX_density/1000, outflow, init
 
 
-@nb.njit(fastmath=True, cache=True))
+@nb.njit(fastmath=True, cache=True)
 def melt_function(jday, dt, lat, mfmax, mfmin):
     """
     Seasonal variation calcs - indexed for Non-Rain melt
@@ -243,27 +243,27 @@ def melt_function(jday, dt, lat, mfmax, mfmin):
         Melt function for current timestep.
     """
 
-    n_mar21=jday - 80
-    days=365
+    n_mar21 = jday - 80
+    days = 365
 
     # seasonal variation
-    sv=(0.5 * np.sin((n_mar21 * 2 * np.pi) / days)) + 0.5
+    sv = (0.5 * np.sin((n_mar21 * 2 * np.pi) / days)) + 0.5
     if lat < 54:
         # latitude parameter, av=1.0 when lat < 54 deg N
-        av=1.0
+        av = 1.0
     else:
         if jday <= 77 or jday >= 267:
             # av = 0.0 from September 24 to March 18,
-            av=0.0
+            av = 0.0
         elif jday >= 117 and jday <= 227:
             # av = 1.0 from April 27 to August 15
-            av=1.0
+            av = 1.0
         elif jday >= 78 and jday <= 116:
             # av varies linearly between 0.0 and 1.0 from 3/19-4/26 and
             # between 1.0 and 0.0 from 8/16-9/23.
-            av=np.interp(jday, [78, 116], [0, 1])
+            av = np.interp(jday, [78, 116], [0, 1])
         elif jday >= 228 and jday <= 266:
-            av=np.interp(jday, [228, 266], [1, 0])
-    meltf=(dt / 6) * ((sv * av * (mfmax - mfmin)) + mfmin)
+            av = np.interp(jday, [228, 266], [1, 0])
+    meltf = (dt / 6) * ((sv * av * (mfmax - mfmin)) + mfmin)
 
     return meltf
