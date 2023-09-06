@@ -92,7 +92,7 @@ def fill_nan_arr(array):
                            (x_grid, y_grid), method='nearest')
 
     return interp_grid
- 
+
 
 def regrid(data, out_x, out_y):
     m = max(data.shape[0], data.shape[1])
@@ -505,13 +505,13 @@ def generate_prior_maps_onenode(ini_DA_window):
         create_corelated_nc(id_win)
 
 
-def generate_prior_maps(GSC_filenames, ini_DA_window, pbs_task_id):
+def generate_prior_maps(GSC_filenames, ini_DA_window, HPC_task_id):
 
     spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
 
     for id_win in range(len(ini_DA_window)):
-        # generate GSC in some pbs tasks
-        if pbs_task_id == id_win:
+        # generate GSC in some HPC tasks
+        if HPC_task_id == id_win:
             create_corelated_nc(id_win)
             break  # just a GSC per taks
         else:
@@ -570,13 +570,13 @@ def prepare_forcing(lat_idx, lon_idx, step):
     return main_forcing, time_dict, observations, errors
 
 
-def generate_obs_mask(pbs_task_id):
+def generate_obs_mask(HPC_task_id):
 
     name_obs_mask = "obs_mask.blp"
     name_obs_mask = os.path.join(cfg.spatial_propagation_storage_path,
                                  name_obs_mask)
 
-    if pbs_task_id == 0:
+    if HPC_task_id == 0:
         obs_mask()
     else:
         while True:
@@ -962,7 +962,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     ifn.io_write(name_ensemble, Ensemble)
 
 
-def wait_for_ensembles(step, pbs_task_id, j=None):
+def wait_for_ensembles(step, HPC_task_id, j=None):
 
     grid = ifn.expand_grid()
 
@@ -981,7 +981,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
             # free a bit of space, remove previous iteration from first task
             if j is not None:
                 # try to remove prior files
-                if pbs_task_id == 0:
+                if HPC_task_id == 0:
                     rm_files = glob.glob(os.path.join(cfg.save_ensemble_path,
                                                       "*pri*.pkl.blp"))
                     for f in rm_files:
@@ -990,7 +990,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
 
                 # [or] Solution in case of no iterations. If not,
                 # it will not clean
-                if pbs_task_id == 0 and j > 0 or cfg.max_iterations == 1:
+                if HPC_task_id == 0 and j > 0 or cfg.max_iterations == 1:
                     rm_files = glob.glob(os.path.join(cfg.save_ensemble_path,
                                                       "{step}_{j}it*.pkl.blp".
                                                       format(step=step,
@@ -1006,7 +1006,7 @@ def wait_for_ensembles(step, pbs_task_id, j=None):
 
                 # if not first task and end of iterations, wait for
                 # ensembles in results
-                if pbs_task_id != 0 and j == cfg.max_iterations-1:
+                if HPC_task_id != 0 and j == cfg.max_iterations-1:
                     files = glob.glob(os.path.join(cfg.output_path,
                                       "{step}_{j}it*.pkl.blp".format(step=step,
                                                                      j=j)))

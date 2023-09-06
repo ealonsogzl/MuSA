@@ -92,7 +92,7 @@ implementation = "point_scale"
 # if var_to_prop = [] -> Any variable is spatially propagated
 var_to_prop = var_to_assim
 
-# parallelization from "sequential", "multiprocessing" or "PBS.array"
+# parallelization from "sequential", "multiprocessing" or "HPC.array"
 parallelization = "sequential"
 MPI = False  # Note: not tested
 nprocess = 8  # Note: if None, the number of processors will be estimated

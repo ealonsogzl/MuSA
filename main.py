@@ -21,7 +21,7 @@ import sys
 if (cfg.parallelization == "multiprocessing" or
    cfg.implementation == "open_loop"):
     import multiprocessing as mp
-elif cfg.parallelization == "PBS.array":
+elif cfg.parallelization == "HPC.array":
     import os
     import multiprocessing as mp
 else:
@@ -31,7 +31,7 @@ from modules.cell_assim import cell_assimilation
 
 def MuSA():
 
-    if cfg.parallelization == "PBS.array":
+    if cfg.parallelization == "HPC.array":
         pass
     else:
         model.model_compile()
@@ -92,20 +92,24 @@ def MuSA():
             inputs = [grid[:, 0], grid[:, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
 
-        elif cfg.parallelization == "PBS.array":
+        elif cfg.parallelization == "HPC.array":
 
-            pbs_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
-            pbs_task_number = int(sys.argv[1])
+            try:
+                HPC_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
+            except TypeError:
+                HPC_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID"))-1
+
+            HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
 
             ids = np.arange(0, grid.shape[0])
-            ids = ids % pbs_task_number == pbs_task_id
+            ids = ids % HPC_task_number == HPC_task_id
 
-            print("Running MuSA: Distributed (PBS.array) from job: " +
-                  str(pbs_task_id) + " in " + str(nprocess) + " cores")
+            print("Running MuSA: Distributed (HPC.array) from job: " +
+                  str(HPC_task_id) + " in " + str(nprocess) + " cores")
 
             # compile FSM
-            model.model_compile_PBS(pbs_task_number)
+            model.model_compile_HPC(HPC_task_number)
 
             inputs = [grid[ids, 0], grid[ids, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
@@ -118,22 +122,26 @@ def MuSA():
         if cfg.da_algorithm not in ["ES", "IES"]:
             raise Exception("Spatial_propagation needs ES/IES methods")
 
-        if cfg.parallelization == "PBS.array":
+        if cfg.parallelization == "HPC.array":
 
             grid = ifn.expand_grid()
 
-            pbs_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
-            pbs_task_number = int(sys.argv[1])
+            try:
+                HPC_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
+            except TypeError:
+                HPC_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID"))-1
+
+            HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
 
             ids = np.arange(0, grid.shape[0])
-            ids = ids % pbs_task_number == pbs_task_id
+            ids = ids % HPC_task_number == HPC_task_id
 
-            print("Running MuSA: Distributed (PBS.array) from job: " +
-                  str(pbs_task_id) + " in " + str(nprocess) + " cores")
+            print("Running MuSA: Distributed (HPC.array) from job: " +
+                  str(HPC_task_id) + " in " + str(nprocess) + " cores")
 
             # compile FSM
-            model.model_compile_PBS(pbs_task_id)
+            model.model_compile_HPC(HPC_task_id)
 
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
@@ -143,14 +151,11 @@ def MuSA():
 
             # check that GSC can be created
             # TODO: allow more than one GSC per task
-            if pbs_task_number < len(GSC_filenames):
-                raise Exception('Increase number of PBS.array')
+            if HPC_task_number < len(GSC_filenames):
+                raise Exception('Increase number of HPC.array')
 
             # generate prior maps iterating over seasons
-            spM.generate_prior_maps(GSC_filenames, ini_DA_window, pbs_task_id)
-
-            # create obs mask
-            # spM.generate_obs_mask(pbs_task_id)
+            spM.generate_prior_maps(GSC_filenames, ini_DA_window, HPC_task_id)
 
             # DA_loop
             # create a pool inside each task
@@ -166,7 +171,7 @@ def MuSA():
                 ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
 
                 # Wait untill all ensembles are created
-                spM.wait_for_ensembles(step, pbs_task_id)
+                spM.wait_for_ensembles(step, HPC_task_id)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
@@ -176,10 +181,10 @@ def MuSA():
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
 
                     # Wait untill all ensembles are updated and remove prior
-                    spM.wait_for_ensembles(step, pbs_task_id, j)
+                    spM.wait_for_ensembles(step, HPC_task_id, j)
 
-            # collect results from pbs_task_id = 0
-            if pbs_task_id != 0:
+            # collect results from HPC_task_id = 0
+            if HPC_task_id != 0:
                 return None
             else:
                 inputs = [grid[:, 0], grid[:, 1]]
@@ -261,7 +266,7 @@ def check_platform():
 
 if __name__ == "__main__":
 
-    if cfg.parallelization in ["multiprocessing", "PBS.array"]:
+    if cfg.parallelization in ["multiprocessing", "HPC.array"]:
         mp.set_start_method('spawn', force=True)
 
     check_platform()
