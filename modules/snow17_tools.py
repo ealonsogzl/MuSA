@@ -87,7 +87,7 @@ def model_compile():
     return None
 
 
-def model_compile_PBS(pbs_task_id):
+def model_compile_HPC(HPC_task_id):
     return None
 
 

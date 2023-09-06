@@ -208,12 +208,12 @@ def model_compile():
     subprocess.call(bash_command, shell=True)
 
 
-def model_compile_PBS(pbs_task_id):
-    # Compile FSM in the first PBS task
+def model_compile_HPC(HPC_task_id):
+    # Compile FSM in the first HPC task
     fsm_path = cfg.fsm_src_path
     file_name = os.path.join(fsm_path, "FSM2")
 
-    if pbs_task_id == 0:
+    if HPC_task_id == 0:
         model_compile()
     else:
         while True:

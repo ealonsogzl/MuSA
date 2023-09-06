@@ -15,7 +15,6 @@ memorystrg=$memory$units
 python clean.py
 
 cat << end_jobarray > pbsScript.sh
- 
 #!/bin/bash
 #PBS -N Musa
 #PBS -J 1-${njobs}

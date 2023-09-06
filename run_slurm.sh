@@ -15,8 +15,8 @@ memorystrg=$memory$units
 python clean.py
 
 cat << end_jobarray > pbsScript.sh
- 
 #!/bin/bash
+#SBATCH --account=cnes_level2
 #SBATCH --job-name=Musa
 #SBATCH --array=1-${njobs}
 #SBATCH --nodes=1
