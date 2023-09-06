@@ -14,7 +14,7 @@ memorystrg=$memory$units
 # clean dirs
 python clean.py
 
-cat << end_jobarray > pbsScript.sh
+cat << end_jobarray > slurmScript.sh
 #!/bin/bash
 #SBATCH --account=cnes_level2
 #SBATCH --job-name=Musa
