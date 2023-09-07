@@ -94,13 +94,9 @@ def MuSA():
 
         elif cfg.parallelization == "HPC.array":
 
-            try:
-                HPC_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
-            except TypeError:
-                HPC_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID"))-1
-
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
+            HPC_task_id = int(sys.argv[3])-1
 
             ids = np.arange(0, grid.shape[0])
             ids = ids % HPC_task_number == HPC_task_id
@@ -109,7 +105,7 @@ def MuSA():
                   str(HPC_task_id) + " in " + str(nprocess) + " cores")
 
             # compile FSM
-            model.model_compile_HPC(HPC_task_number)
+            model.model_compile_HPC(HPC_task_id)
 
             inputs = [grid[ids, 0], grid[ids, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
@@ -126,13 +122,9 @@ def MuSA():
 
             grid = ifn.expand_grid()
 
-            try:
-                HPC_task_id = int(os.getenv("PBS_ARRAY_INDEX"))-1
-            except TypeError:
-                HPC_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID"))-1
-
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
+            HPC_task_id = int(sys.argv[3])-1
 
             ids = np.arange(0, grid.shape[0])
             ids = ids % HPC_task_number == HPC_task_id

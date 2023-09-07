@@ -5,12 +5,6 @@
 njobs=$1
 nprocs=$2
 
-declare -i mempcpu=2000
-units="mb"
-
-memory=$((mempcpu * nprocs))
-memorystrg=$memory$units
-
 # clean dirs
 python clean.py
 
@@ -18,7 +12,7 @@ cat << end_jobarray > pbsScript.sh
 #!/bin/bash
 #PBS -N Musa
 #PBS -J 1-${njobs}
-#PBS -l select=1:ncpus=${nprocs}:mem=${memorystrg}  
+#PBS -l select=1:ncpus=${nprocs}:mem=2000mb 
 #PBS -l walltime=24:00:00
 
 # Load software
@@ -30,7 +24,7 @@ conda activate MuSA
 cd "\${PBS_O_WORKDIR}"
 
 # Run python script
-python main.py "${njobs}" "${nprocs}"
+python main.py "${njobs}" "${nprocs}" "\${PBS_ARRAY_INDEX}"
 
 end_jobarray
 

@@ -5,23 +5,18 @@
 njobs=$1
 nprocs=$2
 
-declare -i mempcpu=2000
-units="mb"
-
-memory=$((mempcpu * nprocs))
-memorystrg=$memory$units
-
 # clean dirs
 python clean.py
 
 cat << end_jobarray > slurmScript.sh
 #!/bin/bash
+#SBATCH --export=none
 #SBATCH --account=cnes_level2
 #SBATCH --job-name=Musa
 #SBATCH --array=1-${njobs}
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=${nprocs}
-#SBATCH --mem-per-cpu=${memorystrg}
+#SBATCH -N 1
+#SBATCH -n ${nprocs}
+#SBATCH --mem-per-cpu=2G
 #SBATCH --time=24:00:00
 
 # Load software
@@ -33,7 +28,7 @@ conda activate MuSA
 cd "\${SLURM_SUBMIT_DIR}"
 
 # Run python script
-python main.py "${njobs}" "${nprocs}"
+python main.py "${njobs}" "${nprocs}" "\${SLURM_ARRAY_TASK_ID}"
 
 end_jobarray
 
