@@ -22,7 +22,6 @@ if (cfg.parallelization == "multiprocessing" or
    cfg.implementation == "open_loop"):
     import multiprocessing as mp
 elif cfg.parallelization == "HPC.array":
-    import os
     import multiprocessing as mp
 else:
     pass

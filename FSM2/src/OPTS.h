@@ -12,6 +12,6 @@
 #define DRIV1D 1   /* 1D driving data format        : 1, 2            */
 #define SETPAR 1   /* parameter inputs              : 0, 1            */
 #define SWPART 0   /* SW radiation partition        : 0, 1            */
-#define ZOFFST 0   /* measurement height offset     : 0, 1            */
+#define ZOFFST 1   /* measurement height offset     : 0, 1            */
 /* Output options                                   : Possible values */
 #define PROFNC 0   /* netCDF output                 : 0, 1            */

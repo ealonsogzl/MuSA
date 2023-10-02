@@ -36,7 +36,7 @@ end module CONSTANTS
 !-----------------------------------------------------------------------
 module IOUNITS
 integer, parameter :: &
-  ucan = 11,         &! Subcanopy diagnostics file unit number
+ ! ucan = 11,         &! Subcanopy diagnostics file unit number
   udmp = 12,         &! Start / dump file unit number
   uflx = 13,         &! Flux output file unit number
   umap = 14,         &! Map input file unit number

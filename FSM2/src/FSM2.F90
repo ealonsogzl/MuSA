@@ -18,7 +18,7 @@ use CONSTANTS, only: &
   hcon_sand           ! Thermal conductivity of sand (W/m/K)
 
 use IOUNITS, only: &
-  ucan,              &! Subcanopy diagnostics file unit number
+  !ucan,              &! Subcanopy diagnostics file unit number
   udmp,              &! Start / dump file unit number
 !  uflx,              &! Flux output file unit number
   umet,              &! Meteorological driving file unit number
@@ -368,7 +368,7 @@ if (runid == 'none') runid = ''
 if (Ncols*Nrows>1) stop 'NetCDF output only available for Nrows = Ncols = 1'
 call FSM2_PREPNC(runid,year,month,day,hour,ncid,rec,varid)
 #else
-if (maxval(VAI) > 0) open(ucan, file = trim(runid)//'subc.txt')
+!if (maxval(VAI) > 0) open(ucan, file = trim(runid)//'subc.txt')
 !open(uflx, file = trim(runid)//'flux.txt')
 open(usta, file = trim(runid)//'stat.dat',access='stream')
 #endif
