@@ -55,7 +55,7 @@ The outputs of MuSA are composed by simple .csv files containing the following i
 -  **OL_lonid_latid**: This file contains the open loop simulation (snow simulation without any assimilation).
 -  **updated_lonid_latid**: This file contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulations.
 -  **sd_lonid_latid**: This file contains the weighted standard deviation of the ensemble after the assimilation.
--  **DA_lonid_latid**: This file contains information about the observed variables and perturbation parameters used to generate the ensemble.
+-  **DA_lonid_latid**: This file contains information about the observed variables and posterior parameters (in the normal space).
 
 **lonid** and **latid** are the longitude and latitude ids of each cell of the simulation.
 

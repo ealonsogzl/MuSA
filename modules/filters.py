@@ -27,6 +27,7 @@ import sklearn.gaussian_process.kernels as krn
 import shutil
 import os
 import statsmodels.stats.correlation_tools as ct
+from statsmodels.stats.weightstats import DescrStatsW
 
 
 def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
@@ -823,24 +824,6 @@ def resampled_indexes(weights):
     return indexes
 
 
-def weighted_std(values, axis, weights):
-    """
-    Return the weighted  standard deviation.
-
-    values, weights -- Numpy ndarrays with the same shape.
-    """
-    average = np.average(values, axis=axis, weights=weights)
-
-    av_list = []
-    for i in range(len(values)):
-        av_list.append(average)
-
-    # Fast and numerically precise:
-    variance = np.average((np.asarray(values)-np.asarray(av_list))**2,
-                          axis=axis, weights=weights)
-    return np.sqrt(variance)
-
-
 def get_predictions(list_state, var_to_assim):
 
     predicted = []
@@ -1572,35 +1555,33 @@ def implement_assimilation(Ensemble, step):
     for cont, var_p in enumerate(vars_to_perturbate):
 
         # Get perturbation parameters"""
-        # breakpoint()
+
         if cfg.da_algorithm in ["PF", "PBS"]:
             noise_ens_temp = [Ensemble.noise[x][var_p]
                               for x in range(len(Ensemble.noise))]
             noise_ens_temp = np.vstack(noise_ens_temp)
             noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
-            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
-                                       weights=Ensemble.wgth)
-            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
-                                        weights=Ensemble.wgth)
 
+            d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
+            noise_tmp_avg = d1.mean
+            noise_tmp_sd = d1.std
         elif cfg.da_algorithm in ["PBS", "AdaPBS", "AdaMuPBS", "ES",
                                   "IES", "PIES"]:
             noise_ens_temp = [Ensemble.noise_iter[x][var_p]
                               for x in range(len(Ensemble.noise_iter))]
             noise_ens_temp = np.vstack(noise_ens_temp)
             noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
-            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
-                                       weights=Ensemble.wgth)
-            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
-                                        weights=Ensemble.wgth)
+
+            d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
+            noise_tmp_avg = d1.mean
+            noise_tmp_sd = d1.std
 
         elif cfg.da_algorithm in ["IES-MCMC_AI", "IES-MCMC"]:
 
             noise_ens_temp = transform_space(post_sample, 'to_normal')[cont, :]
-            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
-                                       weights=Ensemble.wgth)
-            noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
-                                        weights=Ensemble.wgth)
+            d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
+            noise_tmp_avg = d1.std_mean
+            noise_tmp_sd = d1.std
 
             noise_tmp_avg = np.repeat(noise_tmp_avg, Ensemble.forcing.shape[0])
             noise_tmp_sd = np.repeat(noise_tmp_sd, Ensemble.forcing.shape[0])

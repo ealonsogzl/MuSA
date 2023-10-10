@@ -17,8 +17,8 @@ import config as cfg
 import copy
 import pdcast as pdc
 import warnings
-import modules.filters as flt
 import modules.internal_fns as ifn
+from statsmodels.stats.weightstats import DescrStatsW
 if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
 
@@ -241,8 +241,9 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
                    for x in range(len(list_state))]
         col_arr = np.vstack(col_arr)
 
-        average_sim = np.average(col_arr, axis=0, weights=pesos)
-        sd_sim = flt.weighted_std(col_arr, axis=0, weights=pesos)
+        d1 = DescrStatsW(col_arr, weights=pesos)
+        average_sim = d1.mean
+        sd_sim = d1.std
 
         updated_Sim.loc[rowIndex, name_col] = average_sim
         sd_Sim.loc[rowIndex, name_col] = sd_sim
