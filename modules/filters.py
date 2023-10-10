@@ -1577,7 +1577,7 @@ def implement_assimilation(Ensemble, step):
             noise_ens_temp = [Ensemble.noise[x][var_p]
                               for x in range(len(Ensemble.noise))]
             noise_ens_temp = np.vstack(noise_ens_temp)
-
+            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
             noise_tmp_avg = np.average(noise_ens_temp, axis=0,
                                        weights=Ensemble.wgth)
             noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
@@ -1588,7 +1588,7 @@ def implement_assimilation(Ensemble, step):
             noise_ens_temp = [Ensemble.noise_iter[x][var_p]
                               for x in range(len(Ensemble.noise_iter))]
             noise_ens_temp = np.vstack(noise_ens_temp)
-
+            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
             noise_tmp_avg = np.average(noise_ens_temp, axis=0,
                                        weights=Ensemble.wgth)
             noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
@@ -1596,7 +1596,7 @@ def implement_assimilation(Ensemble, step):
 
         elif cfg.da_algorithm in ["IES-MCMC_AI", "IES-MCMC"]:
 
-            noise_ens_temp = post_sample[cont, :]
+            noise_ens_temp = transform_space(post_sample, 'to_normal')[cont, :]
             noise_tmp_avg = np.average(noise_ens_temp, axis=0,
                                        weights=Ensemble.wgth)
             noise_tmp_sd = weighted_std(noise_ens_temp, axis=0,
