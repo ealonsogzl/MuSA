@@ -690,19 +690,26 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                      date_ini, date_end)
 
         # Search for parameters or use the default settings
-        try:  # vegetation parametrs
+        # vegetation parameters
+        try:
             vegh = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                         param_var_names["vegh_var_name"],
                                         date_ini, date_end)
+        except KeyError:
+            vegh = np.repeat(cnt.vegh, len(prec))
+
+        try:
             VAI = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                        param_var_names["VAI_var_name"],
                                        date_ini, date_end)
+        except KeyError:
+            VAI = np.repeat(cnt.VAI, len(prec))
+
+        try:
             fsky = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                         param_var_names["fsky_var_name"],
                                         date_ini, date_end)
         except KeyError:
-            VAI = np.repeat(cnt.VAI, len(prec))
-            vegh = np.repeat(cnt.vegh, len(prec))
             fsky = np.repeat(cnt.fsky, len(prec))
 
         # FSM2 internal parameters
