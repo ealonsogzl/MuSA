@@ -287,7 +287,7 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
 
     if m == 1:
         residual = obs-pred
-        Phid = -0.5*((residual**2))
+        Phid = -0.5 * ((residual**2) * (1/R))
     else:
         residual = obs.flatten() - pred.T
         residual = residual.T

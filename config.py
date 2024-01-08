@@ -84,7 +84,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "point_scale"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -93,7 +93,7 @@ implementation = "point_scale"
 var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "HPC.array"
-parallelization = "sequential"
+parallelization = "multiprocessing"
 MPI = False  # Note: not tested
 nprocess = 8  # Note: if None, the number of processors will be estimated
 
