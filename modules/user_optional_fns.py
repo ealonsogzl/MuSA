@@ -8,7 +8,7 @@ variables to the output of the model.
 
 Warning: VERY experimental, its use can be complex.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import numpy as np

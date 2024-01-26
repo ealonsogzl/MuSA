@@ -4,7 +4,7 @@
 Collection of functions to interact with the meteorological data and calculate
 other parameters related with the snowpack
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import numpy as np
 from scipy.optimize import newton

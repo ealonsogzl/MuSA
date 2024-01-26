@@ -3,7 +3,7 @@
 """
 Collection of functions to DA
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 
 """
 
@@ -907,13 +907,18 @@ def get_OL_vars(Ensemble, var_to_assim):
     return OL
 
 
-def transform_space(parameters, trans_direction):
+def transform_space(parameters, trans_direction, pert_stra=False, vari = False):
 
     safe_pars = parameters.copy()
     perturbation_strategy = cfg.perturbation_strategy
     upper_bounds = cnt.upper_bounds
     lower_bounds = cnt.lower_bounds
     vars_to_perturbate = cfg.vars_to_perturbate
+    
+    # HACK: This if is to correct a single vector
+    if isinstance(pert_stra, str) and isinstance(vari, str):
+        perturbation_strategy = [pert_stra]
+        vars_to_perturbate = [vari]
 
     if trans_direction == 'to_normal':
         # translate lognormal variables to normal distribution
@@ -1557,20 +1562,26 @@ def implement_assimilation(Ensemble, step):
         # Get perturbation parameters"""
 
         if cfg.da_algorithm in ["PF", "PBS"]:
+
             noise_ens_temp = [Ensemble.noise[x][var_p]
                               for x in range(len(Ensemble.noise))]
             noise_ens_temp = np.vstack(noise_ens_temp)
-            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
+
+            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal',
+                                             pert_stra=cfg.perturbation_strategy[cont],
+                                             vari = var_p)
 
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
             noise_tmp_sd = d1.std
-        elif cfg.da_algorithm in ["PBS", "AdaPBS", "AdaMuPBS", "ES",
+        elif cfg.da_algorithm in ["EnKF","IEnKF", "AdaPBS", "AdaMuPBS", "ES",
                                   "IES", "PIES"]:
             noise_ens_temp = [Ensemble.noise_iter[x][var_p]
                               for x in range(len(Ensemble.noise_iter))]
             noise_ens_temp = np.vstack(noise_ens_temp)
-            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal')
+            noise_ens_temp = transform_space(noise_ens_temp, 'to_normal',
+                                             pert_stra=cfg.perturbation_strategy[cont],
+                                             vari = var_p)
 
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
@@ -1592,3 +1603,4 @@ def implement_assimilation(Ensemble, step):
         Result[var_p + "_noise_sd"] = noise_tmp_sd
 
     return Result
+

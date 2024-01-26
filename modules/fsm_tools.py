@@ -3,7 +3,7 @@
 """
 Some functions to interact with FSM.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import os
 import shutil
@@ -350,6 +350,10 @@ def stable_forcing(forcing_df):
     temp_forz_def["RH"].values[temp_forz_def["RH"].values > 100] = 100
     # 1% of RH is actually almost impossible, increase?
     temp_forz_def["RH"].values[temp_forz_def["RH"].values < 0] = 1
+
+    # remove small vegetation
+    temp_forz_def["vegh"].values[temp_forz_def["vegh"].values < temp_forz_def["hbas"].values +1] = 0.0
+    temp_forz_def["VAI"].values[temp_forz_def["vegh"].values < temp_forz_def["hbas"].values +1] = 0.0
 
     return temp_forz_def
 

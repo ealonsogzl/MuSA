@@ -11,7 +11,7 @@ Created on Wed Mar 15 14:08:54 2023
   year={2004}
 }
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import numpy as np

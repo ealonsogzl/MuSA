@@ -3,7 +3,7 @@
 """
 Main function performing DA over a cell
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import os
 import copy

@@ -11,7 +11,7 @@ python clean.py
 cat << end_jobarray > slurmScript.sh
 #!/bin/bash
 #SBATCH --export=none
-#SBATCH --account=cnes_level2
+#SBATCH --account=cesbio
 #SBATCH --job-name=Musa
 #SBATCH --array=1-${njobs}
 #SBATCH -N 1

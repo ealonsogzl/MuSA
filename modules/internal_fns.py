@@ -4,7 +4,7 @@
 Internal functions to read and tidy the forcing, as well as launch the real
 assimilation functions.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import glob
 import os

@@ -3,7 +3,7 @@
 """
 Some functions to interact with a simple degree index snowpack model.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import os

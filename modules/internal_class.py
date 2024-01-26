@@ -3,7 +3,7 @@
 """
 Ensemble class.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import config as cfg
 import numpy as np

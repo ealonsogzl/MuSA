@@ -3,7 +3,7 @@
 """
 This module allows MuSA to propagate information between cells.
 
-Author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import os
 import time
@@ -35,7 +35,7 @@ elif cfg.numerical_model == 'snow17':
 else:
     raise Exception('Model not implemented')
 import copy
-
+from statsmodels.stats.weightstats import DescrStatsW
 
 def GC(d, c):
 
@@ -271,13 +271,14 @@ def calculate_distances():
 def save_distance(d, orderows, prior_id):
 
     spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
-    mask = cfg.nc_maks_path
+    #mask = cfg.nc_maks_path
 
     name_dist = "dist_" + str(prior_id) + ".nc"
     name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
 
     # recover distance matrix original/complete structure
     d = d[:, orderows][orderows]
+    """
     if mask:  # remove cells out of mask
         mask = nc.Dataset(mask)
         mask_value = mask.variables['mask'][:].flatten()
@@ -289,7 +290,7 @@ def save_distance(d, orderows, prior_id):
 
         distmask[~np.isnan(distmask)] = d.flatten()
         d = distmask
-
+    """
     f = nc.Dataset(name_dist, 'w', format='NETCDF4')
 
     f.createDimension('Y', d.shape[0])
@@ -301,12 +302,7 @@ def save_distance(d, orderows, prior_id):
     distnc[:, :] = d
 
     f.close()
-
-    # if (prior_id == 0):
-    #     name_order = "order_row.blp"
-    #     name_order = os.path.join(spatial_propagation_storage_path,
-    #                  name_order)
-    #     ifn.io_write(name_order, orderows)
+    
 
 
 def closePD(C):
@@ -393,6 +389,7 @@ def get_rho(prior_id):
     c = cfg.c
 
     d, orderows = calculate_distances()
+
     save_distance(d, orderows, prior_id)
 
     if all(x == c[0] for x in c):  # avoid to compute rho more than
@@ -641,9 +638,41 @@ def obs_mask():
 
 def get_idrow_from_cor(lat_idx, lon_idx):
 
-    n_lats, n_lons = ifn.get_dims()
 
-    idrow = n_lons*lat_idx + lon_idx
+    lat_idx = np.asarray(lat_idx)
+    lon_idx = np.asarray(lon_idx)
+    
+    mask = cfg.nc_maks_path
+    
+    n_lats, n_lons = ifn.get_dims()
+    lats = np.arange(n_lats)
+    lons = np.arange(n_lons)
+
+    # Genera todas las combinaciones posibles usando np.meshgrid
+    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing='ij')
+
+    # Combina las matrices resultantes en una única matriz de coordenadas
+    grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
+    
+    if mask:  # If mask exists, return string if masked
+        mask = nc.Dataset(mask)
+        mask_value = mask.variables['mask'][:]
+        mask.close()
+        mask = mask_value.flatten()
+
+        grid = grid[mask == 1,:]
+        grid = np.squeeze(grid)
+
+
+
+    if lat_idx.size ==1:
+        
+        idrow = int(np.where((grid[:,0] == lat_idx) & 
+                           (grid[:,1] == lon_idx) )[0])
+    else:
+        idrow = np.concatenate([np.where((grid[:,0] == lat_idx[x]) & 
+                           (grid[:,1] == lon_idx[x]) )[0] 
+                  for x in range(lat_idx.size)])
 
     return idrow
 
@@ -680,6 +709,8 @@ def read_distances(lat_idx, lon_idx):
 
 
 def create_neigb(lat_idx, lon_idx, step, j):
+    
+    mask = cfg.nc_maks_path
 
     distances = read_distances(lat_idx, lon_idx)
 
@@ -687,10 +718,26 @@ def create_neigb(lat_idx, lon_idx, step, j):
 
     id_neigb = np.asarray(np.where(~np.isnan(distances)))
 
-    lats_neig = np.floor(id_neigb / n_lons)
-    lons_neig = id_neigb-(lats_neig*n_lons)
+    lats = np.arange(n_lats)
+    lons = np.arange(n_lons)
 
-    neigb = np.concatenate((lats_neig, lons_neig), axis=0).T.astype(int)
+    # Genera todas las combinaciones posibles usando np.meshgrid
+    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing='ij')
+
+    # Combina las matrices resultantes en una única matriz de coordenadas
+    grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
+    
+    if mask:  # If mask exists, return string if masked
+        mask = nc.Dataset(mask)
+        mask_value = mask.variables['mask'][:]
+        mask.close()
+        mask = mask_value.flatten()
+
+        grid = grid[mask == 1,:]
+        grid = np.squeeze(grid)
+        
+    neigb = np.squeeze(grid[id_neigb])
+
 
     if j == 0:
         neigb = ["{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
@@ -884,13 +931,16 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
     neig_ids = get_idrow_from_cor(neig_lat, neig_long)
 
     f = nc.Dataset(name_dist)
-    d_curent_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
-                                        current_id]
-    f.close()
-
-    f = nc.Dataset(name_dist)
-    d_neig_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
-                                      neig_ids.flatten().astype(int)]
+    if isinstance(neig_ids, int):
+        d_curent_neig = f.variables["Dist"][neig_ids,
+                                            current_id]
+        d_neig_neig = f.variables["Dist"][neig_ids,
+                                          neig_ids]
+    else:
+        d_curent_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
+                                            current_id]
+        d_neig_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
+                                          neig_ids.flatten().astype(int)]
     f.close()
 
     rho_par_predicted_obs = [GC(d_curent_neig, c_par) for c_par in c]
@@ -1126,7 +1176,6 @@ def spatial_assim(lat_idx, lon_idx, step, j):
 
         save_space_flag = False
         Ensemble.iter_update(create=False)
-        return None
 
     # Save updated ensemble
     if j < cfg.max_iterations-1 and save_space_flag:
@@ -1146,6 +1195,7 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     return None
 
 
+
 def collect_results(lat_idx, lon_idx):
 
     date_ini = cfg.date_ini
@@ -1160,17 +1210,16 @@ def collect_results(lat_idx, lon_idx):
     # create dates:
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
-    del_t = [date_ini + dt.timedelta(hours=n)
-             for n in range(int((date_end - date_ini).days * 24 + 24))]
+    del_t = ifn.generate_dates(date_ini, date_end)
 
     # loop over files to retrieve results
     ini_DA_window = domain_steps()
 
     # create filenames
-    DA_Results = model.init_result(del_t, DA=True)
-    updated_FSM = model.init_result(del_t)
-    sd_FSM = model.init_result(del_t)
-    OL_FSM = model.init_result(del_t)
+    DA_Results = model.init_result(del_t, DA=True)  # DA parameter
+    updated_Sim = model.init_result(del_t)  # posterior simulaiton
+    sd_Sim = model.init_result(del_t)       # posterios stndr desv
+    OL_Sim = model.init_result(del_t)       # OL simulation
 
     # HACK: fake time_dict
     time_dict = {'Assimilaiton_steps':
@@ -1211,15 +1260,16 @@ def collect_results(lat_idx, lon_idx):
         # extract psoterior parameters
         for cont, var_p in enumerate(cfg.vars_to_perturbate):
 
-            # Get perturbation parameters"""
-            noise_ens_temp = [Ensemble.noise[x][var_p]
-                              for x in range(len(Ensemble.noise))]
+            noise_ens_temp = [Ensemble.noise_iter[x][var_p]
+                              for x in range(len(Ensemble.noise_iter))]
             noise_ens_temp = np.vstack(noise_ens_temp)
+            noise_ens_temp = flt.transform_space(noise_ens_temp, 'to_normal',
+                                             pert_stra=cfg.perturbation_strategy[cont],
+                                             vari = var_p)
 
-            noise_tmp_avg = np.average(noise_ens_temp, axis=0,
-                                       weights=Ensemble.wgth)
-            noise_tmp_sd = flt.weighted_std(noise_ens_temp, axis=0,
-                                            weights=Ensemble.wgth)
+            d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
+            noise_tmp_avg = d1.mean
+            noise_tmp_sd = d1.std
 
             step_results[var_p + "_noise_mean"] = noise_tmp_avg
             step_results[var_p + "_noise_sd"] = noise_tmp_sd
@@ -1227,21 +1277,21 @@ def collect_results(lat_idx, lon_idx):
         model.storeDA(DA_Results, step_results, Ensemble.observations,
                       Ensemble.errors, time_dict, step)
 
-        model.store_sim(updated_FSM, sd_FSM, Ensemble,
+        model.store_sim(updated_Sim, sd_Sim, Ensemble,
                         time_dict, step)
 
     # the whole OL is stored in the last Ensemble
     try:
-        model.storeOL(OL_FSM, Ensemble, Ensemble.observations,
+        model.storeOL(OL_Sim, Ensemble, Ensemble.observations,
                       time_dict, step)
     except NameError:
         pass
 
     # Write results
     cell_data = {"DA_Results": DA_Results,
-                 "OL_FSM": OL_FSM,
-                 "updated_FSM": updated_FSM,
-                 "sd_FSM": sd_FSM}
+                 "OL_Sim": OL_Sim,
+                 "updated_Sim": updated_Sim,
+                 "sd_Sim": sd_Sim}
 
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)
@@ -1254,3 +1304,4 @@ def collect_results(lat_idx, lon_idx):
             "_" + str(lon_idx) + ".pkl.blp"
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
         ifn.io_write(name_ensemble, ensemble_list)
+
