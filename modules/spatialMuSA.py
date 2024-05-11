@@ -255,7 +255,7 @@ def calculate_distances():
     else:
         pass
 
-    if cfg.dimension_reduction:
+    if cfg.dimension_reduction is None:
 
         d = distance.cdist(coords[orderows, :],
                            coords[orderows, :],
