@@ -261,8 +261,5 @@ if __name__ == "__main__":
         mp.set_start_method('spawn', force=True)
 
     check_platform()
-    import time
-    start = time.time()
-    MuSA()
-    print(time.time() - start)
 
+    MuSA()

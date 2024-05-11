@@ -22,6 +22,7 @@ import warnings
 import pyarrow as pa
 import pyarrow.csv as csv
 import numpy as np
+import netCDF4 as nc
 import modules.internal_fns as ifn
 from statsmodels.stats.weightstats import DescrStatsW
 if cfg.DAsord:
@@ -352,8 +353,10 @@ def stable_forcing(forcing_df):
     temp_forz_def["RH"].values[temp_forz_def["RH"].values < 0] = 1
 
     # remove small vegetation
-    temp_forz_def["vegh"].values[temp_forz_def["vegh"].values < temp_forz_def["hbas"].values +1] = 0.0
-    temp_forz_def["VAI"].values[temp_forz_def["vegh"].values < temp_forz_def["hbas"].values +1] = 0.0
+    temp_forz_def["vegh"].values[temp_forz_def["vegh"].values <
+                                 temp_forz_def["hbas"].values + 1] = 0.0
+    temp_forz_def["VAI"].values[temp_forz_def["vegh"].values <
+                                temp_forz_def["hbas"].values + 1] = 0.0
 
     return temp_forz_def
 
@@ -689,9 +692,17 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                     frocing_var_names["Wind_var_name"],
                                     date_ini, date_end)
 
-        press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                     frocing_var_names["Press_var_name"],
-                                     date_ini, date_end)
+        if frocing_var_names["Press_var_name"] == "from_DEM":
+
+            with nc.Dataset(cfg.dem_path) as dem:
+                topo = dem.variables[cfg.nc_dem_varname][lat_idx, lon_idx]
+                sfc_pres = met.pres_from_dem(topo)
+                press = np.full_like(wind, sfc_pres)
+
+        else:
+            press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         frocing_var_names["Press_var_name"],
+                                         date_ini, date_end)
 
         # Search for parameters or use the default settings
         # vegetation parameters

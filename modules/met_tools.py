@@ -74,6 +74,15 @@ def pp_temp_thld_log(ta2, precc):
     return liquid_prec, solid_prec
 
 
+def pres_from_dem(topo):
+    # From Micromet (Liston & Elder, 2006 https://doi.org/10.1175/JHM486.1)
+
+    one_atmos = 101300.0
+    scale_ht = 8000.0
+    sfc_pressure = one_atmos * np.exp(- topo/scale_ht)
+    return sfc_pressure
+
+
 def linear_liston(ta2, precc):
 
     temp_C = ta2-cnt.KELVING_CONVER
