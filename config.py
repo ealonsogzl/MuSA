@@ -199,6 +199,9 @@ lon_obs_var_name = "easting"
 # part of the forcing, those defined in constants.py will be used.
 # These parameters can be included within the assimilation
 
+#Press_var_name can be "Press_var_name": "from_DEM". With this option, a
+# stationary pressure value is estimated from the DEM (if provided) 
+# assuming standard atmosphere.
 frocing_var_names = {"SW_var_name": "SW",
                      "LW_var_name": "LW",
                      "Precip_var_name": "PRECC",
