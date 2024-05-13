@@ -203,6 +203,7 @@ def MuSA():
 
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
+
             # generate GSC maps
             if cfg.MPI:
                 if rank == 0:
@@ -226,7 +227,12 @@ def MuSA():
                 ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
 
                 # Wait untill all ensembles are created
-                spM.wait_for_ensembles(step, 0)
+                if cfg.MPI:
+                    if rank == 0:
+                        spM.wait_for_ensembles(step, rank)
+                    comm.Barrier()
+                else:
+                    spM.wait_for_ensembles(step, 0)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
@@ -237,7 +243,12 @@ def MuSA():
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
 
                     # Wait untill all ensembles are updated and remove prior
-                    spM.wait_for_ensembles(step, 0, j)
+                    if cfg.MPI:
+                        if rank == 0:
+                            spM.wait_for_ensembles(step, rank, j)
+                        comm.Barrier()
+                    else:
+                        spM.wait_for_ensembles(step, 0, j)
 
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]
