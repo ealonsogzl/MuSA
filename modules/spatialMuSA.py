@@ -13,6 +13,8 @@ import numpy as np
 import netCDF4 as nc
 import datetime as dt
 from scipy.spatial import distance
+from scipy.sparse import lil_matrix, csc_array
+import sksparse
 from scipy.interpolate import griddata, RegularGridInterpolator
 from scipy.ndimage import rotate
 from sklearn.preprocessing import StandardScaler
@@ -36,6 +38,7 @@ else:
     raise Exception('Model not implemented')
 import copy
 from statsmodels.stats.weightstats import DescrStatsW
+
 
 def GC(d, c):
 
@@ -192,6 +195,7 @@ def get_topo_arr():
         TPI = np.zeros_like(dem_arr)
 
     # winstral wind parameter
+
     try:
         winstral_sx = Sx(dem_arr)
     except Exception:
@@ -215,7 +219,7 @@ def get_topo_arr():
     return topo_dic
 
 
-def calculate_distances():
+def calculate_coords():
 
     mask = cfg.nc_maks_path
 
@@ -238,7 +242,7 @@ def calculate_distances():
     if cfg.dimension_reduction == 'PCA':
 
         x_scaled = StandardScaler().fit_transform(coords)
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=4)
         coords = pca.fit_transform(x_scaled)
         # Order to force PD
         orderows = np.lexsort((coords[:, 0], coords[:, 1]))
@@ -255,23 +259,13 @@ def calculate_distances():
     else:
         pass
 
-    if cfg.dimension_reduction is None:
-
-        d = distance.cdist(coords[orderows, :],
-                           coords[orderows, :],
-                           'euclidean')
-    else:
-        d = distance.cdist(coords[orderows, :],
-                           coords[orderows, :],
-                           cfg.dist_algo)
-
-    return d, orderows
+    return coords, orderows
 
 
 def save_distance(d, orderows, prior_id):
 
     spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
-    #mask = cfg.nc_maks_path
+    # mask = cfg.nc_maks_path
 
     name_dist = "dist_" + str(prior_id) + ".nc"
     name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
@@ -297,12 +291,13 @@ def save_distance(d, orderows, prior_id):
     f.createDimension('X', d.shape[1])
 
     # float 64 is necesary, otherwise distance matrix is not PD
-    distnc = f.createVariable('Dist', np.float64, ('Y', 'X'))
+    distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
+                              zlib=True, complevel=4, fletcher32=True,
+                              chunksizes=(len(orderows), 1))
 
     distnc[:, :] = d
 
     f.close()
-    
 
 
 def closePD(C):
@@ -327,17 +322,25 @@ def GSC(mu, sigma, rho, orderows):
     # rho = get_rho()
     n = rho.shape[0]
     C = rho * sigma**2
-
     try:
-        S = np.linalg.cholesky(C)
-        # S = spcho.cholesky(C)
+        if cfg.sparse_matrix:
+            S = sksparse.cholmod.cholesky(C, ordering_method='natural').L()
 
-    except np.linalg.LinAlgError:
-        if cfg.closePDmethod:
-            print("rho is not positive-define, finding closer PD...")
-            C = closePD(C)
-            print("trying Cholesky decomposition again...")
+        else:
             S = np.linalg.cholesky(C)
+
+    except (np.linalg.LinAlgError, sksparse.cholmod.CholmodNotPositiveDefiniteError):
+        if cfg.sparse_matrix:
+            raise Exception("ClosePD not posible with sparse matrix yet")
+        if cfg.closePDmethod:
+            while True:
+                print("rho is not positive-define, finding closer PD...")
+                C = closePD(C)
+                try:
+                    print("trying Cholesky decomposition again...")
+                    S = np.linalg.cholesky(C)
+                except np.linalg.LinAlgError:
+                    pass
         # except spcho.CholmodNotPositiveDefiniteError:
         else:
 
@@ -388,14 +391,94 @@ def get_rho(prior_id):
 
     c = cfg.c
 
-    d, orderows = calculate_distances()
+    if c.count(c[0]) == len(c):  # save memory if all c are the same
+        c = [c[0]]
 
-    save_distance(d, orderows, prior_id)
+    coords, orderows = calculate_coords()
 
-    if all(x == c[0] for x in c):  # avoid to compute rho more than
-        rho_uni = GC(d, c[0])
-        rho = [rho_uni for _ in range(len(c))]
-    else:
+    if cfg.sparse_matrix:
+
+        # create netcdf to save distances line by line
+        spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
+
+        name_dist = "dist_" + str(prior_id) + ".nc"
+        name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
+
+        f = nc.Dataset(name_dist, 'w', format='NETCDF4')
+
+        f.createDimension('Y', coords.shape[0])
+        f.createDimension('X', coords.shape[0])
+
+        # float 64 is necesary, otherwise distance matrix is not PD
+        distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
+                                  zlib=True, complevel=4, fletcher32=True,
+                                  chunksizes=(coords.shape[0], 1))
+
+        f.close()
+
+        # allocate lil_mat
+
+        rho_spar = lil_matrix((coords.shape[0], coords.shape[0]))
+        rho_spar = [rho_spar.copy() for _ in range(len(c))]
+
+        ids = np.argsort(orderows)  # ids to recover distance mat geometry
+        dist_nc = nc.Dataset(name_dist, 'a')
+
+        # loop over rows to avoid calculate all distances
+
+        # TODO: look into to avoid this loop, KDTree is super fast.
+        # However, re-ordering the sparse matrix after the kdtree and store it
+        # in the netcdf for later usage makes everything slower.
+        # Also, carefull with the Minkowski p-norm in
+        # KDTree.sparse_distance_matrix
+        # https://stackoverflow.com/questions/50165419/memory-efficient-storage-of-large-distance-matrices
+
+        for n in range(coords.shape[0]):
+            print(n)
+
+            tmp_row = coords[orderows[n], :][np.newaxis, :]
+
+            if cfg.dimension_reduction is None:
+                tmp_dis = distance.cdist(coords[orderows, :],
+                                         tmp_row,
+                                         'euclidean')
+            else:
+                tmp_dis = distance.cdist(coords[orderows, :],
+                                         tmp_row,
+                                         cfg.dist_algo)
+
+            # compute GC row by row
+            rho_tmp = [GC(tmp_dis, c[nn]) for nn in range(len(c))]
+
+            # Insert row rho in the preallocated lil_mat
+            for nn in range(len(c)):
+                rho_spar[nn][n, :] = rho_tmp[nn]
+
+            # Saves row distances in the netcdf
+            tmp_dis[tmp_dis > max(c)*2] = np.nan
+            dist_nc['Dist'][:, ids[n]] = tmp_dis[orderows]
+            # d = d[:, orderows][orderows]
+        dist_nc.close()
+
+        # transform frmo lil_mat to csc to perform the chol latter
+        rho = [csc_array(nn) for nn in rho_spar]
+
+    else:  # if not sparse matrix, compute the complete dist matrix
+
+        if cfg.dimension_reduction is None:
+
+            d = distance.cdist(coords[orderows, :],
+                               coords[orderows, :],
+                               'euclidean')
+        else:
+
+            d = distance.cdist(coords[orderows, :],
+                               coords[orderows, :],
+                               cfg.dist_algo)
+
+        d[d > max(c)*2] = np.nan
+        save_distance(d, orderows, prior_id)
+
         rho = [GC(d, c_par) for c_par in c]
 
     return rho, orderows
@@ -477,8 +560,10 @@ def create_corelated_nc(prior_id):
 
         mu = mean_errors[var]
         sigma = sd_errors[var]
-
-        gsc_arr = GSC(mu, sigma, rho[count], orderows)
+        if cfg.c.count(cfg.c[0]) == len(cfg.c):  # save memory if all c are =
+            gsc_arr = GSC(mu, sigma, rho[0], orderows)
+        else:
+            gsc_arr = GSC(mu, sigma, rho[count], orderows)
 
         if perturbation_strategy[count] == "lognormal":
             gsc_arr = np.exp(gsc_arr)
@@ -638,12 +723,11 @@ def obs_mask():
 
 def get_idrow_from_cor(lat_idx, lon_idx):
 
-
     lat_idx = np.asarray(lat_idx)
     lon_idx = np.asarray(lon_idx)
-    
+
     mask = cfg.nc_maks_path
-    
+
     n_lats, n_lons = ifn.get_dims()
     lats = np.arange(n_lats)
     lons = np.arange(n_lons)
@@ -653,26 +737,24 @@ def get_idrow_from_cor(lat_idx, lon_idx):
 
     # Combina las matrices resultantes en una única matriz de coordenadas
     grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
-    
+
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask)
         mask_value = mask.variables['mask'][:]
         mask.close()
         mask = mask_value.flatten()
 
-        grid = grid[mask == 1,:]
+        grid = grid[mask == 1, :]
         grid = np.squeeze(grid)
 
+    if lat_idx.size == 1:
 
-
-    if lat_idx.size ==1:
-        
-        idrow = int(np.where((grid[:,0] == lat_idx) & 
-                           (grid[:,1] == lon_idx) )[0])
+        idrow = int(np.where((grid[:, 0] == lat_idx) &
+                             (grid[:, 1] == lon_idx))[0])
     else:
-        idrow = np.concatenate([np.where((grid[:,0] == lat_idx[x]) & 
-                           (grid[:,1] == lon_idx[x]) )[0] 
-                  for x in range(lat_idx.size)])
+        idrow = np.concatenate([np.where((grid[:, 0] == lat_idx[x]) &
+                                         (grid[:, 1] == lon_idx[x]))[0]
+                                for x in range(lat_idx.size)])
 
     return idrow
 
@@ -692,7 +774,7 @@ def read_distances(lat_idx, lon_idx):
     distances = f.variables["Dist"][idrow, :]
     f.close()
 
-    distances[distances > c*2] = np.nan
+    # distances[distances > c*2] = np.nan # far distances already masked
 
     # obs mask array
     # name_mask_file = "obs_mask.blp"
@@ -709,7 +791,7 @@ def read_distances(lat_idx, lon_idx):
 
 
 def create_neigb(lat_idx, lon_idx, step, j):
-    
+
     mask = cfg.nc_maks_path
 
     distances = read_distances(lat_idx, lon_idx)
@@ -726,18 +808,17 @@ def create_neigb(lat_idx, lon_idx, step, j):
 
     # Combina las matrices resultantes en una única matriz de coordenadas
     grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
-    
+
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask)
         mask_value = mask.variables['mask'][:]
         mask.close()
         mask = mask_value.flatten()
 
-        grid = grid[mask == 1,:]
+        grid = grid[mask == 1, :]
         grid = np.squeeze(grid)
-        
-    neigb = np.squeeze(grid[id_neigb])
 
+    neigb = np.squeeze(grid[id_neigb])
 
     if j == 0:
         neigb = ["{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
@@ -1195,7 +1276,6 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     return None
 
 
-
 def collect_results(lat_idx, lon_idx):
 
     date_ini = cfg.date_ini
@@ -1264,8 +1344,8 @@ def collect_results(lat_idx, lon_idx):
                               for x in range(len(Ensemble.noise_iter))]
             noise_ens_temp = np.vstack(noise_ens_temp)
             noise_ens_temp = flt.transform_space(noise_ens_temp, 'to_normal',
-                                             pert_stra=cfg.perturbation_strategy[cont],
-                                             vari = var_p)
+                                                 pert_stra=cfg.perturbation_strategy[cont],
+                                                 vari=var_p)
 
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
@@ -1304,4 +1384,3 @@ def collect_results(lat_idx, lon_idx):
             "_" + str(lon_idx) + ".pkl.blp"
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
         ifn.io_write(name_ensemble, ensemble_list)
-
