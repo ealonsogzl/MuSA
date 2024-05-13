@@ -11,12 +11,11 @@ python clean.py
 cat << end_jobarray > slurmScript.sh
 #!/bin/bash
 #SBATCH --export=none
-#SBATCH --account=cesbio
 #SBATCH --job-name=Musa
 #SBATCH --array=1-${njobs}
 #SBATCH -N 1
 #SBATCH -n ${nprocs}
-#SBATCH --mem-per-cpu=2G
+#SBATCH --mem-per-cpu=1G
 #SBATCH --time=24:00:00
 
 # Load software
