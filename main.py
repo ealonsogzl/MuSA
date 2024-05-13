@@ -26,14 +26,26 @@ elif cfg.parallelization == "HPC.array":
 else:
     pass
 from modules.cell_assim import cell_assimilation
+if cfg.MPI:
+    from mpi4py import MPI
 
 
 def MuSA():
 
     if cfg.parallelization == "HPC.array":
         pass
+    elif cfg.MPI:
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+
+        if rank == 0:
+            model.model_compile()
+        comm.Barrier()
+
     else:
         model.model_compile()
+
     """
     This is the main function. Here the parallelization scheme and the
     implementation is selected. This function is just a wrapper of the real
@@ -192,7 +204,12 @@ def MuSA():
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
             # generate GSC maps
-            spM.generate_prior_maps_onenode(ini_DA_window)
+            if cfg.MPI:
+                if rank == 0:
+                    spM.generate_prior_maps_onenode(ini_DA_window)
+                comm.Barrier()
+            else:
+                spM.generate_prior_maps_onenode(ini_DA_window)
 
             # create obs mask
             # spM.generate_obs_mask(0)
@@ -263,3 +280,4 @@ if __name__ == "__main__":
     check_platform()
 
     MuSA()
+
