@@ -288,14 +288,23 @@ def model_read_output(fsm_path, read_dump=True):
         state = snd_ord(state)
 
     if (state.isnull().values.any()):
-        raise Exception('NaN found in FSM2 output.\n Checklist:\n'
+        error_dir = shutil.copytree(fsm_path,
+                                    "./DATA/ERRORS/{cords}".
+                                    format(cords=os.path.basename(fsm_path)),
+                                    dirs_exist_ok=True)
+
+        raise Exception('NaN found in FSM2 output.\n'
+                        'Error dir can be found in :{error_dir}\n'
+                        'Checklist:\n'
                         u'\u2022 Check main forcing, its units and internal '
                         'unit conversion in constants.py\n'
                         u'\u2022 Wrong perturbation_strategy?\n'
-                        u'\u2022 Check sd_errors/mean_errors in constants.py\n'
+                        u'\u2022 Check sd_errors/mean_errors in constants.py,'
+                        ' be carefull with the creation of glaciers\n'
                         u' If this is all right try some of this:\n'
                         u'\u2022 Change da_algorithm\n'
-                        u'\u2022 Change FORTRAN compiler\n')
+                        u'\u2022 Change FORTRAN compiler\n'.format(
+                            error_dir=error_dir))
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
@@ -1074,3 +1083,4 @@ def unit_conversion(forcing_df):
                                   numpy_dtypes_only=True)
 
     return forcing_df
+
