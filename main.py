@@ -33,7 +33,11 @@ if cfg.MPI:
 def MuSA():
 
     if cfg.parallelization == "HPC.array":
-        pass
+        if (cfg.MPI and cfg.implementation == 'Spatial_propagation'):
+            raise Exception('Spatial_propagation with'
+                            'HPC.array can not MPI yet')
+        else:
+            pass
     elif cfg.MPI:
 
         comm = MPI.COMM_WORLD
@@ -116,7 +120,12 @@ def MuSA():
                   str(HPC_task_id) + " in " + str(nprocess) + " cores")
 
             # compile FSM
-            model.model_compile_HPC(HPC_task_id)
+            if cfg.MPI:
+                if rank == 0:
+                    model.model_compile_HPC(HPC_task_id)
+                comm.Barrier()
+            else:
+                model.model_compile_HPC(HPC_task_id)
 
             inputs = [grid[ids, 0], grid[ids, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
