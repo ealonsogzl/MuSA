@@ -54,6 +54,11 @@ def pp_psychrometric(ta2, rh2, precc):
 
     liquid_prec = precc * rain_fr
     solid_prec = precc * (1-rain_fr)
+
+    # Remove very low precipitations that can break the model
+    solid_prec[solid_prec < 0.1/3600] = 0
+    liquid_prec[liquid_prec < 0.1/3600] = 0
+
     return liquid_prec, solid_prec
 
 
