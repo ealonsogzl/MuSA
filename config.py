@@ -99,7 +99,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "point_scale"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -109,7 +109,7 @@ var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "HPC.array"
 parallelization = "multiprocessing"
-MPI = False  # Note: not tested
+MPI = False  # Note: Experimental.
 nprocess = 8  # Note: if None, the number of processors will be estimated
 
 aws_lat = 4735225.54  # Latitude in case of point_scale

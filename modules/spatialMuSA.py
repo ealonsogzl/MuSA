@@ -588,27 +588,26 @@ def generate_prior_maps_onenode(ini_DA_window):
         create_corelated_nc(id_win)
 
 
-def generate_prior_maps(GSC_filenames, ini_DA_window, HPC_task_id):
+def generate_prior_maps(GSC_filenames, ini_DA_window):
 
-    spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
+    # spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
 
     for id_win in range(len(ini_DA_window)):
-        # generate GSC in some HPC tasks
-        if HPC_task_id == id_win:
-            create_corelated_nc(id_win)
-            break  # just a GSC per taks
-        else:
-            continue
 
+        create_corelated_nc(id_win)
+
+    """
     files = [os.path.join(spatial_propagation_storage_path, x)
              for x in GSC_filenames]
 
     # then wait until finish
+
     while True:
         if all(list(map(os.path.isfile, files))):
             break
         else:
             time.sleep(5)
+    """
 
 
 def read_parameter(GSC_filename, lat_idx, lon_idx, var_tmp, mbr):

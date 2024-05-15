@@ -80,6 +80,14 @@ python main.py
 This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
 An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.sh) is also provided to run MuSA in distributed supercomputing facilities using PBS (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](https://github.com/ealonsogzl/MuSA/blob/master/run_slurm.sh) arrays.
 
+If the spatial propagation is activated, it is necessary to launch the pre-processor that activates the spatial prior sampling
+
+```
+conda activate MuSAenv
+python pre_main_spatial.py
+python main.py
+```
+
 ### How to cite
 #### MuSA
 -  Alonso-González, E., Aalstad, K., Baba, M. W., Revuelto, J., López-Moreno, J. I., Fiddes, J., Essery, R., and Gascoin, S.: The Multiple Snow Data Assimilation System (MuSA v1.0), Geosci. Model Dev., 15, 9127–9155, https://doi.org/10.5194/gmd-15-9127-2022, 2022. 

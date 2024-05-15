@@ -157,17 +157,6 @@ def MuSA():
 
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
-            # generate filenames
-            GSC_filenames = [str(x) + '_GSC.nc'
-                             for x in range(len(ini_DA_window))]
-
-            # check that GSC can be created
-            # TODO: allow more than one GSC per task
-            if HPC_task_number < len(GSC_filenames):
-                raise Exception('Increase number of HPC.array')
-
-            # generate prior maps iterating over seasons
-            spM.generate_prior_maps(GSC_filenames, ini_DA_window, HPC_task_id)
 
             # DA_loop
             # create a pool inside each task
@@ -212,17 +201,6 @@ def MuSA():
 
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
-
-            # generate GSC maps
-            if cfg.MPI:
-                if rank == 0:
-                    spM.generate_prior_maps_onenode(ini_DA_window)
-                comm.Barrier()
-            else:
-                spM.generate_prior_maps_onenode(ini_DA_window)
-
-            # create obs mask
-            # spM.generate_obs_mask(0)
 
             # DA loop
             for gsc_count, step in enumerate(range(len(ini_DA_window))):
@@ -300,4 +278,3 @@ if __name__ == "__main__":
     check_platform()
 
     MuSA()
-
