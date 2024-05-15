@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple example of running MuSA with a PBS job array
+# Simple example of running MuSA with a Slurm job array
 
 njobs=$1
 nprocs=$2
@@ -23,7 +23,7 @@ module load gcc
 module load conda
 conda activate MuSA
 
-# cd to directory from which qsub whas run 
+# cd to directory from which the job whas run 
 cd "\${SLURM_SUBMIT_DIR}"
 
 # Run python script

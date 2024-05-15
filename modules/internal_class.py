@@ -28,15 +28,16 @@ class SnowEnsemble():
     (rows are timesteps)
     """
 
-    def __init__(self, lat_idx, lon_idx, time_dict):
+    def __init__(self, lat_idx, lon_idx, real_time_restart=False):
 
         self.members = cfg.ensemble_members
         self.temp_dest = None
-        self.time_dict = time_dict
         self.lat_idx = lat_idx
         self.lon_idx = lon_idx
         self.forcing = []
         self.Neff = None
+
+        self.real_time_restart = real_time_restart
 
         # Inicialice open loop storage lists
         self.origin_state = pd.DataFrame()
@@ -94,10 +95,15 @@ class SnowEnsemble():
 
         model.model_forcing_wrt(forcing_sbst, self.temp_dest, self.step)
 
-        # Write init or dump file from previous run if step != 0
+        # Write init or dump file from previous run if step != 0 or self.real_time_restart
         if cfg.numerical_model in ['FSM2']:
-            if step != 0:
+
+            if step == 0 and self.real_time_restart:
+                model.write_dump(self.origin_dump[-1], self.temp_dest)
+            elif step != 0:
                 model.write_dump(self.origin_dump[step - 1], self.temp_dest)
+            else:
+                pass
 
             # create open loop simulation
             model.model_run(self.temp_dest)
@@ -107,7 +113,10 @@ class SnowEnsemble():
                 model.model_read_output(self.temp_dest)
 
         elif cfg.numerical_model in ['dIm', 'snow17']:
-            if step != 0:
+            if step == 0 and self.real_time_restart:
+                origin_state_tmp, origin_dump_tmp =\
+                    model.model_run(forcing_sbst, self.origin_dump[-1])
+            elif step != 0:
                 origin_state_tmp, origin_dump_tmp =\
                     model.model_run(forcing_sbst, self.origin_dump[step - 1])
             else:
@@ -122,15 +131,11 @@ class SnowEnsemble():
                                        origin_state_tmp.copy()])
         self.origin_dump.append(origin_dump_tmp.copy())
 
-        # Avoid ensemble generation if direct insertion
-        if cfg.da_algorithm == "direct_insertion":
-            return None
-
         # Ensemble generator
         # TODO: Parallelize this loop
         for mbr in range(self.members):
 
-            if step == 0 or readGSC:
+            if (step == 0 and not self.real_time_restart) or readGSC:
                 if readGSC:
 
                     GSC_path = os.path.join(
@@ -181,10 +186,14 @@ class SnowEnsemble():
                                                noise=noise_tmp, update=True)
 
             # writte perturbed forcing
-            model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
+            if self.real_time_restart:
+                model.model_forcing_wrt(member_forcing, self.temp_dest, 1)
+            else:
+                model.model_forcing_wrt(member_forcing,
+                                        self.temp_dest, self.step)
 
             if cfg.numerical_model in ['FSM2']:
-                if step != 0:
+                if step != 0 or self.real_time_restart:
                     if cfg.da_algorithm in ['PBS', 'PF']:
                         model.write_dump(self.out_members[mbr], self.temp_dest)
                     else:  # if kalman, write updated dump
@@ -196,7 +205,7 @@ class SnowEnsemble():
                 state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
 
             elif cfg.numerical_model in ['dIm', 'snow17']:
-                if step != 0:
+                if step != 0 or self.real_time_restart:
                     if cfg.da_algorithm in ['PBS', 'PF']:
                         state_tmp, dump_tmp =\
                             model.model_run(member_forcing,
@@ -248,11 +257,15 @@ class SnowEnsemble():
                     met.perturb_parameters(self.forcing, noise=noise_tmp,
                                            update=True)
 
-                model.model_forcing_wrt(member_forcing, self.temp_dest,
-                                        self.step)
+                if self.real_time_restart:
+                    model.model_forcing_wrt(member_forcing, self.temp_dest, 1)
+                else:
+                    model.model_forcing_wrt(member_forcing,
+                                            self.temp_dest, self.step)
 
                 if cfg.numerical_model in ['FSM2']:
-                    if step != 0:
+
+                    if step != 0 or self.real_time_restart:
                         model.write_dump(self.out_members_iter[mbr],
                                          self.temp_dest)
 
@@ -263,7 +276,7 @@ class SnowEnsemble():
 
                 elif cfg.numerical_model in ['dIm', 'snow17']:
 
-                    if step != 0:
+                    if step != 0 or self.real_time_restart:
                         state_tmp, dump_tmp =\
                             model.model_run(member_forcing,
                                             self.out_members_iter[mbr])
@@ -343,7 +356,7 @@ class SnowEnsemble():
             model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
             if cfg.numerical_model in ['FSM2']:
-                if step != 0:
+                if step != 0 or self.real_time_restart:
 
                     model.write_dump(self.out_members_mcmc[mbr],
                                      self.temp_dest)
@@ -353,7 +366,7 @@ class SnowEnsemble():
                 state_tmp, dump_tmp = model.model_read_output(self.temp_dest)
 
             elif cfg.numerical_model in ['dIm', 'snow17']:
-                if step != 0:
+                if step != 0 or self.real_time_restart:
                     state_tmp, dump_tmp =\
                         model.model_run(member_forcing,
                                         self.out_members_mcmc[mbr])

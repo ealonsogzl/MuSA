@@ -6,10 +6,10 @@ Main function performing DA over a cell
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import os
-import copy
 import pdcast as pdc
 import warnings
 import numpy as np
+import pandas as pd
 import config as cfg
 import modules.internal_fns as ifn
 import modules.filters as flt
@@ -28,6 +28,16 @@ else:
 def cell_assimilation(lat_idx, lon_idx):
 
     save_ensemble = cfg.save_ensemble
+    real_time_restart = cfg.real_time_restart
+
+    if save_ensemble:
+        name_ensemble = "ensbl_" + str(lat_idx) +\
+            "_" + str(lon_idx) + ".pkl.blp"
+        name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
+    if real_time_restart:
+        name_restart = "init_" + str(lat_idx) +\
+            "_" + str(lon_idx) + ".pkl.blp"
+        name_restart = os.path.join(cfg.real_time_restart_path, name_restart)
 
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)
@@ -71,11 +81,15 @@ def cell_assimilation(lat_idx, lon_idx):
         mcmcSD_Sim = model.init_result(time_dict["del_t"])
 
     # initialice Ensemble class
-    Ensemble = SnowEnsemble(lat_idx, lon_idx, time_dict)
 
-    # Initialice Ensemble list if enabled in cfg
-    if save_ensemble:
-        ensemble_list = []
+    if real_time_restart:  # open previous ensemble if exists
+        try:
+            Ensemble = ifn.io_read(name_restart)
+            Ensemble.real_time_restart = True
+        except FileNotFoundError:
+            Ensemble = SnowEnsemble(lat_idx, lon_idx)
+    else:
+        Ensemble = SnowEnsemble(lat_idx, lon_idx)
 
     # Loop over assimilation steps
     for step in range(len(time_dict["Assimilaiton_steps"])-1):
@@ -99,11 +113,6 @@ def cell_assimilation(lat_idx, lon_idx):
                         time_dict, step, save_prior=True)
 
         step_results = flt.implement_assimilation(Ensemble, step)
-
-        if save_ensemble:
-            # deepcopy necesary to not to change all
-            Ensemble_tmp = copy.deepcopy(Ensemble)
-            ensemble_list.append(Ensemble_tmp)
 
         # Store results in dataframes
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
@@ -171,8 +180,11 @@ def cell_assimilation(lat_idx, lon_idx):
     ifn.io_write(filename, ifn.downcast_output(cell_data))
 
     # Save ensemble
-    if save_ensemble:
-        name_ensemble = "ensbl_" + str(lat_idx) +\
-            "_" + str(lon_idx) + ".pkl.blp"
-        name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
-        ifn.io_write(name_ensemble, ensemble_list)
+    if (save_ensemble):
+        ifn.io_write(name_ensemble, Ensemble)
+
+    if real_time_restart:  # save space
+        Ensemble.forcing = []  # save some space
+        Ensemble.origin_state = pd.DataFrame()
+        Ensemble.state_membres = [0 for i in range(Ensemble.members)]
+        ifn.io_write(name_restart, Ensemble)

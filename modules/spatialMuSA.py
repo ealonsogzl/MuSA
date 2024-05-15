@@ -10,6 +10,7 @@ import time
 import glob
 import shutil
 import numpy as np
+import pandas as pd
 import netCDF4 as nc
 import datetime as dt
 from scipy.spatial import distance
@@ -1032,6 +1033,8 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
 
 def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
+    real_time_restart = cfg.real_time_restart
+
     main_forcing, time_dict, observations, errors = prepare_forcing(lat_idx,
                                                                     lon_idx,
                                                                     step)
@@ -1055,7 +1058,19 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
     if step == 0:
 
-        Ensemble = SnowEnsemble(lat_idx, lon_idx, time_dict)
+        if real_time_restart:  # open previous ensemble if exists
+            try:
+
+                name_restart = "init_" + str(lat_idx) +\
+                    "_" + str(lon_idx) + ".pkl.blp"
+                name_restart = os.path.join(cfg.real_time_restart_path,
+                                            name_restart)
+                Ensemble = ifn.io_read(name_restart)
+                Ensemble.real_time_restart = True
+
+            except FileNotFoundError:  # No restart file aval
+                Ensemble = SnowEnsemble(lat_idx, lon_idx)
+
     else:
         # Open cell to create new ensemble
         name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
@@ -1305,10 +1320,6 @@ def collect_results(lat_idx, lon_idx):
     time_dict = {'Assimilaiton_steps':
                  np.append(ini_DA_window, len(del_t))}
 
-    # Initialice Ensemble list if enabled in cfg
-    if cfg.save_ensemble:
-        ensemble_list = []
-
     # loop over DA steps
     for step in range(len(ini_DA_window)):
 
@@ -1330,11 +1341,6 @@ def collect_results(lat_idx, lon_idx):
         # Rm de ensemble file
         if os.path.isfile(fname):
             os.remove(fname)
-
-        if cfg.save_ensemble:
-            # deepcopy necesary to not to change all
-            Ensemble_tmp = copy.deepcopy(Ensemble)
-            ensemble_list.append(Ensemble_tmp)
 
         step_results = {}
         # extract psoterior parameters
@@ -1383,4 +1389,13 @@ def collect_results(lat_idx, lon_idx):
         name_ensemble = "ensbl_" + str(lat_idx) +\
             "_" + str(lon_idx) + ".pkl.blp"
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
-        ifn.io_write(name_ensemble, ensemble_list)
+        ifn.io_write(name_ensemble, Ensemble)
+
+    if cfg.real_time_restart:  # save space
+        name_restart = "init_" + str(lat_idx) +\
+            "_" + str(lon_idx) + ".pkl.blp"
+        name_restart = os.path.join(cfg.real_time_restart_path, name_restart)
+        Ensemble.forcing = []  # save some space
+        Ensemble.origin_state = pd.DataFrame()
+        Ensemble.state_membres = [0 for i in range(Ensemble.members)]
+        ifn.io_write(name_restart, Ensemble)
