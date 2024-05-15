@@ -26,27 +26,12 @@ elif cfg.parallelization == "HPC.array":
 else:
     pass
 from modules.cell_assim import cell_assimilation
-if cfg.MPI:
-    from mpi4py import MPI
 
 
 def MuSA():
 
     if cfg.parallelization == "HPC.array":
-        if (cfg.MPI and cfg.implementation == 'Spatial_propagation'):
-            raise Exception('Spatial_propagation with'
-                            'HPC.array can not MPI yet')
-        else:
-            pass
-    elif cfg.MPI:
-
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-
-        if rank == 0:
-            model.model_compile()
-        comm.Barrier()
-
+        pass
     else:
         model.model_compile()
 
@@ -120,12 +105,7 @@ def MuSA():
                   str(HPC_task_id) + " in " + str(nprocess) + " cores")
 
             # compile FSM
-            if cfg.MPI:
-                if rank == 0:
-                    model.model_compile_HPC(HPC_task_id)
-                comm.Barrier()
-            else:
-                model.model_compile_HPC(HPC_task_id)
+            model.model_compile_HPC(HPC_task_id)
 
             inputs = [grid[ids, 0], grid[ids, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
@@ -214,12 +194,7 @@ def MuSA():
                 ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
 
                 # Wait untill all ensembles are created
-                if cfg.MPI:
-                    if rank == 0:
-                        spM.wait_for_ensembles(step, rank)
-                    comm.Barrier()
-                else:
-                    spM.wait_for_ensembles(step, 0)
+                spM.wait_for_ensembles(step, 0)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
@@ -230,12 +205,7 @@ def MuSA():
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
 
                     # Wait untill all ensembles are updated and remove prior
-                    if cfg.MPI:
-                        if rank == 0:
-                            spM.wait_for_ensembles(step, rank, j)
-                        comm.Barrier()
-                    else:
-                        spM.wait_for_ensembles(step, 0, j)
+                    spM.wait_for_ensembles(step, 0, j)
 
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]
