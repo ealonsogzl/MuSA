@@ -27,13 +27,6 @@ else:
 
 def cell_assimilation(lat_idx, lon_idx):
 
-    from mpi4py import MPI
-
-    comm = MPI.COMM_WORLD
-    i = comm.Get_rank()
-    p = comm.Get_size()
-    print('proc {}/{}'.format(i, p))
-
     save_ensemble = cfg.save_ensemble
     real_time_restart = cfg.real_time_restart
 
