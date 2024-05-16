@@ -1057,6 +1057,8 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
             except FileNotFoundError:  # No restart file aval
                 Ensemble = SnowEnsemble(lat_idx, lon_idx)
+        else:
+            Ensemble = SnowEnsemble(lat_idx, lon_idx)
 
     else:
         # Open cell to create new ensemble
