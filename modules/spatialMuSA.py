@@ -439,14 +439,9 @@ def get_rho(prior_id):
 
             tmp_row = coords[orderows[n], :][np.newaxis, :]
 
-            if cfg.dimension_reduction is None:
-                tmp_dis = distance.cdist(coords[orderows, :],
-                                         tmp_row,
-                                         'euclidean')
-            else:
-                tmp_dis = distance.cdist(coords[orderows, :],
-                                         tmp_row,
-                                         cfg.dist_algo)
+            tmp_dis = distance.cdist(coords[orderows, :],
+                                     tmp_row,
+                                     cfg.dist_algo)
 
             # compute GC row by row
             rho_tmp = [GC(tmp_dis, c[nn]) for nn in range(len(c))]
@@ -466,16 +461,9 @@ def get_rho(prior_id):
 
     else:  # if not sparse matrix, compute the complete dist matrix
 
-        if cfg.dimension_reduction is None:
-
-            d = distance.cdist(coords[orderows, :],
-                               coords[orderows, :],
-                               'euclidean')
-        else:
-
-            d = distance.cdist(coords[orderows, :],
-                               coords[orderows, :],
-                               cfg.dist_algo)
+        d = distance.cdist(coords[orderows, :],
+                           coords[orderows, :],
+                           cfg.dist_algo)
 
         d[d > max(c)*2] = np.nan
         save_distance(d, orderows, prior_id)
