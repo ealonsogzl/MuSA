@@ -135,9 +135,9 @@ dist_algo = 'euclidean'
 # sparse_matrix Enables sparse matrix algebra. It can save a lot of memory,
 # especially with low c, but it is in testing.
 sparse_matrix = False
-# Optionally perform dimension reduction
+# Optionally perform dimension reduction to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
-
+dim_num = 3 # Number of dimensions if dimension_reduction
 # try to find closePD or raise exception (closePDmethod = None)
 closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
 

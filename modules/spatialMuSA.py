@@ -243,7 +243,7 @@ def calculate_coords():
     if cfg.dimension_reduction == 'PCA':
 
         x_scaled = StandardScaler().fit_transform(coords)
-        pca = PCA(n_components=4)
+        pca = PCA(n_components=cfg.dim_num)
         coords = pca.fit_transform(x_scaled)
         # Order to force PD
         orderows = np.lexsort((coords[:, 0], coords[:, 1]))
@@ -253,7 +253,7 @@ def calculate_coords():
                                  int(coords.shape[0]*0.1),
                                  replace=False)
         Dl2 = distance.cdist(coords[lands, :], coords, cfg.dist_algo)
-        coords = landmark_MDS(Dl2, lands, 2)
+        coords = landmark_MDS(Dl2, lands, cfg.dim_num)
         # Order to force PD
         orderows = np.lexsort((coords[:, 0], coords[:, 1]))
 
