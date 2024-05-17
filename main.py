@@ -26,6 +26,7 @@ elif cfg.parallelization == "HPC.array":
 else:
     pass
 from modules.cell_assim import cell_assimilation
+from mpi4py import MPI
 
 
 def MuSA():
@@ -84,7 +85,11 @@ def MuSA():
             if isinstance(cfg.nprocess, int):
                 nprocess = cfg.nprocess
             else:
-                nprocess = mp.cpu_count() - 1
+                if cfg.MPI:
+                    comm = MPI.COMM_WORLD
+                    nprocess = comm.Get_size() - 1
+                else:
+                    nprocess = mp.cpu_count() - 1
 
             print("Launching " + str(nprocess) + " processes in "
                   + str(mp.cpu_count()) + " processors")
@@ -177,7 +182,11 @@ def MuSA():
             if isinstance(cfg.nprocess, int):
                 nprocess = cfg.nprocess
             else:
-                nprocess = mp.cpu_count() - 1
+                if cfg.MPI:
+                    comm = MPI.COMM_WORLD
+                    nprocess = comm.Get_size() - 1
+                else:
+                    nprocess = mp.cpu_count() - 1
 
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
@@ -248,3 +257,4 @@ if __name__ == "__main__":
     check_platform()
 
     MuSA()
+

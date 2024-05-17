@@ -92,7 +92,7 @@ def chunker(seq, size):
 def pool_wrap(func, inputs, nprocess):
 
     if cfg.MPI:
-        print('MPI not tested yet')
+
         with MPIPoolExecutor() as pool:
             pool.starmap(func, inputs)
     else:

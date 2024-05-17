@@ -219,6 +219,7 @@ def model_compile_HPC(HPC_task_id):
     else:
         while True:
             if os.path.isfile(file_name):
+                time.sleep(5)
                 break
             else:
                 time.sleep(5)

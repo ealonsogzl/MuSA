@@ -1039,6 +1039,19 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         .copy()
 
     obs_flag = ~np.isnan(observations_sbst).all()
+
+    name_ensemble_end = "{step}pri_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
+        step=step,
+        lat=lat_idx,
+        lon=lon_idx,
+        obs=obs_flag)
+
+    name_ensemble_end = os.path.join(cfg.save_ensemble_path, name_ensemble_end)
+    # If file exists adn restart = True, continue to next
+    if cfg.restart_run and os.path.isfile(name_ensemble_end):
+
+        return None
+
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
@@ -1046,6 +1059,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     if step == 0:
 
         if real_time_restart:  # open previous ensemble if exists
+
             try:
 
                 name_restart = "init_" + str(lat_idx) +\
@@ -1056,6 +1070,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                 Ensemble.real_time_restart = True
 
             except FileNotFoundError:  # No restart file aval
+
                 Ensemble = SnowEnsemble(lat_idx, lon_idx)
         else:
             Ensemble = SnowEnsemble(lat_idx, lon_idx)
@@ -1069,9 +1084,9 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                    lon=lon_idx,
                    obs=obs_flag)
 
-        file = os.path.join(cfg.output_path, name_ensemble)
+        name_ensemble = os.path.join(cfg.output_path, name_ensemble)
 
-        Ensemble = ifn.io_read(file)
+        Ensemble = ifn.io_read(name_ensemble)
 
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
@@ -1087,14 +1102,8 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     # Save ensembles, update: I cant, if save space cell without neigb will
     # show cero values
     # Ensemble.save_space()
-    name_ensemble = "{step}pri_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
-        step=step,
-        lat=lat_idx,
-        lon=lon_idx,
-        obs=obs_flag)
 
-    name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
-    ifn.io_write(name_ensemble, Ensemble)
+    ifn.io_write(name_ensemble_end, Ensemble)
 
 
 def wait_for_ensembles(step, HPC_task_id, j=None):
@@ -1196,6 +1205,21 @@ def spatial_assim(lat_idx, lon_idx, step, j):
 
         return None
 
+    # If new file exist from a previous run, continue
+    obs_flag = ~np.isnan(Ensemble.observations).all()
+    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
+        format(step=step,
+               j=j,
+               lat=lat_idx,
+               lon=lon_idx,
+               obs=obs_flag)
+
+    name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
+
+    if cfg.restart_run and os.path.isfile(name_ensemble):
+        # If file exists, continue to next
+        return None
+
     # try to update with neig inf, if any problem just copy prior
 
     try:
@@ -1266,15 +1290,6 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     if j < cfg.max_iterations-1 and save_space_flag:
         Ensemble.save_space()
 
-    obs_flag = ~np.isnan(Ensemble.observations).all()
-    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
-        format(step=step,
-               j=j,
-               lat=lat_idx,
-               lon=lon_idx,
-               obs=obs_flag)
-
-    name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
     ifn.io_write(name_ensemble, Ensemble)
 
     return None

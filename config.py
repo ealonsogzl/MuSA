@@ -110,7 +110,10 @@ var_to_prop = var_to_assim
 # parallelization from "sequential", "multiprocessing" or "HPC.array"
 parallelization = "multiprocessing"
 MPI = False  # Note: Experimental.
-nprocess = 8  # Note: if None, the number of processors will be estimated
+# Note: if nprocess = None, the number of processors will be
+# estimated (max(n)-1). In HPC.array nprocess is an argumet
+# (see e.g. run_slurm.sh).
+nprocess = 8
 
 aws_lat = 4735225.54  # Latitude in case of point_scale
 aws_lon = 710701.28   # Longitude in case of point_scale
@@ -137,7 +140,7 @@ dist_algo = 'euclidean'
 sparse_matrix = False
 # Optionally perform dimension reduction to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
-dim_num = 3 # Number of dimensions if dimension_reduction
+dim_num = 3  # Number of dimensions if dimension_reduction
 # try to find closePD or raise exception (closePDmethod = None)
 closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
 
