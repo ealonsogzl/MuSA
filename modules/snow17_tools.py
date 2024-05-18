@@ -291,11 +291,13 @@ def forcing_table(lat_idx, lon_idx, step=0):
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
         forcing_df = unit_conversion(forcing_df)
-        # write intermediate file to avoid re-reading the nc files
-        ifn.io_write(final_directory, forcing_df)
 
         if len(del_t) != len(forcing_df.index):
             raise Exception("date_end - date_ini longuer than forcing")
+
+        # write intermediate file to avoid re-reading the nc files
+        if cfg.save_int_forcing:
+            ifn.io_write(final_directory, forcing_df)
 
     return forcing_df
 

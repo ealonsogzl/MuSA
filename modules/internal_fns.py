@@ -29,6 +29,34 @@ import warnings
 import pdcast as pdc
 if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
+import re
+
+
+def last_line(filename):
+    with open(filename, 'r') as file:
+        lineas = file.readlines()
+        if lineas:
+            return lineas[-1]
+        else:
+            return None
+
+
+def return_step_j(logfile):
+    # Leer la última línea
+    ultima_linea = last_line(logfile)
+
+    # Si la última línea existe, extraer los valores de step y j
+    if ultima_linea:
+        # Usar una expresión regular para extraer los valores
+        match = re.search(r'step:\s*(\d+)\s*-\s*j:\s*(\d+)', ultima_linea)
+        if match:
+            step = int(match.group(1))
+            j = int(match.group(2))
+    else:
+        # log file empty or innexsitent
+        step = 0
+        j = 0
+    return step, j
 
 
 def io_write(filename, obj):

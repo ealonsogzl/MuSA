@@ -27,6 +27,7 @@ else:
     pass
 from modules.cell_assim import cell_assimilation
 from mpi4py import MPI
+import logging
 
 
 def MuSA():
@@ -127,6 +128,15 @@ def MuSA():
 
             grid = ifn.expand_grid()
 
+            # Restart run
+            prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+
+            # Log file for restart
+            logging.basicConfig(filename='spatiallogfile.txt',
+                                level=logging.INFO,
+                                format='%(asctime)s - %(message)s')
+            logging.info('New MuSA simulation')
+
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
             HPC_task_id = int(sys.argv[3])-1
@@ -148,6 +158,9 @@ def MuSA():
             # this enumerate is unnecesary
             for gsc_count, step in enumerate(range(len(ini_DA_window))):
 
+                if cfg.restart_run and step < prev_step:
+                    continue
+
                 # create prior Ensembles
                 inputs = [grid[ids, 0], grid[ids, 1],
                           [ini_DA_window] * grid.shape[0],
@@ -160,6 +173,11 @@ def MuSA():
                 spM.wait_for_ensembles(step, HPC_task_id)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
+
+                    if cfg.restart_run and j < prev_j:
+                        continue
+                    # add info to log
+                    logging.info(f'step: {step} - j: {j}')
 
                     inputs = [grid[ids, 0], grid[ids, 1],
                               [step] * sum(ids), [j]*sum(ids)]
@@ -177,7 +195,17 @@ def MuSA():
                 ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
         elif cfg.parallelization == "multiprocessing":
+
             grid = ifn.expand_grid()
+
+            # Restart run
+            prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+
+            # Log file for restart
+            logging.basicConfig(filename='spatiallogfile.txt',
+                                level=logging.INFO,
+                                format='%(asctime)s - %(message)s')
+            logging.info('New MuSA simulation')
 
             if isinstance(cfg.nprocess, int):
                 nprocess = cfg.nprocess
@@ -194,6 +222,9 @@ def MuSA():
             # DA loop
             for gsc_count, step in enumerate(range(len(ini_DA_window))):
 
+                if cfg.restart_run and step < prev_step:
+                    continue
+
                 # create prior Ensembles
                 inputs = [grid[:, 0], grid[:, 1],
                           [ini_DA_window] * grid.shape[0],
@@ -206,6 +237,11 @@ def MuSA():
                 spM.wait_for_ensembles(step, 0)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
+
+                    if cfg.restart_run and j < prev_j:
+                        continue
+                    # add info to log
+                    logging.info(f'step: {step} - j: {j}')
 
                     inputs = [grid[:, 0], grid[:, 1],
                               [step] * grid.shape[0],
@@ -257,4 +293,3 @@ if __name__ == "__main__":
     check_platform()
 
     MuSA()
-

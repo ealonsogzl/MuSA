@@ -76,11 +76,17 @@ Then for running MuSA simply:
 conda activate MuSAenv
 python main.py
 ```
+Or if MPI is activated in the [config.py](https://github.com/RichardEssery/FSM2) file:
+```
+conda activate MuSAenv
+mpiexec -n nprocess python -m mpi4py.futures main.py
+```
+Where nprocess is the number of threads to be deployed.
 
-This command should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
-An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.sh) is also provided to run MuSA in distributed supercomputing facilities using PBS (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](https://github.com/ealonsogzl/MuSA/blob/master/run_slurm.sh) arrays.
+These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
+An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.sh) is also provided to run MuSA in distributed supercomputing facilities using PBS (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](https://github.com/ealonsogzl/MuSA/blob/master/run_slurm.sh) arrays. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing, allowing many different parallelization schemes depending on the need.
 
-If the spatial propagation is activated, it is necessary to launch the pre-processor that activates the spatial prior sampling
+If the spatial propagation is activated, it is necessary to launch the pre-processor that activates the spatial prior sampling before launching the main program.
 
 ```
 conda activate MuSAenv
@@ -95,7 +101,7 @@ python main.py
 -  Mazzotti, G., Essery, R., Moeser, C. D., and Jonas, T.: Resolving small-scale forest snow patterns using an energy balance snow model with a one-layer canopy. Water Resour. Res., 56, https://doi.org/10.1029/2019WR026129, 2020.
 -  Essery, R.: A factorial snowpack model (FSM 1.0), Geosci. Model Dev., 8, 3867–3876, https://doi.org/10.5194/gmd-8-3867-2015, 2015. 
 #### Related references
-- Alonso-González, E., Aalstad, K., Pirk, N., Mazzolini, M., Treichler, D., Leclercq, P., Westermann, S., López-Moreno, J. I., and Gascoin, S.: Spatio-temporal information propagation using sparse observations in hyper-resolution ensemble-based snow data assimilation, EGUsphere (preprint), https://doi.org/10.5194/egusphere-2023-954, 2023. 
+- Alonso-González, E., Aalstad, K., Pirk, N., Mazzolini, M., Treichler, D., Leclercq, P., Westermann, S., López-Moreno, J. I., and Gascoin, S.: Spatio-temporal information propagation using sparse observations in hyper-resolution ensemble-based snow data assimilation, Hydrol. Earth Syst. Sci., 27, 4637–4659, https://doi.org/10.5194/hess-27-4637-2023, 2023. 
 - Alonso-González, E., Gascoin, S., Arioli, S., and Picard, G.: Exploring the potential of thermal infrared remote sensing to improve a snowpack model through an observing system simulation experiment, EGUsphere The Cryosphere, 17, 3329–3342, https://doi.org/10.5194/tc-17-3329-2023, 2023.
 - Alonso-González, E., Gutmann, E., Aalstad, K., Fayad, A., Bouchet, M., and Gascoin, S.: Snowpack dynamics in the Lebanese mountains from quasi-dynamically downscaled ERA5 reanalysis updated by assimilating remotely sensed fractional snow-covered area, Hydrol. Earth Syst. Sci., 25, 4455–4471, https://doi.org/10.5194/hess-25-4455-2021, 2021.
 - Fiddes, J., Aalstad, K., and Westermann, S.: Hyper-resolution ensemble-based snow reanalysis in mountain regions using clustering, Hydrol. Earth Syst. Sci., 23, 4717–4736, https://doi.org/10.5194/hess-23-4717-2019, 2019. 
