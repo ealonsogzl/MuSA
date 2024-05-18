@@ -30,7 +30,7 @@ tmp_path = None
 
 # If restart_run is enabled, the outputs will not be overwritten. MuSA will
 # try to restart the simulation from the incomplete outputs
-restart_run = True
+restart_run = False
 # If save_int_forcing, and intermediate file is generated to speed up
 # other simulations that use the same forcing
 save_int_forcing = False
@@ -103,7 +103,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "Spatial_propagation"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
