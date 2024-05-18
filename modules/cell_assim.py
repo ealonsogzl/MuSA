@@ -114,7 +114,7 @@ def cell_assimilation(lat_idx, lon_idx):
 
         step_results = flt.implement_assimilation(Ensemble, step)
 
-        # Store results in dataframes
+        # Store results in dataframesprior_mean
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
                       time_dict, step)
         model.store_sim(updated_Sim, sd_Sim, Ensemble,

@@ -63,7 +63,7 @@ real, intent(in) :: &
 !100 format(i4,',',i4,',',i4,',',f8.0,',',e14.6,',',e14.6,',',e14.6,',', &
 !           e14.6,',',e14.6,',',e14.6,',',e14.6)
 
-write(usta) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf, H, LE
-
+!write(usta) year,month,day,hour,snd,snw,Tsrf,fsnow,asrf, H, LE
+write(usta) snd,snw,Tsrf,fsnow,asrf, H, LE
 
 end subroutine FSM2_OUTPUT

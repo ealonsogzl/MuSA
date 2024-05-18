@@ -30,14 +30,12 @@ if cfg.DAsord:
 # TODO: homogenize documentation format
 
 if cfg.DAsord:
-    model_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE',
+    model_columns = ("snd", "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE',
                      tuple(cfg.DAord_names))
     # , "Tsnow1", "Tsnow2", "Tsnow3",
 
 else:
-    model_columns = ("year", "month", "day", "hour", "snd",
-                     "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE')
+    model_columns = ("snd", "SWE", "Tsrf", "fSCA", "alb", 'H', 'LE')
     # , "Tsnow1", "Tsnow2", "Tsnow3",)
 # TODO: create a smarter function that changes the compilation of FSM and
 # pd colum names dynamically to reduce/increase the model outputs.
@@ -266,23 +264,14 @@ def model_read_output(fsm_path, read_dump=True):
     #  engine="pyarrow", do not waork with spaces, come back to this.
     state_dir = os.path.join(fsm_path, "out_stat.dat")
 
-    dt = np.dtype([('year', 'int32'), ('month', 'int32'), ('day', 'int32'),
-                   ('hour', 'float32'), ('snd', 'float32'),
-                   ('SWE', 'float32'), ('Tsrf', 'float32'),
-                   ('fSCA', 'float32'), ('alb', 'float32'),
-                   ('H', 'float32'), ('LE', 'float32')])
+    dt = np.dtype([('snd', 'float32'), ('SWE', 'float32'), ('Tsrf', 'float32'),
+                   ('fSCA', 'float32'), ('alb', 'float32'), ('H', 'float32'),
+                   ('LE', 'float32')])
     # ('Tsnow1', 'float32'), ('Tsnow2', 'float32'),
     # ('Tsnow3', 'float32')
 
     data = np.fromfile(state_dir, dtype=dt)
     state = pd.DataFrame(data)
-
-    # Save some memory (downcast is slow and excessive)
-    # TODO: directly change the types in the FSM code
-    state['year'] = state.year.astype('uint16')
-    state['month'] = state.month.astype('uint8')
-    state['day'] = state.day.astype('uint8')
-    state['hour'] = state.hour.astype('uint8')
 
     # add optional variables
     if cfg.DAsord:
@@ -571,8 +560,6 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
     ol_data = Ensemble.origin_state.copy()
 
-    # remove time ids fomr FSM output
-    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
     # TODO: modify directly FSM code to not to output time id's
 
     # Store colums
@@ -589,20 +576,17 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
         list_state = copy.deepcopy(Ensemble.state_membres)
     # remove time ids fomr FSM output
     # TODO: modify directly FSM code to not to output time id's
-    for lst in range(len(list_state)):
-        data = list_state[lst]
-        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
 
     rowIndex = updated_Sim.index[time_dict["Assimilaiton_steps"][step]:
                                  time_dict["Assimilaiton_steps"][step + 1]]
 
-    # Get updated columns
     if save_prior:
         pesos = np.ones_like(Ensemble.wgth)
     else:
         pesos = Ensemble.wgth
 
     for n, name_col in enumerate(list(list_state[0].columns)):
+
         # create matrix of colums
         col_arr = [list_state[x].iloc[:, n].to_numpy()
                    for x in range(len(list_state))]
@@ -630,31 +614,15 @@ def init_result(del_t, DA=False):
         return Results
 
     else:
-        # Concatenate
-        col_names = ["Date", "snd", "SWE", "Tsrf",
-                     "fSCA", "alb", "H", "LE"]
 
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
+                               columns=model_columns)
 
         Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
-
-        Results["snd"] = [np.nan for x in del_t]
-        Results["SWE"] = [np.nan for x in del_t]
-        Results["Tsrf"] = [np.nan for x in del_t]
-        Results["alb"] = [np.nan for x in del_t]
-        Results["fSCA"] = [np.nan for x in del_t]
-        Results["H"] = [np.nan for x in del_t]
-        Results["LE"] = [np.nan for x in del_t]
-
-        Results = Results.astype({'snd': 'float32',
-                                  'SWE': 'float32',
-                                  'Tsrf': 'float32',
-                                  'fSCA': 'float32',
-                                  'alb': 'float32',
-                                  'H': 'float32',
-                                  'LE': 'float32'})
+        # Reordenar las columnas para que 'Date' sea la primera
+        cols = ['Date'] + [col for col in Results if col != 'Date']
+        Results = Results[cols]
 
         return Results
 

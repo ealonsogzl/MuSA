@@ -23,10 +23,9 @@ if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
 
 if cfg.DAsord:
-    model_columns = ("year", "month", "day", "hour", "SWE", "snd", "outflow",
-                     tuple(cfg.DAord_names))
+    model_columns = ("SWE", "snd", "outflow", tuple(cfg.DAord_names))
 else:
-    model_columns = ("year", "month", "day", "hour", "SWE", "snd", "outflow")
+    model_columns = ("SWE", "snd", "outflow")
 
 
 def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat
@@ -60,11 +59,7 @@ def model_run(forcing_sbst, init=None):
 
     SWE, snd, outflow, init = snow17(time_jday, prec, tair, p_atm, lat, init)
 
-    Results = pd.DataFrame({'year': forcing_sbst['year'],
-                           'month': forcing_sbst['month'],
-                            'day': forcing_sbst['day'],
-                            'hours': forcing_sbst['hours'],
-                            'SWE': SWE,
+    Results = pd.DataFrame({'SWE': SWE,
                             'snd': snd,
                             'outflow': outflow})
 
@@ -155,10 +150,6 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
     ol_data = Ensemble.origin_state.copy()
 
-    # remove time ids fomr FSM output
-    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
-    # TODO: modify directly FSM code to not to output time id's
-
     # Store colums
     for n, name_col in enumerate(ol_data.columns):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
@@ -171,11 +162,6 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
         list_state = copy.deepcopy(Ensemble.state_membres)
-    # remove time ids fomr FSM output
-    # TODO: modify directly FSM code to not to output time id's
-    for lst in range(len(list_state)):
-        data = list_state[lst]
-        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
 
     rowIndex = updated_Sim.index[time_dict["Assimilaiton_steps"][step]:
                                  time_dict["Assimilaiton_steps"][step + 1]]
@@ -214,18 +200,11 @@ def init_result(del_t, DA=False):
         return Results
 
     else:
-        # Concatenate
-        col_names = ["Date", "SWE", "snd", "outflow"]
-
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
+                               columns=model_columns)
 
         Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
-
-        Results["SWE"] = [np.nan for x in del_t]
-        Results["snd"] = [np.nan for x in del_t]
-        Results["outflow"] = [np.nan for x in del_t]
 
         return Results
 

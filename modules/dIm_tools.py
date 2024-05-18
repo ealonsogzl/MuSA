@@ -24,10 +24,9 @@ if cfg.DAsord:
 
 
 if cfg.DAsord:
-    model_columns = ("year", "month", "day", "hour",
-                     "SWE", "snd", "fSCA", tuple(cfg.DAord_names))
+    model_columns = ("SWE", "snd", "fSCA", tuple(cfg.DAord_names))
 else:
-    model_columns = ("year", "month", "day", "hour", "SWE", "snd", "fSCA")
+    model_columns = ("SWE", "snd", "fSCA")
 
 
 def prepare_forz(forcing_sbst):
@@ -91,11 +90,7 @@ def model_run(forcing_sbst, init=None):
     SWE, HS, fSCA = dIm(Temp, Sf, DMF, cSWE)
     init = SWE[-1]
 
-    Results = pd.DataFrame({'year': forcing_sbst['year'],
-                           'month': forcing_sbst['month'],
-                            'day': forcing_sbst['day'],
-                            'hours': forcing_sbst['hours'],
-                            'SWE': SWE,
+    Results = pd.DataFrame({'SWE': SWE,
                             'snd': HS,
                             'fSCA': fSCA})
 
@@ -205,10 +200,6 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
 
     ol_data = Ensemble.origin_state.copy()
 
-    # remove time ids fomr FSM output
-    ol_data.drop(ol_data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
-    # TODO: modify directly FSM code to not to output time id's
-
     # Store colums
     for n, name_col in enumerate(ol_data.columns):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
@@ -221,10 +212,6 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
         list_state = copy.deepcopy(Ensemble.state_membres)
-
-    for lst in range(len(list_state)):
-        data = list_state[lst]
-        data.drop(data.columns[[0, 1, 2, 3]], axis=1, inplace=True)
 
     rowIndex = updated_Sim.index[time_dict["Assimilaiton_steps"][step]:
                                  time_dict["Assimilaiton_steps"][step + 1]]
@@ -264,17 +251,11 @@ def init_result(del_t, DA=False):
 
     else:
         # Concatenate
-        col_names = ["Date", "SWE", "snd", "fSCA"]
-
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
+                               columns=model_columns)
 
         Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
-
-        Results["SWE"] = [np.nan for x in del_t]
-        Results["snd"] = [np.nan for x in del_t]
-        Results["fSCA"] = [np.nan for x in del_t]
 
         return Results
 
