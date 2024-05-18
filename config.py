@@ -30,7 +30,7 @@ tmp_path = None
 
 # If restart_run is enabled, the outputs will not be overwritten. MuSA will
 # try to restart the simulation from the incomplete outputs
-restart_run = False
+restart_run = True
 # If save_int_forcing, and intermediate file is generated to speed up
 # other simulations that use the same forcing
 save_int_forcing = False
@@ -52,7 +52,7 @@ real_time_restart = False
 
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = 'IES'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -103,7 +103,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "Spatial_propagation"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list

@@ -62,7 +62,9 @@ def return_step_j(logfile):
     except Exception:
         step = 0
         j = 0
-        print('Not possible to restart, check spatiallogfile.txt for errors')
+        print('Not possible to restart, check spatiallogfile.txt for errors.',
+              'Starting simulation from the beginning')
+        return step, j
 
 
 def io_write(filename, obj):
