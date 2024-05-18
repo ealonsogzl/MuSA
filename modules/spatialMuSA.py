@@ -37,7 +37,6 @@ elif cfg.numerical_model == 'snow17':
     import modules.snow17_tools as model
 else:
     raise Exception('Model not implemented')
-import copy
 from statsmodels.stats.weightstats import DescrStatsW
 
 
@@ -759,7 +758,7 @@ def read_distances(lat_idx, lon_idx):
     idrow = get_idrow_from_cor(lat_idx, lon_idx)
 
     f = nc.Dataset(name_dist, format='NETCDF4')
-    distances = f.variables["Dist"][idrow, :]
+    distances = f.variables["Dist"][:, idrow]
     f.close()
 
     # distances[distances > c*2] = np.nan # far distances already masked
@@ -807,6 +806,10 @@ def create_neigb(lat_idx, lon_idx, step, j):
         grid = np.squeeze(grid)
 
     neigb = np.squeeze(grid[id_neigb])
+
+    # numpy....
+    if neigb.ndim == 1:
+        neigb = neigb[np.newaxis, :]
 
     if j == 0:
         neigb = ["{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
