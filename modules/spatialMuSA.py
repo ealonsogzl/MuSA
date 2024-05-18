@@ -1102,10 +1102,9 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     else:  # for filters
         raise Exception('Filters not implemented yet in spatial propagation')
 
-    # Save ensembles, update: I cant, if save space cell without neigb will
-    # show cero values
+    # Save space. Not possible. If save space and no local or neig obs, the
+    # output would be broken
     # Ensemble.save_space()
-
     ifn.io_write(name_ensemble_end, Ensemble)
 
 

@@ -129,7 +129,10 @@ def MuSA():
             grid = ifn.expand_grid()
 
             # Restart run
-            prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+            if cfg.restart_run:
+                prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+            else:
+                prev_step, prev_j = 0, 0
 
             # Log file for restart
             logging.basicConfig(filename='spatiallogfile.txt',
@@ -199,7 +202,10 @@ def MuSA():
             grid = ifn.expand_grid()
 
             # Restart run
-            prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+            if cfg.restart_run:
+                prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+            else:
+                prev_step, prev_j = 0, 0
 
             # Log file for restart
             logging.basicConfig(filename='spatiallogfile.txt',

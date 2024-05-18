@@ -56,7 +56,13 @@ def return_step_j(logfile):
         # log file empty or innexsitent
         step = 0
         j = 0
-    return step, j
+
+    try:
+        return step, j
+    except Exception:
+        step = 0
+        j = 0
+        print('Not possible to restart, check spatiallogfile.txt for errors')
 
 
 def io_write(filename, obj):
@@ -88,15 +94,15 @@ def reduce_size_state(df_state, observations):
 
             if observations.ndim > 1:
 
-                mask[~np.isnan(observations[:, pos])] = 0
+                mask[~np.isnan(observations[:, pos])] = np.nan
             else:
-                mask[~np.isnan(observations)] = 0
+                mask[~np.isnan(observations)] = np.nan
 
-            df_state.loc[mask, col] = 0
+            df_state.loc[mask, col] = np.nan
 
         else:
 
-            df_state[col] = 0
+            df_state[col] = np.nan
 
     return df_state
 
