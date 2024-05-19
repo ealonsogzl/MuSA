@@ -42,22 +42,22 @@ def last_line(filename):
 
 
 def return_step_j(logfile):
-    # Leer la última línea
-    ultima_linea = last_line(logfile)
-
-    # Si la última línea existe, extraer los valores de step y j
-    if ultima_linea:
-        # Usar una expresión regular para extraer los valores
-        match = re.search(r'step:\s*(\d+)\s*-\s*j:\s*(\d+)', ultima_linea)
-        if match:
-            step = int(match.group(1))
-            j = int(match.group(2))
-    else:
-        # log file empty or innexsitent
-        step = 0
-        j = 0
-
     try:
+        # Leer la última línea
+        ultima_linea = last_line(logfile)
+
+        # Si la última línea existe, extraer los valores de step y j
+        if ultima_linea:
+            # Usar una expresión regular para extraer los valores
+            match = re.search(r'step:\s*(\d+)\s*-\s*j:\s*(\d+)', ultima_linea)
+            if match:
+                step = int(match.group(1))
+                j = int(match.group(2))
+        else:
+            # log file empty or innexsitent
+            step = 0
+            j = 0
+
         return step, j
     except Exception:
         step = 0
@@ -96,9 +96,9 @@ def reduce_size_state(df_state, observations):
 
             if observations.ndim > 1:
 
-                mask[~np.isnan(observations[:, pos])] = np.nan
+                mask[~np.isnan(observations[:, pos])] = 0
             else:
-                mask[~np.isnan(observations)] = np.nan
+                mask[~np.isnan(observations)] = 0
 
             df_state.loc[mask, col] = np.nan
 
