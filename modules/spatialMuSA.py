@@ -14,7 +14,7 @@ import pandas as pd
 import netCDF4 as nc
 import datetime as dt
 from scipy.spatial import distance
-from scipy.sparse import lil_matrix, csc_array
+from scipy.sparse import lil_matrix, csc_array, issparse
 import sksparse
 from scipy.interpolate import griddata, RegularGridInterpolator
 from scipy.ndimage import rotate
@@ -321,23 +321,38 @@ def GSC(mu, sigma, rho, orderows):
     n = rho.shape[0]
     C = rho * sigma**2
     try:
-        if cfg.sparse_matrix:
+        if issparse(C):
             S = sksparse.cholmod.cholesky(C, ordering_method='natural').L()
 
         else:
             S = np.linalg.cholesky(C)
 
-    except (np.linalg.LinAlgError, sksparse.cholmod.CholmodNotPositiveDefiniteError):
-        if cfg.sparse_matrix:
-            raise Exception("ClosePD not posible with sparse matrix yet")
+    except (np.linalg.LinAlgError,
+            sksparse.cholmod.CholmodNotPositiveDefiniteError):
+
         if cfg.closePDmethod:
+            print("rho is not positive-define, finding closer PD...")
+            if issparse(C):
+                print("Closer PD is not possible with sparse matrices,",
+                      "transforming to dense matrix (high memory requirement)")
+                C = C.toarray()
+
+            count = 0  # Safety exit
             while True:
-                print("rho is not positive-define, finding closer PD...")
+                if count == 10:  # 10 is really a lot
+                    raise Exception('No cov PD matrix found')
                 C = closePD(C)
                 try:
+                    C = csc_array(C)
                     print("trying Cholesky decomposition again...")
-                    S = np.linalg.cholesky(C)
-                except np.linalg.LinAlgError:
+                    S = sksparse.cholmod.cholesky(
+                        C, ordering_method='natural').L()
+                except sksparse.cholmod.CholmodNotPositiveDefiniteError:
+
+                    print("rho remains not positive-define,"
+                          " finding closer PD...")
+                    C = C.toarray()
+                    count = count + 1
                     pass
         # except spcho.CholmodNotPositiveDefiniteError:
         else:
@@ -1264,14 +1279,25 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                 # var_tmp = np.squeeze(var_tmp[:, mask])
                 prior[cont, :] = var_tmp[:, 0]
 
-            # translate lognormal variables to normal distribution
+            # translate paramsto normal distribution
             prior = flt.transform_space(prior, 'to_normal')
 
-            updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                       cfg.max_iterations, neig_r_cov,
-                                       rho_AB=rho_par_predicted_obs,
-                                       rho_BB=rho_predicted_obs,
-                                       stochastic=False)
+            try:
+
+                updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
+                                           cfg.max_iterations, neig_r_cov,
+                                           rho_AB=rho_par_predicted_obs,
+                                           rho_BB=rho_predicted_obs,
+                                           stochastic=False)
+            # Avoid crash if there are no local obs
+            # and there is only one obs in neig
+            except Exception as ex:
+                print('({ex}) update fail, trying with rho=1:'
+                      '{lat}:lat_idx, {lon}:lon_idx'.
+                      format(lat=lat_idx, lon=lon_idx, ex=ex))
+                updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
+                                           cfg.max_iterations, neig_r_cov,
+                                           stochastic=False)
 
             updated_pars = flt.transform_space(updated_pars, 'from_normal')
 
@@ -1415,3 +1441,4 @@ def collect_results(lat_idx, lon_idx):
         Ensemble.origin_state = pd.DataFrame()
         Ensemble.state_membres = [0 for i in range(Ensemble.members)]
         ifn.io_write(name_restart, Ensemble)
+

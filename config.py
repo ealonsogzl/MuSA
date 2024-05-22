@@ -139,8 +139,8 @@ c = [5, 5]
 # external file with the dimensions
 topo_dict_external = None
 dist_algo = 'euclidean'
-# sparse_matrix Enables sparse matrix algebra. It can save a lot of memory,
-# especially with low c, but it is in testing.
+# sparse_matrix Enables calculating the distance matrix line by line
+# as an sparse distance matrix. It is slow but can save a lot of memory
 sparse_matrix = False
 # Optionally perform dimension reduction to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
