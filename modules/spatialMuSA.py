@@ -38,6 +38,8 @@ elif cfg.numerical_model == 'snow17':
 else:
     raise Exception('Model not implemented')
 from statsmodels.stats.weightstats import DescrStatsW
+import pdcast as pdc
+import warnings
 
 
 def GC(d, c):
@@ -1376,6 +1378,18 @@ def collect_results(lat_idx, lon_idx):
         pass
 
     # Write results
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        DA_Results = pdc.downcast(DA_Results,
+                                  numpy_dtypes_only=True)
+        OL_Sim = pdc.downcast(OL_Sim,
+                              numpy_dtypes_only=True)
+        updated_Sim = pdc.downcast(updated_Sim,
+                                   numpy_dtypes_only=True)
+        sd_Sim = pdc.downcast(sd_Sim,
+                              numpy_dtypes_only=True)
+
     cell_data = {"DA_Results": DA_Results,
                  "OL_Sim": OL_Sim,
                  "updated_Sim": updated_Sim,
