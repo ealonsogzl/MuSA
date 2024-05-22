@@ -237,15 +237,11 @@ def calculate_coords():
         mask.close()
         coords = coords[mask_value == 1, :]
 
-    orderows = np.arange(0, coords.shape[0])  # tentaive order of rows
-
     if cfg.dimension_reduction == 'PCA':
 
         x_scaled = StandardScaler().fit_transform(coords)
         pca = PCA(n_components=cfg.dim_num)
         coords = pca.fit_transform(x_scaled)
-        # Order to force PD
-        orderows = np.lexsort((coords[:, 0], coords[:, 1]))
 
     elif cfg.dimension_reduction == 'LMDS':
         lands = np.random.choice(range(0, coords.shape[0], 1),
@@ -253,11 +249,11 @@ def calculate_coords():
                                  replace=False)
         Dl2 = distance.cdist(coords[lands, :], coords, cfg.dist_algo)
         coords = landmark_MDS(Dl2, lands, cfg.dim_num)
-        # Order to force PD
-        orderows = np.lexsort((coords[:, 0], coords[:, 1]))
 
     else:
         pass
+    # Order to help PD, look into other ordering algos
+    orderows = np.lexsort(coords.T[::-1])
 
     return coords, orderows
 

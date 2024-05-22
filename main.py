@@ -83,12 +83,12 @@ def MuSA():
 
             print("Running MuSA: Distributed (multiprocessing)")
 
-            if isinstance(cfg.nprocess, int):
-                nprocess = cfg.nprocess
+            if cfg.MPI:
+                comm = MPI.COMM_WORLD
+                nprocess = comm.Get_size() - 1
             else:
-                if cfg.MPI:
-                    comm = MPI.COMM_WORLD
-                    nprocess = comm.Get_size() - 1
+                if isinstance(cfg.nprocess, int):
+                    nprocess = cfg.nprocess
                 else:
                     nprocess = mp.cpu_count() - 1
 
@@ -138,7 +138,6 @@ def MuSA():
             logging.basicConfig(filename='spatiallogfile.txt',
                                 level=logging.INFO,
                                 format='%(asctime)s - %(message)s')
-            logging.info('New MuSA simulation')
 
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
@@ -211,14 +210,13 @@ def MuSA():
             logging.basicConfig(filename='spatiallogfile.txt',
                                 level=logging.INFO,
                                 format='%(asctime)s - %(message)s')
-            logging.info('New MuSA simulation')
 
-            if isinstance(cfg.nprocess, int):
-                nprocess = cfg.nprocess
+            if cfg.MPI:
+                comm = MPI.COMM_WORLD
+                nprocess = comm.Get_size() - 1
             else:
-                if cfg.MPI:
-                    comm = MPI.COMM_WORLD
-                    nprocess = comm.Get_size() - 1
+                if isinstance(cfg.nprocess, int):
+                    nprocess = cfg.nprocess
                 else:
                     nprocess = mp.cpu_count() - 1
 
