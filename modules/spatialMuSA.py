@@ -480,7 +480,7 @@ def get_rho(prior_id):
         d[d > max(c)*2] = np.nan
         save_distance(d, orderows, prior_id)
 
-        rho = [GC(d, c_par) for c_par in c]
+        rho = [csc_array(GC(d, c_par)) for c_par in c]
 
     return rho, orderows
 
@@ -1441,4 +1441,3 @@ def collect_results(lat_idx, lon_idx):
         Ensemble.origin_state = pd.DataFrame()
         Ensemble.state_membres = [0 for i in range(Ensemble.members)]
         ifn.io_write(name_restart, Ensemble)
-
