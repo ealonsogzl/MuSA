@@ -51,15 +51,25 @@ Resampling (for particle filters only):
 -   Redraw from a normal approximation of the posterior
 
 ### Outputs
-The outputs of MuSA are composed by simple .csv files containing the following information:
--  **OL_lonid_latid**: This file contains the open loop simulation (snow simulation without any assimilation).
--  **updated_lonid_latid**: This file contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulations.
--  **sd_lonid_latid**: This file contains the weighted standard deviation of the ensemble after the assimilation.
--  **DA_lonid_latid**: This file contains information about the observed variables and posterior parameters (in the normal space).
+The outputs of MuSA are pickles compressed with blosc (the latid_lonid.pkl.bl format). Each file stores a dictionary containing the following dataframes:
+-  **OL_Sim**: Contains the reference simulation (snow simulation without any assimilation).
+-  **updated_Sim**: Contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulations.
+-  **sd_Sim**: Contains the weighted standard deviation of the ensemble after the assimilation.
+-  **DA_Results**: Contains information about the observed variables and posterior parameters (in the normal space).
+-  **prior_sd**: Contains the prior standar deviation of the ensemble (no assimilation)
+-  **prior_mean**: Contains the prior mean of the ensemble (no assimilation)
+
+You can open these files by your own means, or by using the following function:
+
+```
+from modules.internal_fns.py import  io_read
+
+my_cell = io_read(./RESULTS/latid_lonid.pkl.bl)
+```
 
 **lonid** and **latid** are the longitude and latitude ids of each cell of the simulation.
 
-Additionally it is possible to store the ensembles generated for each cell. This is an optional feature as it may be a bit memory consuming. However It may be useful in some circumstances specially for advanced users. The ensembles will be stored as pickle objects, and will be composed of python lists containing [Ensemble objects](https://github.com/ealonsogzl/MuSA/blob/master/modules/internal_class.py).
+Additionally it is possible to store the ensembles generated for each cell. This is an optional feature as it may be a bit memory consuming. However It may be useful in some circumstances specially for advanced users. The ensembles will be stored in the same format, and will containing [Ensemble objects](https://github.com/ealonsogzl/MuSA/blob/master/modules/internal_class.py).
 
 ### Usage
 
