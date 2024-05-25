@@ -140,12 +140,17 @@ c = [5, 5]
 topo_dict_external = None
 dist_algo = 'euclidean'
 # sparse_matrix Enables calculating the distance matrix line by line
-# as an sparse distance matrix. It is slow but can save a lot of memory
+# as an sparse distance matrix. It may be slower but can save a lot of memory
 sparse_matrix = False
-# Optionally perform dimension reduction to avoid nonPD
+# Optionally perform dimension reduction to try to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
 dim_num = 3  # Number of dimensions if dimension_reduction
-# try to find closePD or raise exception (closePDmethod = None)
+#jitter regularizes the covariance matrix by adding a value to the diagonal
+# elements to make it PD. Typical value 1e-6, but it is possible 
+# to experiment by increasing it.
+jitter = 1e-6
+# try to find closePD or raise exception (closePDmethod = None). This can
+# be very slow and memory consuming.
 closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
 
 # Topographical dimensions to compute the distances

@@ -312,6 +312,15 @@ def closePD(C):
         raise Exception("closePD method not implemented yet")
 
 
+def add_jitter(K, jitter=1e-6):
+    if issparse(K):
+        jitter_matrix = eye(K.shape[0], format='csc') * jitter
+        K = K + jitter_matrix
+    else:
+        K += np.eye(K.shape[0]) * jitter
+    return K
+
+
 def GSC(mu, sigma, rho, orderows):
 
     N = cfg.ensemble_members
@@ -320,6 +329,7 @@ def GSC(mu, sigma, rho, orderows):
     # rho = get_rho()
     n = rho.shape[0]
     C = rho * sigma**2
+
     try:
         if issparse(C):
             S = sksparse.cholmod.cholesky(C, ordering_method='natural').L()
@@ -330,7 +340,30 @@ def GSC(mu, sigma, rho, orderows):
     except (np.linalg.LinAlgError,
             sksparse.cholmod.CholmodNotPositiveDefiniteError):
 
-        if cfg.closePDmethod:
+        if cfg.jitter > 0.:  # Adding jitter to the diagonal
+            count = 0  # Safety exit
+
+            jitter = cfg.jitter  # initial jitter
+            while True:
+                if count == 5:
+                    print('Cov matrix non PD after jitter')
+                    break
+                print('Adding jitter. Iter: {count}'.format(count=count))
+                count = count + 1
+                C = add_jitter(C, jitter=jitter)
+                try:
+                    if issparse(C):
+                        S = sksparse.cholmod.cholesky(
+                            C, ordering_method='natural').L()
+                    else:
+                        S = np.linalg.cholesky(C)
+                    break
+                except (np.linalg.LinAlgError,
+                        sksparse.cholmod.CholmodNotPositiveDefiniteError):
+                    jitter *= 10.  # update jitter value
+                    pass
+
+        if cfg.closePDmethod and S not in locals():
             print("rho is not positive-define, finding closer PD...")
             if issparse(C):
                 print("Closer PD is not possible with sparse matrices,",
@@ -340,34 +373,38 @@ def GSC(mu, sigma, rho, orderows):
             count = 0  # Safety exit
             while True:
                 if count == 10:  # 10 is really a lot
-                    raise Exception('No cov PD matrix found')
+                    print('Cov matrix non PD after closePD')
+                    break
                 C = closePD(C)
+                count = count + 1
                 try:
                     C = csc_array(C)
                     print("trying Cholesky decomposition again...")
                     S = sksparse.cholmod.cholesky(
                         C, ordering_method='natural').L()
+                    break
                 except sksparse.cholmod.CholmodNotPositiveDefiniteError:
 
                     print("rho remains not positive-define,"
                           " finding closer PD...")
                     C = C.toarray()
-                    count = count + 1
-                    pass
-        # except spcho.CholmodNotPositiveDefiniteError:
-        else:
 
-            raise Exception('rho is not is not positive-definite.'
-                            'Options:\n'
-                            u'\u2022 try closePD = method\n'
-                            u'\u2022 Change cut-off distance for the'
-                            ' Gaspari and Cohn function\n'
-                            u'\u2022 Change topographical setup\n'
-                            u'\u2022 Check dist_algo\n'
-                            u'\u2022 Perform PCA, to reduce dimensions\n'
-                            u'\u2022 If the distances are read from'
-                            ' an external file, ensure its precision'
-                            ' is at least float64\n')
+                    pass
+
+    if 'S' not in locals():  # If we do not have S, Exception
+
+        raise Exception('rho is not is not positive-definite.'
+                        'Options:\n'
+                        u'\u2022 Increase jitter\n'
+                        u'\u2022 try closePD = method\n'
+                        u'\u2022 Change cut-off distance for the'
+                        ' Gaspari and Cohn function\n'
+                        u'\u2022 Change topographical setup\n'
+                        u'\u2022 Check dist_algo\n'
+                        u'\u2022 Perform PCA, to reduce dimensions\n'
+                        u'\u2022 If the distances are read from'
+                        ' an external file, ensure its precision'
+                        ' is at least float64\n')
 
     # S is a lower triangular matrix loosely cooresponding to a standard
     # deviation matrix.
