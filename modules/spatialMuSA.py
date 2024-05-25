@@ -14,7 +14,7 @@ import pandas as pd
 import netCDF4 as nc
 import datetime as dt
 from scipy.spatial import distance
-from scipy.sparse import lil_matrix, csc_array, issparse
+from scipy.sparse import lil_matrix, csc_array, issparse, eye
 import sksparse
 from scipy.interpolate import griddata, RegularGridInterpolator
 from scipy.ndimage import rotate
