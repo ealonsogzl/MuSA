@@ -90,6 +90,12 @@ class SnowEnsemble():
         self.errors = error_sbst.copy()
         self.forcing = forcing_sbst.copy()
 
+        if cfg.load_prev_run:  # Use posteriors as priors
+            filename = ("cell_" + str(self.lat_idx) + "_" +
+                        str(self.lon_idx) + ".pkl.blp")
+            filename = os.path.join(cfg.output_path, filename)
+            posteriors = fns.io_read(filename)['DA_Results']
+
         # create temporal FSM2
         self.temp_dest = model.model_copy(self.lat_idx, self.lon_idx)
 
@@ -135,7 +141,8 @@ class SnowEnsemble():
         # TODO: Parallelize this loop
         for mbr in range(self.members):
 
-            if (step == 0 and not self.real_time_restart) or readGSC:
+            if (step == 0 and not
+                    self.real_time_restart) or readGSC or cfg.load_prev_run:
                 if readGSC:
 
                     GSC_path = os.path.join(
@@ -149,9 +156,15 @@ class SnowEnsemble():
                                                member=mbr, readGSC=True,
                                                GSC_filename=GSC_path)
                 else:
-                    member_forcing, noise_tmp = \
-                        met.perturb_parameters(forcing_sbst)
-
+                    if cfg.load_prev_run:
+                        member_forcing, noise_tmp = \
+                            met.perturb_parameters(forcing_sbst,
+                                                   lat_idx=self.lat_idx,
+                                                   lon_idx=self.lon_idx,
+                                                   posteriors=posteriors)
+                    else:
+                        member_forcing, noise_tmp = \
+                            met.perturb_parameters(forcing_sbst)
             else:
                 # if PBS/PF is used, use the noise
                 # of the previous assimilation step or redraw.

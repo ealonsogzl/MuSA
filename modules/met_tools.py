@@ -6,6 +6,7 @@ other parameters related with the snowpack
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
+import os
 import numpy as np
 from scipy.optimize import newton
 from scipy.special import expit, logit
@@ -13,6 +14,7 @@ import constants as cnt
 import config as cfg
 import modules.filters as flt
 import modules.spatialMuSA as spM
+import modules.internal_fns as ifn
 
 
 def pp_psychrometric(ta2, rh2, precc):
@@ -161,6 +163,70 @@ def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
     return noise
 
 
+def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
+
+    if (cfg.seed is not None):
+        np.random.seed(cfg.seed)
+
+    # Retrieve posterior timeseries
+    post_mean = posteriors[var_tmp + "_noise_mean"].to_numpy()
+    post_std_dev = posteriors[var_tmp + "_noise_sd"].to_numpy()
+
+    # take unique values (assim steps)
+
+    post_mean_vals = np.unique(post_mean)
+    post_post_std_dev = np.unique(post_std_dev)
+
+    if len(posteriors) == len(post_mean_vals):
+        post_mean_vals = np.mean(post_mean_vals)
+
+        # combined standar deviation
+        k = len(post_post_std_dev)
+        post_post_std_dev = np.sqrt(
+            np.sum(post_post_std_dev*post_post_std_dev)/k)
+
+        # number of parameters to repeat = len of forcing
+        counts = len(posteriors)
+
+    else:  # count the nymber of steps in each DAW
+        counts = np.array([np.sum(post_mean == value)
+                           for value in post_mean_vals])
+
+    complet_noise = []
+    for n in range(post_mean_vals.size):  # loop over DAW
+
+        mean, std_dev = post_mean_vals[n], post_post_std_dev[n]
+        n_steps = counts[0]
+
+        if (cfg.seed is not None):
+            np.random.seed(cfg.seed)
+
+        if perturbation_strategy == "normal":
+            noise = np.random.normal(mean, std_dev, 1)
+            noise = np.repeat(noise, n_steps)
+
+        elif perturbation_strategy == "lognormal":
+            noise = np.random.lognormal(mean, std_dev, 1)
+            noise = np.repeat(noise, n_steps)
+
+        elif perturbation_strategy in ["logitnormal_mult",
+                                       "logitnormal_adi"]:
+
+            bPmax = cnt.upper_bounds[var_tmp]
+            bPmin = cnt.lower_bounds[var_tmp]
+
+            norm_noise = np.random.normal(mean, std_dev, 1)
+            norm_noise = np.repeat(norm_noise, n_steps)
+            noise = gexpit(norm_noise, bPmin, bPmax)
+
+        else:
+            raise Exception("choose the shape of the perturbation parameters")
+
+        complet_noise.append(noise)
+
+    return np.concatenate(complet_noise)
+
+
 def add_process_noise(noise_coef, var, strategy):
 
     dyn_noise = cnt.dyn_noise
@@ -203,9 +269,9 @@ def add_process_noise(noise_coef, var, strategy):
     return noise_coef
 
 
-def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None, member=None,
-                       noise=None, update=False, readGSC=False,
-                       GSC_filename=None):
+def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None,
+                       posteriors=None, member=None, noise=None,
+                       update=False, readGSC=False, GSC_filename=None):
 
     forcing_copy = main_forcing.copy()
 
@@ -239,11 +305,14 @@ def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None, member=None,
             noise_coef = noise[idv]
             noise_coef = np.repeat(noise_coef, n_steps)
         else:
-
-            noise_coef = create_noise(strategy_tmp, n_steps,
-                                      mean_errors[var_tmp],
-                                      sd_errors[var_tmp],
-                                      var_tmp)
+            if cfg.load_prev_run:
+                noise_coef = create_noise_from_posterior(
+                    posteriors, strategy_tmp, var_tmp)
+            else:
+                noise_coef = create_noise(strategy_tmp, n_steps,
+                                          mean_errors[var_tmp],
+                                          sd_errors[var_tmp],
+                                          var_tmp)
 
         noise_coef = add_process_noise(noise_coef, var_tmp, strategy_tmp)
         # If lognormal perturbation multiplicate, else add

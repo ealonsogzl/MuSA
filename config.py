@@ -33,7 +33,7 @@ tmp_path = None
 restart_run = False
 # If save_int_forcing, and intermediate file is generated to speed up
 # other simulations that use the same forcing
-save_int_forcing = False
+save_int_forcing = True
 # If restart_forcing, the forcing will be read from the intermediate files of
 # a previous run
 restart_forcing = False
@@ -50,6 +50,9 @@ real_time_restart = False
 # Data Assim
 # -----------------------------------
 
+# load_prev_run allows to reconstruct a simulation from the posterior
+# parameters of a previous simulation.
+load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
 da_algorithm = 'PBS'
@@ -145,8 +148,8 @@ sparse_matrix = False
 # Optionally perform dimension reduction to try to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
 dim_num = 3  # Number of dimensions if dimension_reduction
-#jitter regularizes the covariance matrix by adding a value to the diagonal
-# elements to make it PD. Typical value 1e-6, but it is possible 
+# jitter regularizes the covariance matrix by adding a value to the diagonal
+# elements to make it PD. Typical value 1e-6, but it is possible
 # to experiment by increasing it.
 jitter = 1e-6
 # try to find closePD or raise exception (closePDmethod = None). This can

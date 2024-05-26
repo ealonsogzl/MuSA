@@ -442,16 +442,19 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
-                        'PIES', 'AdaPBS', 'AdaMuPBS']:
-        assimilation_steps = season_ini_cuts[:, 0]
-    elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
-        # HACK: I add one to easy the subset of the forcing
-        assimilation_steps = obs_idx + 1
-    elif (da_algorithm == 'deterministic_OL'):
+    if cfg.load_prev_run:
         assimilation_steps = 0
     else:
-        raise Exception("Choose between smoothing or filtering")
+        if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
+                            'PIES', 'AdaPBS', 'AdaMuPBS']:
+            assimilation_steps = season_ini_cuts[:, 0]
+        elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
+            # HACK: I add one to easy the subset of the forcing
+            assimilation_steps = obs_idx + 1
+        elif (da_algorithm == 'deterministic_OL'):
+            assimilation_steps = 0
+        else:
+            raise Exception("Choose between smoothing or filtering")
 
     lng_del_t = np.asarray(len(del_t))
     assimilation_steps = np.append(0, assimilation_steps)

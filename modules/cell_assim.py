@@ -34,12 +34,18 @@ def cell_assimilation(lat_idx, lon_idx):
         name_ensemble = "ensbl_" + str(lat_idx) +\
             "_" + str(lon_idx) + ".pkl.blp"
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
+
     if real_time_restart:
         name_restart = "init_" + str(lat_idx) +\
             "_" + str(lon_idx) + ".pkl.blp"
         name_restart = os.path.join(cfg.real_time_restart_path, name_restart)
 
-    filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
+    if cfg.load_prev_run:
+        filename = ("Reconstructed_cell_" + str(lat_idx)
+                    + "_" + str(lon_idx) + ".pkl.blp")
+    else:
+        filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
+
     filename = os.path.join(cfg.output_path, filename)
 
     # Check if file allready exist if is a restart run
@@ -60,8 +66,9 @@ def cell_assimilation(lat_idx, lon_idx):
 
     time_dict = ifn.simulation_steps(observations, dates_obs)
 
-    # If no obs in the cell, run openloop
-    if np.isnan(observations).all() or cfg.da_algorithm == "deterministic_OL":
+    # If no obs in the cell or det_OL, run openloop, unless cfg.load_prev_run
+    if (np.isnan(observations).all() or
+            cfg.da_algorithm == "deterministic_OL") and not cfg.load_prev_run:
         ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
         return None
 
@@ -81,8 +88,8 @@ def cell_assimilation(lat_idx, lon_idx):
         mcmcSD_Sim = model.init_result(time_dict["del_t"])
 
     # initialice Ensemble class
-
-    if real_time_restart:  # open previous ensemble if exists
+    # open previous ensemble if reastart (not if reconstruct)
+    if real_time_restart and not cfg.load_prev_run:
         try:
             Ensemble = ifn.io_read(name_restart)
             Ensemble.real_time_restart = True
@@ -111,6 +118,16 @@ def cell_assimilation(lat_idx, lon_idx):
         # store prior ensemble
         model.store_sim(prior_mean, prior_sd, Ensemble,
                         time_dict, step, save_prior=True)
+
+        if cfg.load_prev_run:
+            # HACK: Simply, store the prior before any DA to reconstruct
+            # and exit
+
+            # Write results
+            cell_data = {"Ensemble_mean": prior_mean,
+                         "Ensemble_sd": prior_sd}
+            ifn.io_write(filename, ifn.downcast_output(cell_data))
+            return None
 
         step_results = flt.implement_assimilation(Ensemble, step)
 
