@@ -52,7 +52,7 @@ real_time_restart = False
 
 # load_prev_run allows to reconstruct a simulation from the posterior
 # parameters of a previous simulation.
-load_prev_run = False
+load_prev_run = True
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
 da_algorithm = 'PBS'
@@ -115,7 +115,7 @@ implementation = "distributed"
 var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "HPC.array"
-parallelization = "multiprocessing"
+parallelization = "sequential"
 MPI = False
 # Note: if nprocess = None, the number of processors will be
 # estimated (max(n)-1). In HPC.array nprocess is an argument

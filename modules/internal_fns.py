@@ -34,7 +34,7 @@ import re
 
 def pre_cheks():
     """
-    This function is a kind of helper, which tries to find problems in 
+    This function is a kind of helper, which tries to find problems in
     the configuration (it will be improved with time).
     """
     if cfg.load_prev_run and cfg.implementation == 'Spatial_propagation':

@@ -6,7 +6,7 @@ other parameters related with the snowpack
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
-import os
+
 import numpy as np
 from scipy.optimize import newton
 from scipy.special import expit, logit
@@ -14,7 +14,6 @@ import constants as cnt
 import config as cfg
 import modules.filters as flt
 import modules.spatialMuSA as spM
-import modules.internal_fns as ifn
 
 
 def pp_psychrometric(ta2, rh2, precc):
@@ -173,18 +172,15 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
     post_std_dev = posteriors[var_tmp + "_noise_sd"].to_numpy()
 
     # take unique values (assim steps)
-
     post_mean_vals = np.unique(post_mean)
-    post_post_std_dev = np.unique(post_std_dev)
+    # NOTE: the standard deviations can be 0, since they can be collapsed
+    # ensembles. Thus npunique is not safe. The trick is done through the
+    # averages, which are very unlikely (impossible in practice) to
+    # be equal between DAWs.
+    # post_post_std_dev = np.unique(post_std_dev)
 
-    if len(posteriors) == len(post_mean_vals):
+    if len(posteriors) == len(post_mean_vals):  # dynamic noise case
         post_mean_vals = np.mean(post_mean_vals)
-
-        # combined standar deviation
-        k = len(post_post_std_dev)
-        post_post_std_dev = np.sqrt(
-            np.sum(post_post_std_dev*post_post_std_dev)/k)
-
         # number of parameters to repeat = len of forcing
         counts = len(posteriors)
 
@@ -192,7 +188,21 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
         counts = np.array([np.sum(post_mean == value)
                            for value in post_mean_vals])
 
+    # This part is necesary in case of total collapse of one or several DAWs
+    idsDAWS = np.repeat(range(len(counts)), counts)
+    unique_indices = np.unique(idsDAWS)
+    post_post_std_dev = np.zeros(unique_indices.shape)
+
+    # Calculate the means for each unique index
+    for i, index in enumerate(unique_indices):
+        # combined standar deviation
+        k = np.sum(idsDAWS == index)
+        post_post_std_dev[i] = np.sqrt(
+            np.sum(post_std_dev[idsDAWS == index] *
+                   post_std_dev[idsDAWS == index])/k)
+
     complet_noise = []
+
     for n in range(post_mean_vals.size):  # loop over DAW
 
         mean, std_dev = post_mean_vals[n], post_post_std_dev[n]
@@ -225,7 +235,6 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
         complet_noise.append(noise)
 
     return np.concatenate(complet_noise)
-
 
 def add_process_noise(noise_coef, var, strategy):
 
