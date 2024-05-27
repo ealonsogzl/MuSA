@@ -52,7 +52,7 @@ real_time_restart = False
 
 # load_prev_run allows to reconstruct a simulation from the posterior
 # parameters of a previous simulation.
-load_prev_run = True
+load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaMuPBS, AdaPBS or PIES
 da_algorithm = 'PBS'
