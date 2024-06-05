@@ -13,13 +13,14 @@ import numpy as np
 import pandas as pd
 import netCDF4 as nc
 import datetime as dt
-from scipy.spatial import distance
+from scipy.spatial import distance, cKDTree
 from scipy.sparse import lil_matrix, csc_array, issparse, eye
 import sksparse
 from scipy.interpolate import griddata, RegularGridInterpolator
 from scipy.ndimage import rotate
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+
 # from sklearn.manifold import MDS
 import statsmodels.stats.correlation_tools as ct
 import modules.internal_fns as ifn
@@ -38,8 +39,7 @@ elif cfg.numerical_model == 'snow17':
 else:
     raise Exception('Model not implemented')
 from statsmodels.stats.weightstats import DescrStatsW
-import pdcast as pdc
-import warnings
+
 
 
 def GC(d, c):
@@ -446,7 +446,7 @@ def get_rho(prior_id):
 
     coords, orderows = calculate_coords()
 
-    if cfg.sparse_matrix:
+    if cfg.distance_mat_calc == 'Sparse':
 
         # create netcdf to save distances line by line
         spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
@@ -476,13 +476,6 @@ def get_rho(prior_id):
 
         # loop over rows to avoid calculate all distances
 
-        # TODO: look into to avoid this loop, KDTree is super fast.
-        # However, re-ordering the sparse matrix after the kdtree and store it
-        # in the netcdf for later usage makes everything slower.
-        # Also, carefull with the Minkowski p-norm in
-        # KDTree.sparse_distance_matrix
-        # https://stackoverflow.com/questions/50165419/memory-efficient-storage-of-large-distance-matrices
-
         for n in range(coords.shape[0]):
             print(n)
 
@@ -507,8 +500,7 @@ def get_rho(prior_id):
 
         # transform frmo lil_mat to csc to perform the chol latter
         rho = [csc_array(nn) for nn in rho_spar]
-
-    else:  # if not sparse matrix, compute the complete dist matrix
+    elif cfg.distance_mat_calc == 'Regular':
 
         d = distance.cdist(coords[orderows, :],
                            coords[orderows, :],
@@ -517,7 +509,60 @@ def get_rho(prior_id):
         d[d > max(c)*2] = np.nan
         save_distance(d, orderows, prior_id)
 
+        # Transform to sparse matrix
         rho = [csc_array(GC(d, c_par)) for c_par in c]
+
+    elif cfg.distance_mat_calc == 'KDtree':
+        # raise Exception('KDtree implementation not finished yet')
+
+        A = cKDTree(coords[orderows, :])
+
+        d = A.sparse_distance_matrix(A,  max(c)*2, p=2.0,
+                                     output_type='coo_matrix')
+        # Scompute correlations01
+
+        data_dense = [GC(d.data, c_par) for c_par in c]
+
+        # desnse values
+        rho = [d.copy() for _ in range(len(c))]
+
+        for i in range(len(c)):
+            rho[i].data = data_dense[i]
+            rho[i] = csc_array(rho[i])
+
+        d = csc_array(d)
+        d = d[:, orderows][orderows]  # ORDER complete matrix
+
+        # SAVEMATRAIXHERE
+        # create netcdf to save distances line by line
+        spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
+
+        name_dist = "dist_" + str(prior_id) + ".nc"
+        name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
+
+        f = nc.Dataset(name_dist, 'w', format='NETCDF4')
+
+        f.createDimension('Y', coords.shape[0])
+        f.createDimension('X', coords.shape[0])
+
+        # float 64 is necesary, otherwise distance matrix is not PD
+        distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
+                                  zlib=True, complevel=4, fletcher32=True,
+                                  chunksizes=(coords.shape[0], 1))
+
+        for n in range(coords.shape[0]):
+            # Save line by line, to not todense() the whole d matrix
+            print(n)
+
+            tmp_dis = d[:, [n]].todense()
+            # NOTE: this masks the current cell, but the current cell
+            # is added anyway when the neig is created
+            tmp_dis[tmp_dis == 0.] = np.nan
+
+            distnc[:, n] = tmp_dis
+        f.close()
+    else:
+        raise Exception('No valid distance_mat_calc')
 
     return rho, orderows
 
@@ -896,6 +941,9 @@ def create_neigb(lat_idx, lon_idx, step, j):
 
     current_path = os.path.join(cfg.save_ensemble_path, current_path)
     neigb.append(current_path)
+
+    #If for some reason there are duplicates, remove them
+    neigb = list(dict.fromkeys(neigb))
 
     # remove files if they do not exist
     check = [i for i in neigb if os.path.isfile(i)]

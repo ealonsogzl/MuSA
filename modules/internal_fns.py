@@ -29,54 +29,7 @@ import warnings
 import pdcast as pdc
 if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
-import re
-
-
-def pre_cheks():
-    """
-    This function is a kind of helper, which tries to find problems in
-    the configuration (it will be improved with time).
-    """
-    if cfg.load_prev_run and cfg.implementation == 'Spatial_propagation':
-        raise Exception('Disable Spatial_propagation if load_prev_run is '
-                        ' enabled, even considering that load_prev_run '
-                        'supports simulations generated from '
-                        'Spatial_propagation simulation.')
-
-
-def last_line(filename):
-    with open(filename, 'r') as file:
-        lineas = file.readlines()
-        if lineas:
-            return lineas[-1]
-        else:
-            return None
-
-
-def return_step_j(logfile):
-    try:
-        # Leer la última línea
-        ultima_linea = last_line(logfile)
-
-        # Si la última línea existe, extraer los valores de step y j
-        if ultima_linea:
-            # Usar una expresión regular para extraer los valores
-            match = re.search(r'step:\s*(\d+)\s*-\s*j:\s*(\d+)', ultima_linea)
-            if match:
-                step = int(match.group(1))
-                j = int(match.group(2))
-        else:
-            # log file empty or innexsitent
-            step = 0
-            j = 0
-
-        return step, j
-    except Exception:
-        step = 0
-        j = 0
-        print('Not possible to restart, check spatiallogfile.txt for errors.',
-              'Starting simulation from the beginning')
-        return step, j
+import subprocess
 
 
 def io_write(filename, obj):
@@ -112,13 +65,41 @@ def reduce_size_state(df_state, observations):
             else:
                 mask[~np.isnan(observations)] = 0
 
-            df_state.loc[mask, col] = np.nan
+            df_state.loc[mask, col] = 0
 
         else:
 
-            df_state[col] = np.nan
+            df_state[col] = 0
 
     return df_state
+
+
+def change_chunk_size_nccopy(input_file):
+    # Open the input NetCDF file to get dimension sizes
+    with nc.Dataset(input_file, 'r') as dataset:
+        # Determine chunk sizes based on dimensions
+        chunk_sizes = {dim: min(50, len(dataset.dimensions[dim]))
+                       for dim in dataset.dimensions}
+
+    # Build the nccopy command to copy to a temporary file
+    temp_file = input_file + '.temp'
+    command = ["nccopy", "-c", ",".join(f"{dim}/{size}"
+                                        for dim, size in chunk_sizes.items()),
+               input_file, temp_file]
+
+    # Execute the command
+    try:
+        subprocess.run(command, check=True)
+        print("Chunking successful.")
+
+        # Replace the original file with the temporary file
+        os.remove(input_file)
+        os.rename(temp_file, input_file)
+        print("File replaced successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e}")
+        print(f"Not possible to chunk file: {input_file}."
+              "Manual chunking is recommended")
 
 
 def downcast_output(output):
@@ -140,7 +121,7 @@ def chunker(seq, size):
 def pool_wrap(func, inputs, nprocess):
 
     if cfg.MPI:
-
+        print('MPI not tested yet')
         with MPIPoolExecutor() as pool:
             pool.starmap(func, inputs)
     else:
@@ -454,19 +435,16 @@ def simulation_steps(observations, dates_obs):
                                   (np.asarray(months) == season_ini_month) &
                                   (np.asarray(hours) == 0))
 
-    if cfg.load_prev_run:
+    if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
+                        'PIES', 'AdaPBS', 'AdaMuPBS']:
+        assimilation_steps = season_ini_cuts[:, 0]
+    elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
+        # HACK: I add one to easy the subset of the forcing
+        assimilation_steps = obs_idx + 1
+    elif (da_algorithm == 'deterministic_OL'):
         assimilation_steps = 0
     else:
-        if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
-                            'PIES', 'AdaPBS', 'AdaMuPBS']:
-            assimilation_steps = season_ini_cuts[:, 0]
-        elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
-            # HACK: I add one to easy the subset of the forcing
-            assimilation_steps = obs_idx + 1
-        elif (da_algorithm == 'deterministic_OL'):
-            assimilation_steps = 0
-        else:
-            raise Exception("Choose between smoothing or filtering")
+        raise Exception("Choose between smoothing or filtering")
 
     lng_del_t = np.asarray(len(del_t))
     assimilation_steps = np.append(0, assimilation_steps)

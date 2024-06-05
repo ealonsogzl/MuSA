@@ -142,9 +142,10 @@ c = [5, 5]
 # external file with the dimensions
 topo_dict_external = None
 dist_algo = 'euclidean'
-# sparse_matrix Enables calculating the distance matrix line by line
-# as an sparse distance matrix. It may be slower but can save a lot of memory
-sparse_matrix = False
+# distance_mat_calc Enables calculating the distance matrix, iterativelly
+# as an sparse distance matrix, using KDtree or in the regular way
+# (memory consuming). It is slow but can save a lot of memory
+distance_mat_calc = 'Regular'  # Regular, Sparse, KDtree(workinpro)
 # Optionally perform dimension reduction to try to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
 dim_num = 3  # Number of dimensions if dimension_reduction

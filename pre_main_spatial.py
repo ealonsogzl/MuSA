@@ -9,9 +9,11 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import modules.spatialMuSA as spM
+import modules.internal_fns as ifn
 import sys
 import config as cfg
 import numpy as np
+import os
 
 
 def main():
@@ -52,3 +54,7 @@ if __name__ == "__main__":
     print('Running MuSA pre-processor')
 
     main()
+    dist_name = os.path.join(cfg.spatial_propagation_storage_path,
+                             'dist_0.nc')
+    ifn.change_chunk_size_nccopy(dist_name)
+
