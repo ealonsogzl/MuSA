@@ -6,6 +6,7 @@ assimilation functions.
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
+
 import glob
 import os
 import shutil
@@ -31,6 +32,9 @@ if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
 import re
 import subprocess
+import gc
+import time
+
 
 def pre_cheks():
     """
@@ -42,6 +46,8 @@ def pre_cheks():
                         ' enabled, even considering that load_prev_run '
                         'supports simulations generated from '
                         'Spatial_propagation simulation.')
+    if cfg.timeout and cfg.MPI:
+        warnings.warn("timeout is ignored  MPI")
 
 
 def last_line(filename):
@@ -77,6 +83,7 @@ def return_step_j(logfile):
         print('Not possible to restart, check spatiallogfile.txt for errors.',
               'Starting simulation from the beginning')
         return step, j
+
 
 def change_chunk_size_nccopy(input_file):
     # Open the input NetCDF file to get dimension sizes
@@ -161,35 +168,100 @@ def downcast_output(output):
 
 
 def chunker(seq, size):
+    """
+    Splits a sequence into chunks of a given size.
+
+    Parameters:
+    seq (list): The sequence to be split.
+    size (int): The size of each chunk.
+
+    Returns:
+    list: A list of chunks.
+    """
     return [seq[pos:pos + size] for pos in range(0, len(seq), size)]
 
 
-def pool_wrap(func, inputs, nprocess):
+def pool_wrap(func, inputs, nprocess, timeout=None):
+    """
+    Wraps the multiprocessing pool or MPI pool execution.
 
+    Parameters:
+    func (callable): The function to be executed in parallel.
+    inputs (list): The input arguments for the function.
+    nprocess (int): The number of processes to use.
+    timeout (int, optional): The maximum time to wait for the results.
+
+    Raises:
+    TimeoutError: If the pool execution times out.
+    Exception: If any other error occurs during pool execution.
+    """
     if cfg.MPI:
-
         with MPIPoolExecutor() as pool:
-            pool.starmap(func, inputs)
+
+            pool.starmap(func, inputs,  timeout=timeout)
+
     else:
-        with mp.Pool(processes=nprocess) as pool:
-            pool.starmap(func, inputs)
+        pool = mp.Pool(processes=nprocess)
+        result = pool.starmap_async(func, inputs)
+        try:
+            if timeout:
+                # Wait until the result is ready or timeout
+                result.get(timeout)
+            else:
+                result.get()
+
+        except Exception:
+            # Terminate the pool if an exception occurs
+            pool.terminate()
+            pool.join()
+            gc.collect()
+            raise
+        finally:
+            # Ensure the pool is terminated even if no exception occurs
+            pool.terminate()
+            pool.join()
+            gc.collect()
 
 
 def safe_pool(func, inputs, nprocess):
-    # for some reason, pool sometimes hangs with too many cells.
-    # here I divide the whole parallel thing in chunks, it seems to be safer.
-    # But this has to be investigated, probably something with starmap_async
-    # can do the trick
-    # UPDATE: using spawn instead of fork seems to help
+    """
+    Safely executes a function in parallel, restarting the pool if it freezes.
 
-    ncellsmax = 5 * nprocess  # 5 cells per process maximun
+    Parameters:
+    func (callable): The function to be executed in parallel.
+    inputs (list): The input arguments for the function.
+    nprocess (int): The number of processes to use.
+    cells_per_process (int, optional): The multiplier to calculate maximum
+    cells per process.
+    timeout (int, optional): The maximum time to wait for each chunk.
+
+    This function divides the inputs into chunks and executes them in parallel.
+    If the pool freezes, it will restart and retry the execution.
+    """
+    cells_per_process = cfg.cells_per_process
+    timeout = cfg.timeout
+
+    if not cells_per_process:
+        cells_per_process = 1
+
+    ncellsmax = cells_per_process * nprocess  # Maximum cells per process
+
     inputs_chunk = [chunker(x, ncellsmax) for x in inputs]
 
     for chunk_id in range(len(inputs_chunk[0])):
+        chunked_list = [item[chunk_id] for item in inputs_chunk]
 
-        chuked_list = [item[chunk_id] for item in inputs_chunk]
-        chunked_zip = zip(*chuked_list)
-        pool_wrap(func, chunked_zip, nprocess)
+        while True:
+            chunked_zip = zip(*chunked_list)
+
+            try:
+                pool_wrap(func, chunked_zip, nprocess, timeout=timeout)
+                break  # Exit the loop if execution is successful
+            except mp.context.TimeoutError:
+                print("The pool has frozen. Restarting...")
+
+                time.sleep(10)
+                pass
 
 
 def get_dates_obs():

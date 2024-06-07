@@ -115,12 +115,17 @@ implementation = "distributed"
 var_to_prop = var_to_assim
 
 # parallelization from "sequential", "multiprocessing" or "HPC.array"
-parallelization = "sequential"
+parallelization = "multiprocessing"
 MPI = False
 # Note: if nprocess = None, the number of processors will be
 # estimated (max(n)-1). In HPC.array nprocess is an argument
 # (see e.g. run_slurm.sh), and this variable is ignored
 nprocess = 8
+
+# number of cells to be solved per processor at each iteration
+cells_per_process = None
+# maximun number of seconds each pool is killed before try again
+timeout = None
 
 aws_lat = 4735225.54  # Latitude in case of point_scale
 aws_lon = 710701.28   # Longitude in case of point_scale
@@ -145,7 +150,7 @@ dist_algo = 'euclidean'
 # distance_mat_calc Enables calculating the distance matrix, iterativelly
 # as an sparse distance matrix, using KDtree or in the regular way
 # (memory consuming). It is slow but can save a lot of memory
-distance_mat_calc = 'Regular'  # Regular, Sparse, KDtree(workinpro)
+distance_mat_calc = 'Regular'  # Regular, Sparse, KDtree
 # Optionally perform dimension reduction to try to avoid nonPD
 dimension_reduction = 'None'  # LMDS, PCA or None
 dim_num = 3  # Number of dimensions if dimension_reduction
