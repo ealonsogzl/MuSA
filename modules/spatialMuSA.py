@@ -152,6 +152,7 @@ def get_topo_arr():
     dem = nc.Dataset(dem)
 
     dem_arr = dem.variables[nc_dem_varname][:]
+    dem_arr = dem_arr.filled(np.nan)  # from numpy.ma to numpy
     dem_arr = fill_nan_arr(dem_arr)
 
     # Grid spacing
@@ -559,6 +560,7 @@ def get_rho(prior_id):
             # NOTE: this masks the current cell, but the current cell
             # is added anyway when the neig is created
             tmp_dis[tmp_dis == 0.] = np.nan
+            tmp_dis[n] = 0. # put 0 in diagonal
 
             distnc[:, n] = tmp_dis
         f.close()

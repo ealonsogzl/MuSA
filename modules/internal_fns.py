@@ -47,7 +47,12 @@ def pre_cheks():
                         'supports simulations generated from '
                         'Spatial_propagation simulation.')
     if cfg.timeout and cfg.MPI:
-        warnings.warn("timeout is ignored  MPI")
+        warnings.warn("timeout is ignored with MPI")
+
+    if cfg.parallelization == "HPC.array" and cfg.numerical_model == "FSM2":
+        fsm_filename = os.path.join(cfg.fsm_src_path, "FSM2")
+        if os.path.isfile(fsm_filename):
+            warnings.warn("FSM binary exists, reusing compile options")
 
 
 def last_line(filename):

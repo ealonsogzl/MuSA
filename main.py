@@ -164,8 +164,8 @@ def MuSA():
                     continue
 
                 # create prior Ensembles
-                inputs = [grid[ids, 0], grid[ids, 1],
-                          [ini_DA_window] * grid.shape[0],
+                inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
+                          [ini_DA_window] * sum(ids),
                           [step] * sum(ids),
                           [gsc_count] * sum(ids)]
 
@@ -181,7 +181,7 @@ def MuSA():
                     # add info to log
                     logging.info(f'step: {step} - j: {j}')
 
-                    inputs = [grid[ids, 0], grid[ids, 1],
+                    inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
                               [step] * sum(ids), [j]*sum(ids)]
 
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
@@ -230,10 +230,10 @@ def MuSA():
                     continue
 
                 # create prior Ensembles
-                inputs = [grid[:, 0], grid[:, 1],
-                          [ini_DA_window] * grid.shape[0],
-                          [step] * grid.shape[0],
-                          [gsc_count] * grid.shape[0]]
+                inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
+                          [ini_DA_window] * sum(ids),
+                          [step] * sum(ids),
+                          [gsc_count] * sum(ids)]
 
                 ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
 
@@ -247,7 +247,7 @@ def MuSA():
                     # add info to log
                     logging.info(f'step: {step} - j: {j}')
 
-                    inputs = [grid[:, 0], grid[:, 1],
+                    inputs = [list(grid[:, 0]), list(grid[:, 1]),
                               [step] * grid.shape[0],
                               [j] * grid.shape[0]]
 

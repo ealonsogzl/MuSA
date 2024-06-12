@@ -212,6 +212,11 @@ def model_compile_HPC(HPC_task_id):
     fsm_path = cfg.fsm_src_path
     file_name = os.path.join(fsm_path, "FSM2")
 
+    # if binary exist, pass to avoid breaking HPC job arrays
+    fsm_filename = os.path.join(cfg.fsm_src_path, "FSM2")
+    if os.path.isfile(fsm_filename):
+        return None
+
     if HPC_task_id == 0:
         model_compile()
     else:
