@@ -365,7 +365,7 @@ def GSC(mu, sigma, rho, orderows):
                     jitter *= 10.  # update jitter value
                     pass
 
-        if cfg.closePDmethod and S not in locals():
+        if cfg.closePDmethod and 'S' not in locals():
             print("rho is not positive-define, finding closer PD...")
             if issparse(C):
                 print("Closer PD is not possible with sparse matrices,",
@@ -1324,9 +1324,8 @@ def spatial_assim(lat_idx, lon_idx, step, j):
         return None
 
     # try to update with neig inf, if any problem just copy prior
-
     try:
-        save_space_flag = True
+
         neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = \
             get_neig_info(lat_idx, lon_idx, step, j)
 
@@ -1343,10 +1342,14 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                                  neig_lat, neig_long)
 
         # if no obs do nothing
+            
         if len(neig_obs) == 0:
+            save_space_flag = False
             Ensemble.iter_update(create=False)
 
         else:
+            save_space_flag = True
+
 
             # create neig rho
             rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(
