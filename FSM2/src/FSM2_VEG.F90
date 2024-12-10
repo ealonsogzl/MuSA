@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------
-! Read data from a map file
+! Read vegetation data from a file
 !-----------------------------------------------------------------------
-subroutine FSM2_MAP(map_file,Ncols,Nrows,var)
+subroutine FSM2_VEG(map_file,Npnts,var)
 
 use IOUNITS, only: &
   umap                ! Map input file unit number
@@ -12,19 +12,13 @@ character(len=*) :: &
   map_file            ! Map file name
 
 integer, intent(in) :: &
-  Ncols,             &! Number of columns in grid
-  Nrows               ! Number of rows in grid
+  Npnts               ! Number of points
 
 real, intent(out) :: &
-  var(Nrows,Ncols)    ! Mapped variable
-
-integer :: &
-  i                   ! Grid row counter
+  var(Npnts)          ! Mapped variable
 
 open(umap,file=map_file)
-do i = 1, Nrows
-  read(umap,*) var(i,:)
-end do
+read(umap,*) var(:)
 close(umap)
 
-end subroutine FSM2_MAP
+end subroutine FSM2_VEG

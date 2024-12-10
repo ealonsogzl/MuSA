@@ -13,7 +13,6 @@ KELVING_CONVER = 273.15         # Kelvin to Celsius conversion
 R = 8.31441                     # Universal Gas Constant [J mol**-1 K**-1]
 MW = 0.01801528                 # Molecular weight of water [kg mol**-1]
 LF = 334000                     # latent heat of fusion [J kg**-1]
-SCA0 = 0.25                     # fSCA threshold for SCA [-]
 sdfrac = 0.7                    # fraction of the sd_errors to use if collapse
 DMF = 3/24                      # Degree melt index [dIm model]
 FIX_density = 0.3               # Fixed snow density [dIm model]
@@ -24,7 +23,6 @@ aprox_lat = 50
 # -----------------------------------
 VAI = 0    # Vegetation area index
 vegh = 0   # Canopy height (m)
-fsky = 1   # Sky view fraction for remote shading
 alb0 = 0.2  # Snow-free ground albedo
 
 # -----------------------------------
@@ -49,13 +47,6 @@ tmlt = 3.6e5          # Melting snow albedo decay time scale (s)
 trho = 200*3600       # Snow compaction timescale (s)
 Wirr = 0.03           # Irreducible liquid water content of snow
 z0sn = 0.001          # Snow roughness length (m)
-
-# SWE threshold where SCA = 1 (SWEsca) [SNFRAC = 3]
-SWEsca = 40
-# shape of the fSCA. [SNFRAC = 3]
-Taf = 4.0
-# coefficient of variation for the subgrid snow variation [SNFRAC = 4]
-subgrid_cv = 2.0
 
 # -----------------------------------
 # Ground surface and soil FSM2parameters

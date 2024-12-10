@@ -65,7 +65,7 @@ resampling_algorithm = "no_resampling"
 ensemble_members = 100
 Neffthrs = 0.1           # Low Neff threshold
 # MCMC parameters
-chain_len = 20000   # Length of the mcmcm
+chain_len = 20000   # Length of the mcmc
 adaptive = True    # Update proposal covariance for next step.
 histcov = True     # Use posterior IES covariance as proposal covariance
 burn_in = 0.1      # discard the first x proportion of samples
@@ -281,12 +281,14 @@ Dzsnow = [0.1, 0.2, 0.4]
 OPTIMIZATION = '-O3'
 
 # Parameterizations, see FSM2 documentation
-ALBEDO = 2
-CONDCT = 1
-DENSITY = 2
-EXCHNG = 1
-HYDROL = 2
-SGRAIN = 2
-SNFRAC = 2
-CANMOD = 2
-CANRAD = 2
+ALBEDO = 2   # snow albedo                   : 1, 2            
+CANINT = 2   # canopy interception of snow   : 1, 2            
+CANMOD = 2   # forest canopy layers          : 1, 2            
+CANRAD = 2   # canopy radiative properties   : 1, 2            
+CANUNL = 2   # unloading of canopy           : 1, 2            
+CONDCT = 1   # snow thermal conductivity     : 0, 1            
+DENSTY = 2   # snow density                  : 0, 1, 2         
+EXCHNG = 1   # turbulent exchange            : 0, 1            
+HYDROL = 2   # snow hydraulics               : 0, 1, 2         
+SGRAIN = 2   # snow grain growth             : 1, 2            
+SNFRAC = 3   # snow cover fraction           : 1, 2, 3         

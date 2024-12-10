@@ -1,13 +1,13 @@
 !-----------------------------------------------------------------------
 ! Call FSM2 physics subroutines for one timestep at one point
 !-----------------------------------------------------------------------
-subroutine FSM2_TIMESTEP(dt,elev,zT,zU,SWEsca,Taf,cv,                  &
+subroutine FSM2_TIMESTEP(dt,elev,zT,zU,                                &
                          LW,Ps,Qa,Rf,Sdif,Sdir,Sf,Ta,trans,Ua,         &
                          alb0,vegh,VAI,                                &
                          albs,Tsrf,Dsnw,Nsnow,Qcan,Rgrn,Sice,Sliq,     &
-                         Sveg,Tcan,Tsnow,Tsoil,Tveg,Vsmc,D_a,D_m,D_ave,&
-                         H,LE,LWout,LWsub,Melt,Roff,snd,snw,subl,svg,  &
-                         SWout,SWsub,Usub,Wflx,fsnow,asrf)
+                         Sveg,Tcan,Tsnow,Tsoil,Tveg,Vsmc,              &
+                         fsnow,H,LE,LWout,LWsub,Melt,Roff,snd,snw,     &
+                         subl,svg,SWout,SWsub,Tsub,Usub,Wflx)
 
 use LAYERS, only: &
   Ncnpy,             &! Number of canopy layers
@@ -20,10 +20,7 @@ implicit none
 real, intent(in) :: &!
   dt,                &! Timestep (s)
   zT,                &! Temperature and humidity measurement height (m)
-  zU,                &! Wind speed measurement height (m)
-  SWEsca,            &! SWE where SCA=1 [mm] (Noah fSCA)
-  Taf,               &! #fSCA shape parameter [-] (Noah fSCA)
-  cv                  ! cv of the Listons depletion curve
+  zU                  ! Wind speed measurement height (m)
 
 ! Meteorological variables
 real, intent(in) :: &
@@ -62,14 +59,11 @@ real, intent(inout) :: &
   Tsnow(Nsmax),      &! Snow layer temperatures (K)
   Tsoil(Nsoil),      &! Soil layer temperatures (K)
   Tveg(Ncnpy),       &! Vegetation layer temperatures (K)
-  fsnow,             &! Ground snowcover fraction
-  D_a,               &
-  D_m,               &
-  D_ave,             &
   Vsmc(Nsoil)         ! Volumetric moisture content of soil layers
 
 ! Diagnostics
 real, intent(out) :: &
+  fsnow,             &! Ground snowcover fraction
   H,                 &! Sensible heat flux to the atmosphere (W/m^2)
   LE,                &! Latent heat flux to the atmosphere (W/m^2)
   LWout,             &! Outgoing LW radiation (W/m^2)
@@ -82,9 +76,9 @@ real, intent(out) :: &
   svg,               &! Total snow mass on vegetation (kg/m^2)
   SWout,             &! Outgoing SW radiation (W/m^2)
   SWsub,             &! Subcanopy downward SW radiation (W/m^2)
+  Tsub,              &! Subcanopy air temperature (K)
   Usub,              &! Subcanopy wind speed (m/s)
-  Wflx(Nsmax),       &! Water flux into snow layer (kg/m^2/s)
-  asrf                ! Snow/ground surface albed
+  Wflx(Nsmax)         ! Water flux into snow layer (kg/m^2/s)
 
 ! Vegetation properties
 real :: &
@@ -97,7 +91,6 @@ real :: &
 
 ! Snow properties
 real :: &
-  !fsnow,             &! Ground snowcover fraction
   ksnow(Nsmax)        ! Thermal conductivities of snow layers (W/m/K)
 
 ! Surface properties
@@ -119,15 +112,14 @@ real :: &
   Gsrf,              &! Heat flux into snow/ground surface (W/m^2)
   Gsoil,             &! Heat flux into soil (W/m^2)
   SWsrf,             &! SW absorbed by snow/ground surface (W/m^2)
-  Rsrf,              &! Net radiation absorbed by the surface (W/m^2)
   unload,            &! Snow mass unloaded from vegetation (kg/m^2)
   Eveg(Ncnpy),       &! Moisture flux from vegetation layers (kg/m^2/s)
   SWveg(Ncnpy)        ! SW absorbed by vegetation layers (W/m^2)
-                       
+
 call CANOPY(Sveg,Tveg,VAI,cveg,fcans,lveg,Scap,Tveg0)
 
-call SWRAD(alb0,Dsnw,snw,dt,elev,fcans,lveg,Sdif,Sdir,             &
-           Sf,Tsrf,albs,fsnow,SWout,SWsrf,SWsub,SWveg,tdif,asrf)
+call SWRAD(alb0,Dsnw,dt,elev,fcans,lveg,Sdif,Sdir,Sf,Tsrf,             &
+           albs,fsnow,SWout,SWsrf,SWsub,SWveg,tdif)
 
 call THERMAL(Dsnw,Nsnow,Sice,Sliq,Tsnow,Tsoil,Vsmc,csoil,Ds1,          &
              gs1,ksnow,ksoil,ks1,Ts1)
@@ -135,12 +127,12 @@ call THERMAL(Dsnw,Nsnow,Sice,Sliq,Tsnow,Tsoil,Vsmc,csoil,Ds1,          &
 call SRFEBAL(cveg,Ds1,dt,fcans,fsnow,gs1,ks1,lveg,LW,Ps,Qa,            &
              SWsrf,Sveg,SWveg,Ta,tdif,Ts1,Tveg0,Ua,VAI,vegh,zT,zU,     &
              Tsrf,Qcan,Sice,Tcan,Tveg,                                 &
-             Esrf,Eveg,Gsrf,H,LE,LWout,LWsub,Melt,subl,Usub,Rsrf)
+             Esrf,Eveg,Gsrf,H,LE,LWout,LWsub,Melt,subl,Tsub,Usub)
 
-call INTERCEPT(dt,cveg,Eveg,Scap,Sf,Sveg,Tveg,drip,svg,unload)
+call INTERCEPT(dt,cveg,Eveg,lveg,Scap,Ta,Ua,Sf,Sveg,Tveg,drip,svg,unload)
 
-call SNOW(dt,SWEsca,Taf,cv,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,Tsrf,unload, &
-          Nsnow,Dsnw,Rgrn,Sice,Sliq,Tsnow,Tsoil,Gsoil,Roff,snd,snw,Wflx,fsnow,D_a,D_m,D_ave,Rsrf,H,LE)
+call SNOW(dt,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,Tsrf,unload, &
+          Nsnow,Dsnw,Rgrn,Sice,Sliq,Tsnow,Tsoil,Gsoil,Roff,snd,snw,Wflx)
 
 call SOIL(csoil,dt,Gsoil,ksoil,Tsoil)
 

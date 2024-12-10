@@ -99,14 +99,14 @@ def write_nlst(temp_dest, params, step):
     filedata = filedata.replace('pyTIMESTEP', str(cfg.dt))
 
     # fSCA parameters
-    filedata = filedata.replace('pySWEsca', str(params['SWEsca']))
-    filedata = filedata.replace('pyTaf', str(params['Taf']))
-    filedata = filedata.replace('pyCV', str(params['subgrid_cv']))
+    #filedata = filedata.replace('pySWEsca', str(params['SWEsca']))
+    #filedata = filedata.replace('pyTaf', str(params['Taf']))
+    #filedata = filedata.replace('pyCV', str(params['subgrid_cv']))
 
     # Vegetation characteristics
     filedata = filedata.replace('pyvegh', str(params['vegh']))
     filedata = filedata.replace('pyVAI', str(params['VAI']))
-    filedata = filedata.replace('pyfsky', str(params['fsky']))
+    #filedata = filedata.replace('pyfsky', str(params['fsky']))
 
     # FSM2 internal parameters
     filedata = filedata.replace('pyalb0', str(params['alb0']))
@@ -119,7 +119,7 @@ def write_nlst(temp_dest, params, step):
     filedata = filedata.replace('pyrfix', str(params['rfix']))
     filedata = filedata.replace('pyrgr0', str(params['rgr0']))
     filedata = filedata.replace('pyrhof', str(params['rhof']))
-    filedata = filedata.replace('pyrhow', str(params['rhow']))
+    #filedata = filedata.replace('pyrhow', str(params['rhow']))
     filedata = filedata.replace('pyrmlt', str(params['rmlt']))
     filedata = filedata.replace('pySalb', str(params['Salb']))
     filedata = filedata.replace('pysnda', str(params['snda']))
@@ -184,8 +184,12 @@ def model_compile():
 
     # Parameterizations
     filedata = filedata.replace('pyALBEDO', str(cfg.ALBEDO))
+    filedata = filedata.replace('pyCANINT', str(cfg.CANINT))
+    filedata = filedata.replace('pyCANMOD', str(cfg.CANMOD))
+    filedata = filedata.replace('pyCANRAD', str(cfg.CANRAD))
+    filedata = filedata.replace('pyCANUNL', str(cfg.CANUNL))
     filedata = filedata.replace('pyCONDCT', str(cfg.CONDCT))
-    filedata = filedata.replace('pyDENSITY', str(cfg.DENSITY))
+    filedata = filedata.replace('pyDENSTY', str(cfg.DENSTY))
     filedata = filedata.replace('pyEXCHNG', str(cfg.EXCHNG))
     filedata = filedata.replace('pyHYDROL', str(cfg.HYDROL))
     filedata = filedata.replace('pySGRAIN', str(cfg.SGRAIN))
@@ -306,9 +310,8 @@ def model_read_output(fsm_path, read_dump=True):
         dump_dir = os.path.join(fsm_path, "out_dump")
         dump = pd.read_csv(dump_dir, header=None, delim_whitespace=True,
                            names=list(range(4)))
-        dump.index = ["albs", "Dsnw", "Nsnow", "Qcan", "Rgrn", "Slice", "Sliq",
-                      "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc",
-                      "fsnow", "D_a", "D_m", "D_ave"]
+        dump.index = ["Nsnow","albs", "Dsnw", "Qcan", "Rgrn", "Slice", "Sliq",
+                      "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]
 
     if read_dump:
         return state, dump

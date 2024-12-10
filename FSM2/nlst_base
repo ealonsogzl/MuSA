@@ -7,8 +7,7 @@
  rcld = pyrcld            
  rfix = pyrfix           
  rgr0 = pyrgr0           
- rhof = pyrhof           
- rhow = pyrhow           
+ rhof = pyrhof                     
  rmlt = pyrmlt            
  Salb = pySalb             
  snda = pysnda         
@@ -18,10 +17,6 @@
  trho = pytrho      
  Wirr = pyWirr           
  z0sn = pyz0sn    
- fcly = pyfcly
- fsnd = pyfsnd
- gsat = pygsat
- z0sf = pyz0sf
  acn0 = pyacn0
  acns = pyacns
  avg0 = pyavg0
@@ -34,6 +29,10 @@
  svai = pysvai
  tunl = pytunl
  wcan = pywcan
+ fcly = pyfcly
+ fsnd = pyfsnd
+ gsat = pygsat
+ z0sf = pyz0sf
 /
 &gridpnts
  Nsmax = pyNSMAX
@@ -44,13 +43,10 @@
 &drive
   met_file = 'input.txt'
   dt=pyTIMESTEP
-  SWEsca = pySWEsca
-  Taf = pyTaf
-  cv = pyCV
+
 /
 &veg
   alb0 = pyalb0
-  fsky = pyfsky
   vegh = pyvegh
   VAI =  pyVAI
 /
