@@ -303,7 +303,6 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
     del_t = generate_dates(date_ini, date_end)
-
     obs_idx = np.searchsorted(del_t, dates_obs)
 
     files = glob.glob(nc_obs_path + "*.nc")
@@ -384,25 +383,48 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     obs_matrix = np.squeeze(obs_matrix)
     error_matrix = np.squeeze(error_matrix)
     # check if num of dates == num of observations
-#    if obs_matrix.shape[0] != len(dates_obs):
-#        raise Exception("Number of dates different of number of obs files")
+    #    if obs_matrix.shape[0] != len(dates_obs):
+    #        raise Exception("Number of dates different of number of obs files")
+    
+    # add lowest value possible to avoid numerical issues if for some reason
+    # r_cov == 0
+    error_matrix = error_matrix + np.finfo(type(error_matrix[0])).eps
     return obs_matrix, error_matrix
 
 
-def generate_dates(date_ini, date_end, timestep=1):
+def generate_dates(date_ini, date_end, timestep=cfg.dt):
+    """
+    Generate a list of dates starting from date_ini to date_end with a given
+    timestep in seconds.
+    
+    Args:
+        date_ini (datetime): Start date and time.
+        date_end (datetime): End date and time.
+        timestep (int): Timestep in seconds.
 
+    Returns:
+        numpy.ndarray: Array of datetime objects.
+
+    Raises:
+        Exception: If the final date in the array does not match date_end.
+    """
+    if not isinstance(timestep, (int, float)) or timestep <= 0:
+        raise ValueError("timestep must be a positive number in seconds.")
+    
     del_t = [date_ini]
     date_time = date_ini
+    time_delta = dt.timedelta(seconds=timestep)
+
     while date_time < date_end:
-        date_time += dt.timedelta(hours=timestep)
+        date_time += time_delta
+        if date_time <= date_end:
+            del_t.append(date_time)
 
-        del_t.append(date_time)
     if date_end != del_t[-1]:
-        raise Exception(' Wrong date_ini or date_end (or both), '
-                        'not compatible (or worng) time_step')
-
-    del_t = np.asarray(del_t)
-    return del_t
+        raise Exception("Wrong date_ini or date_end (or both), \
+                        not compatible with the given timestep.")
+    
+    return np.asarray(del_t)
 
 
 def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
@@ -537,7 +559,7 @@ def simulation_steps(observations, dates_obs):
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
 
     del_t = generate_dates(date_ini, date_end)
-
+    
     obs_idx = np.searchsorted(del_t, dates_obs)
 
     # Remove observation NaNs from simulations steps
@@ -604,3 +626,4 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
+

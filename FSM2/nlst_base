@@ -43,7 +43,7 @@
 /
 &drive
   met_file = 'input.txt'
-  dt=3600
+  dt=pyTIMESTEP
   SWEsca = pySWEsca
   Taf = pyTaf
   cv = pyCV
