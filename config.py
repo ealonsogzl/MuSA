@@ -256,11 +256,7 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
 param_var_names = {"RealLat_var_name": " XLAT",
                    "vegh_var_name": "vegh",
                    "VAI_var_name": "VAI",
-                   "fsky_var_name": "fsky",
-                   "hbas_var_name": "hbas",
-                   "SWEsca_var_name": "SWEsca",
-                   "Taf_var_name": "Taf",
-                   "cv_var_name": "subgrid_cv"}
+                   "hbas_var_name": "hbas"}
 
 # -----------------------------------
 # FSM configuration (Namelist)
