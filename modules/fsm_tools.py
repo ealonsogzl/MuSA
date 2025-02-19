@@ -98,15 +98,9 @@ def write_nlst(temp_dest, params, step):
     filedata = filedata.replace('pyDZSNOW', Dzsnow)
     filedata = filedata.replace('pyTIMESTEP', str(cfg.dt))
 
-    # fSCA parameters
-    #filedata = filedata.replace('pySWEsca', str(params['SWEsca']))
-    #filedata = filedata.replace('pyTaf', str(params['Taf']))
-    #filedata = filedata.replace('pyCV', str(params['subgrid_cv']))
-
     # Vegetation characteristics
     filedata = filedata.replace('pyvegh', str(params['vegh']))
     filedata = filedata.replace('pyVAI', str(params['VAI']))
-    #filedata = filedata.replace('pyfsky', str(params['fsky']))
 
     # FSM2 internal parameters
     filedata = filedata.replace('pyalb0', str(params['alb0']))
@@ -119,7 +113,7 @@ def write_nlst(temp_dest, params, step):
     filedata = filedata.replace('pyrfix', str(params['rfix']))
     filedata = filedata.replace('pyrgr0', str(params['rgr0']))
     filedata = filedata.replace('pyrhof', str(params['rhof']))
-    #filedata = filedata.replace('pyrhow', str(params['rhow']))
+    # filedata = filedata.replace('pyrhow', str(params['rhow']))
     filedata = filedata.replace('pyrmlt', str(params['rmlt']))
     filedata = filedata.replace('pySalb', str(params['Salb']))
     filedata = filedata.replace('pysnda', str(params['snda']))
@@ -310,7 +304,7 @@ def model_read_output(fsm_path, read_dump=True):
         dump_dir = os.path.join(fsm_path, "out_dump")
         dump = pd.read_csv(dump_dir, header=None, delim_whitespace=True,
                            names=list(range(4)))
-        dump.index = ["Nsnow","albs", "Dsnw", "Qcan", "Rgrn", "Slice", "Sliq",
+        dump.index = ["Nsnow", "albs", "Dsnw", "Qcan", "Rgrn", "Slice", "Sliq",
                       "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]
 
     if read_dump:
@@ -406,10 +400,6 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     params = {"VAI": temp_forz_def.iloc[0]["VAI"],
               "vegh": temp_forz_def.iloc[0]["vegh"],
-              "fsky": temp_forz_def.iloc[0]["fsky"],
-              "Taf": temp_forz_def.iloc[0]["Taf"],
-              "SWEsca": temp_forz_def.iloc[0]["SWEsca"],
-              "subgrid_cv": temp_forz_def.iloc[0]["subgrid_cv"],
               "asmn": temp_forz_def.iloc[0]["asmn"],
               "asmx": temp_forz_def.iloc[0]["asmx"],
               "eta0": temp_forz_def.iloc[0]["eta0"],
@@ -453,10 +443,6 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     del temp_forz_def["VAI"]
     del temp_forz_def["vegh"]
-    del temp_forz_def["fsky"]
-    del temp_forz_def["Taf"]
-    del temp_forz_def["SWEsca"]
-    del temp_forz_def["subgrid_cv"]
     del temp_forz_def["asmn"]
     del temp_forz_def["asmx"]
     del temp_forz_def["eta0"]
@@ -712,13 +698,6 @@ def forcing_table(lat_idx, lon_idx, step=0):
         except KeyError:
             VAI = np.repeat(cnt.VAI, len(prec))
 
-        try:
-            fsky = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["fsky_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
-            fsky = np.repeat(cnt.fsky, len(prec))
-
         # FSM2 internal parameters
         try:
             alb0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
@@ -726,28 +705,6 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                         date_ini, date_end)
         except KeyError:
             alb0 = np.repeat(cnt.alb0, len(prec))
-
-        try:
-            SWEsca = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                          param_var_names["SWEsca_var_name"],
-                                          date_ini, date_end)
-        except KeyError:
-            SWEsca = np.repeat(cnt.SWEsca, len(prec))
-
-        try:
-            Taf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       param_var_names["Taf_var_name"],
-                                       date_ini, date_end)
-        except KeyError:
-            Taf = np.repeat(cnt.Taf, len(prec))
-
-        try:
-            subgrid_cv = ifn.nc_array_forcing(nc_forcing_path,
-                                              lat_idx, lon_idx,
-                                              param_var_names["cv_var_name"],
-                                              date_ini, date_end)
-        except KeyError:
-            subgrid_cv = np.repeat(cnt.subgrid_cv, len(prec))
 
         try:
             asmn = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
@@ -981,10 +938,6 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                    "Ps": press,
                                    "VAI": VAI,
                                    "vegh": vegh,
-                                   "fsky": fsky,
-                                   "Taf": Taf,
-                                   "SWEsca": SWEsca,
-                                   "subgrid_cv": subgrid_cv,
                                    "asmn": asmn,
                                    "asmx": asmx,
                                    "eta0": eta0,
@@ -1067,4 +1020,3 @@ def unit_conversion(forcing_df):
                                   numpy_dtypes_only=True)
 
     return forcing_df
-
