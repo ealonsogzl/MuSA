@@ -298,18 +298,17 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     # use scipy.linalg.pinvh ? (rtol parameter instead of numpy rcond)
     A0 = proposal.T-priormean
     A0 = A0.T  # n x N
-    C0inv = np.linalg.inv(priorcov)
-    Phi0 = -0.5*(A0.T)@C0inv@(A0)  # (N x n)  x (n x n) x (n x N) = N x N
-    Phi0 = np.diag(Phi0)  # N x 1
+    B=np.linalg.solve(priorcov,A0)
+    Phi0 = -0.5*np.sum((A0.T)*B.T,1)
 
     proposalmean = proposal.mean(-1)
     A = (proposal.T-proposalmean)
     A = A.T  # n x N
     C = (1/N)*(A@A.T)
-    Cinv = np.linalg.inv(C)
-    Phip = -0.5*(A.T)@Cinv@A  # N x N
-    Phip = np.diag(Phip)  # N x 1
+    B = np.linalg.solve(C,A)
+    Phip = -0.5*np.sum((A.T)*B.T,1)
 
+    print('propbsing')
     Phi = Phid+Phi0-Phip
     Phimax = Phi.max()
     Phis = Phi-Phimax  # Scaled to avoid numerical overflow
@@ -366,6 +365,10 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         pass
     else:
         raise Exception('R must be a scalar, m x 1 vector.')
+        
+    cy=np.linalg.det(2*np.pi*np.diag(R))**(-0.5)
+    c0=np.linalg.det(2*np.pi*pric)**(-0.5)
+    b=cy*c0
 
     phi = np.zeros([Ne, Nl])  # negative log of target
     lsepsi = np.zeros([Ne, Nl])  # logsumexp of the DM proposal
@@ -373,8 +376,8 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         # Terms related to the target
         propell = props[:, :, ell]  # Np x Ne
         A0ell = (propell.T-prim).T
-        phi0ell = 0.5*(A0ell.T)@np.linalg.solve(pric, A0ell)  # Ne x Ne
-        phi0ell = np.diag(phi0ell)  # Ne
+        B=np.linalg.solve(pric,A0ell)
+        phi0ell = 0.5*np.sum((A0ell.T)*B.T,1)
         predell = pred[:, :, ell]  # No x Ne
         residuell = (obs-predell.T).T  # No x Ne
         phidell = 0.5*(1/R)@(residuell**2)  # Ne
@@ -387,8 +390,8 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
             cj = np.linalg.det(2*np.pi*Cj)**(-0.5)
             lcj = np.log(cj)
             Aj = (propell.T-mj).T
-            psi = 0.5*(Aj.T)@np.linalg.solve(Cj, Aj)
-            psi = np.diag(psi)
+            B=np.linalg.solve(Cj,Aj)
+            psi = 0.5*np.sum((Aj.T)*B.T,1)
             psi = psi-lcj
             psij[:, j] = psi
         psijx = np.max(psij, 1)  # Ne
@@ -396,11 +399,14 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         lsepsiell = psijx+np.log(np.sum(np.exp(psijs), 1))
         lsepsi[:, ell] = lsepsiell
 
-    logw = -phi-lsepsi
-    logw = logw.flatten('F')  # Purposely flattening column major order
-    logw = logw-np.max(logw)
+    logwt = np.log(b)-phi-lsepsi
+    logwt = logwt.flatten('F')  # Purposely flattening column major order
+    lwtx = np.max(logwt)
+    lselwt = lwtx+np.log(np.sum(np.exp(logwt-lwtx)))
+    logNlNe = np.log(Nl*Ne)
+    logZ = -logNlNe+lselwt # Log model evidence
+    logw = logwt-logNlNe-logZ
     w = np.exp(logw)
-    w = w/np.sum(w)
     Neff = 1/np.sum(w**2)
 
     return w, Neff
