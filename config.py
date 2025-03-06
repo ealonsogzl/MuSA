@@ -8,7 +8,7 @@ Note that not all the options will be used in all the experimental setups.
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
 numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
-dt = 3600 # timestep in seconds
+dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
 # -----------------------------------
@@ -124,9 +124,9 @@ MPI = False
 nprocess = 8
 
 # number of cells to be solved per processor at each iteration
-cells_per_process = None # None is 1
+cells_per_process = None  # None is 1
 # maximun number of seconds each pool is killed before try again
-timeout = None # None is inf
+timeout = None  # None is inf
 
 aws_lat = 4735225.54  # Latitude in case of point_scale
 aws_lon = 710701.28   # Longitude in case of point_scale
@@ -277,14 +277,14 @@ Dzsnow = [0.1, 0.2, 0.4]
 OPTIMIZATION = '-O3'
 
 # Parameterizations, see FSM2 documentation
-ALBEDO = 2   # snow albedo                   : 1, 2            
-CANINT = 2   # canopy interception of snow   : 1, 2            
-CANMOD = 2   # forest canopy layers          : 1, 2            
-CANRAD = 2   # canopy radiative properties   : 1, 2            
-CANUNL = 2   # unloading of canopy           : 1, 2            
-CONDCT = 1   # snow thermal conductivity     : 0, 1            
-DENSTY = 2   # snow density                  : 0, 1, 2         
-EXCHNG = 1   # turbulent exchange            : 0, 1            
-HYDROL = 2   # snow hydraulics               : 0, 1, 2         
-SGRAIN = 2   # snow grain growth             : 1, 2            
-SNFRAC = 3   # snow cover fraction           : 1, 2, 3         
+ALBEDO = 2   # snow albedo                   : 1, 2
+CANINT = 2   # canopy interception of snow   : 1, 2
+CANMOD = 2   # forest canopy layers          : 1, 2
+CANRAD = 2   # canopy radiative properties   : 1, 2
+CANUNL = 2   # unloading of canopy           : 1, 2
+CONDCT = 1   # snow thermal conductivity     : 0, 1
+DENSTY = 2   # snow density                  : 0, 1, 2
+EXCHNG = 1   # turbulent exchange            : 0, 1
+HYDROL = 2   # snow hydraulics               : 0, 1, 2
+SGRAIN = 2   # snow grain growth             : 1, 2
+SNFRAC = 3   # snow cover fraction           : 1, 2, 3

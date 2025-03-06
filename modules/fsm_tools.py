@@ -302,7 +302,7 @@ def model_read_output(fsm_path, read_dump=True):
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
-        dump = pd.read_csv(dump_dir, header=None, delim_whitespace=True,
+        dump = pd.read_csv(dump_dir, header=None, sep='\s+',
                            names=list(range(4)))
         dump.index = ["Nsnow", "albs", "Dsnw", "Qcan", "Rgrn", "Slice", "Sliq",
                       "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]
@@ -510,9 +510,12 @@ def write_dump(dump, fsm_path):
     None.
 
     """
+
     dump_copy = dump.copy()
-    file_name = os.path.join(fsm_path, "out_dump")
+    dump_copy = dump_copy.astype(object)
     dump_copy.iloc[2, 0] = str(int(dump_copy.iloc[2, 0]))
+
+    file_name = os.path.join(fsm_path, "out_dump")
     dump_copy.to_csv(file_name, header=None, index=None, sep=' ', mode='w',
                      na_rep='NaN')
 
