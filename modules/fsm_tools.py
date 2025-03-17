@@ -302,7 +302,7 @@ def model_read_output(fsm_path, read_dump=True):
 
     if read_dump:
         dump_dir = os.path.join(fsm_path, "out_dump")
-        dump = pd.read_csv(dump_dir, header=None, sep='\s+',
+        dump = pd.read_csv(dump_dir, header=None, sep='\\s+',
                            names=list(range(4)))
         dump.index = ["Nsnow", "albs", "Dsnw", "Qcan", "Rgrn", "Slice", "Sliq",
                       "Sveg", "Tcan", "Tsnow", "Tsoil", "Tsrf", "Tveg", "Vsmc"]

@@ -12,7 +12,7 @@ from scipy.optimize import newton
 from scipy.special import expit, logit
 import constants as cnt
 import config as cfg
-import modules.filters as flt
+from statsmodels.stats.weightstats import DescrStatsW
 import modules.spatialMuSA as spM
 
 
@@ -236,6 +236,7 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
 
     return np.concatenate(complet_noise)
 
+
 def add_process_noise(noise_coef, var, strategy):
 
     dyn_noise = cnt.dyn_noise
@@ -364,8 +365,10 @@ def get_shape_from_noise(noise_dict, wgth, lowNeff):
                               lower_bounds[var])
 
         # reduce the timeserie to its mean
-        mu = np.mean(np.average(var_temp, axis=0, weights=wgth))
-        sigma = np.mean(flt.weighted_std(var_temp, axis=0, weights=wgth))
+
+        d1 = DescrStatsW(np.squeeze(var_temp), weights=wgth)
+        mu = np.mean(d1.mean)
+        sigma = np.mean(d1.std)
 
         # Fix to recover from collapse through particle rejuvenation
         if lowNeff:
