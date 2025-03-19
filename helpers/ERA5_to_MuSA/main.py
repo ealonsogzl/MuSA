@@ -7,7 +7,7 @@ and to be authenticated.
 
 It creates a flat netcdf. Dimensions: (time x 1 x number of locations)
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import ee
 import myfuns as myf

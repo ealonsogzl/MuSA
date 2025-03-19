@@ -3,7 +3,7 @@
 """
 A simple example of how to display the results of a cell
 
-@author: Esteban Alonso González - alonsoe@cesbio.cnes.fr
+@author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import numpy as np
 import modules.internal_fns as ifn

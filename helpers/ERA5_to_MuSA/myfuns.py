@@ -3,7 +3,7 @@
 """
 My functions
 
-Author: Esteban Alonso González - e.alonsogzl@gmail.com
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import pandas as pd
 import numpy as np
@@ -44,7 +44,7 @@ def myRange(start, end, step):
     yield end
 
 
-def seq_dates(i_date, f_date, lngth = 100):
+def seq_dates(i_date, f_date, lngth=100):
     sdate = dt.datetime.strptime(i_date, "%Y-%m-%d")
     edate = dt.datetime.strptime(f_date, "%Y-%m-%d")
 
@@ -126,9 +126,9 @@ def format_forz(era5df):
     # To W
     tidy_df['LW_flux'] = \
         tidy_df['surface_thermal_radiation_downwards_hourly']/3600
-        # Remove negative noise
+    # Remove negative noise
     tidy_df['LW_flux'][tidy_df['LW_flux'] < 0] = 0
-    
+
     # RH
     TD = tidy_df['dewpoint_temperature_2m'] - 273.15
     T = tidy_df['temperature_2m'] - 273.15
