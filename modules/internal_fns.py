@@ -273,12 +273,12 @@ def get_dates_obs():
 
     dates_obs = cfg.dates_obs
 
-    if type(dates_obs) == list:
+    if type(dates_obs) is list:
 
         dates_obs.sort()
         dates_obs = np.asarray([dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
                                 for date in dates_obs])
-    elif type(dates_obs) == str:
+    elif type(dates_obs) is str:
 
         dates_obs = pd.read_csv(dates_obs, header=None)
         dates_obs = dates_obs.iloc[:, 0].tolist()
@@ -339,9 +339,22 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
             data_tmp = nc.Dataset(ncfile)
 
-            if obs_var in data_tmp.variables.keys():
+            nc_value = data_tmp.variables[obs_var][:, lat_idx, lon_idx]
+            # Check if masked
+            # TODO: Check if there is a better way to do this
+            if np.ma.is_masked(nc_value):
+                nc_value = nc_value.filled(np.nan)
+            else:
+                nc_value = np.ma.getdata(nc_value)
 
-                nc_value = data_tmp.variables[obs_var][:, lat_idx, lon_idx]
+            tmp_obs_storage.extend(nc_value)
+
+            # do the same conditionally for errors
+
+            if r_cov == 'dynamic_error':
+
+                nc_value = data_tmp.variables[cfg.obs_error_var_names[cont]
+                                              ][:, lat_idx, lon_idx]
                 # Check if masked
                 # TODO: Check if there is a better way to do this
                 if np.ma.is_masked(nc_value):
@@ -349,28 +362,11 @@ def obs_array(dates_obs, lat_idx, lon_idx):
                 else:
                     nc_value = np.ma.getdata(nc_value)
 
-                tmp_obs_storage.extend(nc_value)
-
-                # do the same conditionally for errors
-
-                if r_cov == 'dynamic_error':
-
-                    nc_value = data_tmp.variables[cfg.obs_error_var_names[cont]
-                                                  ][:, lat_idx, lon_idx]
-                    # Check if masked
-                    # TODO: Check if there is a better way to do this
-                    if np.ma.is_masked(nc_value):
-                        nc_value = nc_value.filled(np.nan)
-                    else:
-                        nc_value = np.ma.getdata(nc_value)
-
-                    tmp_error_storage.extend(nc_value)
-                else:
-
-                    tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
+                tmp_error_storage.extend(nc_value)
             else:
-                tmp_obs_storage.extend([np.nan])
-                tmp_error_storage.extend([np.nan])
+
+                tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
+
             data_tmp.close()
 
         array_obs[obs_idx] = tmp_obs_storage
@@ -385,7 +381,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     # check if num of dates == num of observations
     #    if obs_matrix.shape[0] != len(dates_obs):
     #        raise Exception("Number of dates different of number of obs files")
-    
+
     # add lowest value possible to avoid numerical issues if for some reason
     # r_cov == 0
     error_matrix = error_matrix + np.finfo(type(error_matrix[0])).eps
@@ -396,7 +392,7 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
     """
     Generate a list of dates starting from date_ini to date_end with a given
     timestep in seconds.
-    
+
     Args:
         date_ini (datetime): Start date and time.
         date_end (datetime): End date and time.
@@ -410,7 +406,7 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
     """
     if not isinstance(timestep, (int, float)) or timestep <= 0:
         raise ValueError("timestep must be a positive number in seconds.")
-    
+
     del_t = [date_ini]
     date_time = date_ini
     time_delta = dt.timedelta(seconds=timestep)
@@ -423,7 +419,7 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
     if date_end != del_t[-1]:
         raise Exception("Wrong date_ini or date_end (or both), \
                         not compatible with the given timestep.")
-    
+
     return np.asarray(del_t)
 
 
@@ -559,7 +555,7 @@ def simulation_steps(observations, dates_obs):
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
 
     del_t = generate_dates(date_ini, date_end)
-    
+
     obs_idx = np.searchsorted(del_t, dates_obs)
 
     # Remove observation NaNs from simulations steps
@@ -626,4 +622,3 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
-
