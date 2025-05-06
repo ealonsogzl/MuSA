@@ -198,8 +198,6 @@ def MuSA():
 
         elif cfg.parallelization == "multiprocessing":
 
-            grid = ifn.expand_grid()
-
             # Restart run
             if cfg.restart_run:
                 prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
