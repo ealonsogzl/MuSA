@@ -124,9 +124,10 @@ def MuSA():
         if cfg.da_algorithm not in ["ES", "IES"]:
             raise Exception("Spatial_propagation needs ES/IES methods")
 
-        if cfg.parallelization == "HPC.array":
+        grid = ifn.expand_grid()
+        ids = np.arange(0, grid.shape[0])
 
-            grid = ifn.expand_grid()
+        if cfg.parallelization == "HPC.array":
 
             # Restart run
             if cfg.restart_run:
@@ -143,7 +144,6 @@ def MuSA():
             nprocess = int(sys.argv[2])
             HPC_task_id = int(sys.argv[3])-1
 
-            ids = np.arange(0, grid.shape[0])
             ids = ids % HPC_task_number == HPC_task_id
 
             print("Running MuSA: Distributed (HPC.array) from job: " +
