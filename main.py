@@ -37,6 +37,9 @@ def MuSA():
     else:
         model.model_compile()
 
+    if cfg.implementation in ["distributed", "Spatial_propagation", "open_loop"]:
+        grid = ifn.expand_grid()
+
     """
     This is the main function. Here the parallelization scheme and the
     implementation is selected. This function is just a wrapper of the real
@@ -64,9 +67,7 @@ def MuSA():
 
         cell_assimilation(lat_idx, lon_idx)
 
-    elif (cfg.implementation == "distributed"):
-
-        grid = ifn.expand_grid()
+    elif cfg.implementation == "distributed":
 
         if cfg.parallelization == "sequential":
 
@@ -124,7 +125,6 @@ def MuSA():
         if cfg.da_algorithm not in ["ES", "IES"]:
             raise Exception("Spatial_propagation needs ES/IES methods")
 
-        grid = ifn.expand_grid()
         ids = np.arange(0, grid.shape[0])
 
         if cfg.parallelization == "HPC.array":
@@ -259,8 +259,6 @@ def MuSA():
             ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
     elif cfg.implementation == "open_loop":
-
-        grid = ifn.expand_grid()
 
         print("Running FSM simulation: Distributed (multiprocessing)")
 
