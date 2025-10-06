@@ -1074,7 +1074,7 @@ def implement_assimilation(Ensemble, step):
 
             Result["resampled_particles"] = resampled_particles
 
-    elif da_algorithm == 'AdaPBS':
+    elif da_algorithm == 'ProPBS':
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
@@ -1145,7 +1145,7 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.iter_update(step, thetaprop,
                                      create=True, iteration=j)
 
-    elif da_algorithm == 'AdaMuPBS':
+    elif da_algorithm == 'AdaPBS':
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
@@ -1580,7 +1580,7 @@ def implement_assimilation(Ensemble, step):
             d1 = DescrStatsW(np.squeeze(noise_ens_temp), weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
             noise_tmp_sd = d1.std
-        elif cfg.da_algorithm in ["EnKF", "IEnKF", "AdaPBS", "AdaMuPBS", "ES",
+        elif cfg.da_algorithm in ["EnKF", "IEnKF", "ProPBS", "AdaPBS", "ES",
                                   "IES", "PIES"]:
             noise_ens_temp = [Ensemble.noise_iter[x][var_p]
                               for x in range(len(Ensemble.noise_iter))]

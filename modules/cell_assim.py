@@ -149,7 +149,7 @@ def cell_assimilation(lat_idx, lon_idx):
         if cfg.da_algorithm in ["PF", "PBS"]:
             Ensemble.resample(step_results["resampled_particles"])
         # Optionally, creating new parameters per season (after resampling)
-        if cfg.da_algorithm in ["PBS", "AdaPBS", "AdaMuPBS", "ES",
+        if cfg.da_algorithm in ["PBS", "ProPBS", "AdaPBS", "ES",
                                 "IES", "PIES", "IES-MCMC"]:
             Ensemble.season_rejuvenation()
 
