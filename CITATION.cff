@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Alonso-González"
+  given-names: "Esteban"
+  orcid: "https://orcid.org/0000-0002-1883-3823"
+- family-names: "Aalstad"
+  given-names: "Kristoffer"
+  orcid: "https://orcid.org/0000-0002-2475-3731"
+title: "MuSA: The Multiple Snow Assimilation system"
+version: 2.2
+doi: 10.5281/zenodo.14065646
+date-released: 2024-11-11
+url: "https://github.com/ealonsogzl/MuSA"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Alonso-González"
+    given-names: "Esteban"
+  - family-names: "Aalstad"
+    given-names: "Kristoffer"
+  - family-names: "Baba"
+    given-names: "M. W."
+  - family-names: "Revuelto"
+    given-names: "Javier"
+  - family-names: "López-Moreno"
+    given-names: "José I."
+  - family-names: "Fiddes"
+    given-names: "Joel"
+  - family-names: "Essery"
+    given-names: "Richard"
+  - family-names: "Gascoin"
+    given-names: "Simon"
+  doi: "10.5194/gmd-15-9127-2022"
+  journal: "Geoscientific Model Development"
+  title: "The Multiple Snow Data Assimilation System (MuSA v1.0)"
+  volume: 15
+  start: 9127
+  end: 9155
+  year: 2022
+
