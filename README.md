@@ -104,16 +104,14 @@ python pre_main_spatial.py
 python main.py
 ```
 
-### How to cite
-#### MuSA
--  Alonso-González, E., Aalstad, K., Baba, M. W., Revuelto, J., López-Moreno, J. I., Fiddes, J., Essery, R., and Gascoin, S.: The Multiple Snow Data Assimilation System (MuSA v1.0), Geosci. Model Dev., 15, 9127–9155, https://doi.org/10.5194/gmd-15-9127-2022, 2022. 
-#### FSM2
--  Mazzotti, G., Essery, R., Moeser, C. D., and Jonas, T.: Resolving small-scale forest snow patterns using an energy balance snow model with a one-layer canopy. Water Resour. Res., 56, https://doi.org/10.1029/2019WR026129, 2020.
--  Essery, R.: A factorial snowpack model (FSM 1.0), Geosci. Model Dev., 8, 3867–3876, https://doi.org/10.5194/gmd-8-3867-2015, 2015. 
-#### Related references
-- Alonso-González, E., Aalstad, K., Pirk, N., Mazzolini, M., Treichler, D., Leclercq, P., Westermann, S., López-Moreno, J. I., and Gascoin, S.: Spatio-temporal information propagation using sparse observations in hyper-resolution ensemble-based snow data assimilation, Hydrol. Earth Syst. Sci., 27, 4637–4659, https://doi.org/10.5194/hess-27-4637-2023, 2023. 
-- Alonso-González, E., Gascoin, S., Arioli, S., and Picard, G.: Exploring the potential of thermal infrared remote sensing to improve a snowpack model through an observing system simulation experiment, EGUsphere The Cryosphere, 17, 3329–3342, https://doi.org/10.5194/tc-17-3329-2023, 2023.
-- Alonso-González, E., Gutmann, E., Aalstad, K., Fayad, A., Bouchet, M., and Gascoin, S.: Snowpack dynamics in the Lebanese mountains from quasi-dynamically downscaled ERA5 reanalysis updated by assimilating remotely sensed fractional snow-covered area, Hydrol. Earth Syst. Sci., 25, 4455–4471, https://doi.org/10.5194/hess-25-4455-2021, 2021.
-- Fiddes, J., Aalstad, K., and Westermann, S.: Hyper-resolution ensemble-based snow reanalysis in mountain regions using clustering, Hydrol. Earth Syst. Sci., 23, 4717–4736, https://doi.org/10.5194/hess-23-4717-2019, 2019. 
-- Aalstad, K., Westermann, S., Schuler, T. V., Boike, J., and Bertino, L.: Ensemble-based assimilation of fractional snow-covered area satellite retrievals to estimate the snow distribution at Arctic sites, The Cryosphere, 12, 247–270, https://doi.org/10.5194/tc-12-247-2018, 2018.
+### How to cite and license
+This software is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+In addition to the terms of the GPL-3.0, we kindly request that any scientific publication, presentation, or derived work using this software includes the following citation:
+
+```
+Alonso-González, E., Aalstad, K., Baba, M. W., Revuelto, J., López-Moreno, J. I., Fiddes, J., Essery, R., and Gascoin, S.: The Multiple Snow Data Assimilation System (MuSA v1.0), Geosci. Model Dev., 15, 9127–9155, https://doi.org/10.5194/gmd-15-9127-2022, 2022.
+```
+
+This citation requirement does not alter or restrict the rights granted under the GPL-3.0 license.
 
