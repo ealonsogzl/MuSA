@@ -1131,15 +1131,15 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                                                                     step)
     # subset forcing and observations
     # subset forcing, errors and observations
-    observations_sbst = observations[time_dict["Assimilaiton_steps"][step]:
-                                     time_dict["Assimilaiton_steps"][step
+    observations_sbst = observations[time_dict["Assimilation_steps"][step]:
+                                     time_dict["Assimilation_steps"][step
                                                                      + 1]]
-    error_sbst = errors[time_dict["Assimilaiton_steps"][step]:
-                        time_dict["Assimilaiton_steps"][step
+    error_sbst = errors[time_dict["Assimilation_steps"][step]:
+                        time_dict["Assimilation_steps"][step
                                                         + 1]]
 
-    forcing_sbst = main_forcing[time_dict["Assimilaiton_steps"][step]:
-                                time_dict["Assimilaiton_steps"][step + 1]]\
+    forcing_sbst = main_forcing[time_dict["Assimilation_steps"][step]:
+                                time_dict["Assimilation_steps"][step + 1]]\
         .copy()
 
     obs_flag = ~np.isnan(observations_sbst).all()
@@ -1194,7 +1194,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
 
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
-    if time_dict["Assimilaiton_steps"][step] in ini_DA_window:
+    if time_dict["Assimilation_steps"][step] in ini_DA_window:
         GSC_filename = (str(gsc_count) + '_GSC.nc')
 
         Ensemble.create(forcing_sbst, observations_sbst, error_sbst,  step,
@@ -1438,7 +1438,7 @@ def collect_results(lat_idx, lon_idx):
     OL_Sim = model.init_result(del_t)       # OL simulation
 
     # HACK: fake time_dict
-    time_dict = {'Assimilaiton_steps':
+    time_dict = {'Assimilation_steps':
                  np.append(ini_DA_window, len(del_t))}
 
     # loop over DA steps

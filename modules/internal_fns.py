@@ -597,7 +597,7 @@ def simulation_steps(observations, dates_obs):
 
     return {"del_t": del_t,
             "obs_idx": obs_idx,
-            "Assimilaiton_steps": assimilation_steps}
+            "Assimilation_steps": assimilation_steps}
 
 
 def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):

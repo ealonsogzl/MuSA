@@ -126,8 +126,8 @@ def storeDA(Result_df, step_results, observations_sbst, error_sbst,
     var_to_assim = cfg.var_to_assim
     error_names = cfg.obs_error_var_names
 
-    rowIndex = Result_df.index[time_dict["Assimilaiton_steps"][step]:
-                               time_dict["Assimilaiton_steps"][step + 1]]
+    rowIndex = Result_df.index[time_dict["Assimilation_steps"][step]:
+                               time_dict["Assimilation_steps"][step + 1]]
 
     if len(var_to_assim) > 1:
         for i, var in enumerate(var_to_assim):
@@ -155,17 +155,22 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
-def store_sim(updated_Sim, sd_Sim, Ensemble,
-              time_dict, step, MCMC=False, save_prior=False):
-
+def store_sim( Ensemble, time_dict, step, MCMC=False, save_prior=False):
+    
+    if cfg.write_stat_full:
+        stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
+    else:
+        stat_name_list = ['mean', 'std']
+        
+    sim_stat = {key: init_result(time_dict["del_t"]) for key in stat_name_list}
+    
     if MCMC:
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
         list_state = copy.deepcopy(Ensemble.state_membres)
 
-    rowIndex = updated_Sim.index[time_dict["Assimilaiton_steps"][step]:
-                                 time_dict["Assimilaiton_steps"][step + 1]]
-
+    rowIndex = sim_stat['mean'].index[time_dict["Assimilation_steps"][step]:
+                                 time_dict["Assimilation_steps"][step + 1]]
     # Get updated columns
     if save_prior:
         pesos = np.ones_like(Ensemble.wgth)
@@ -173,18 +178,27 @@ def store_sim(updated_Sim, sd_Sim, Ensemble,
         pesos = Ensemble.wgth
 
     for n, name_col in enumerate(list(list_state[0].columns)):
+
         # create matrix of colums
         col_arr = [list_state[x].iloc[:, n].to_numpy()
                    for x in range(len(list_state))]
         col_arr = np.vstack(col_arr)
-
+        
         d1 = DescrStatsW(col_arr, weights=pesos)
-        average_sim = d1.mean
-        sd_sim = d1.std
 
-        updated_Sim.loc[rowIndex, name_col] = average_sim
-        sd_Sim.loc[rowIndex, name_col] = sd_sim
-
+        if len( sim_stat.keys()) == 2: # Mean, Std 
+            sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
+            sim_stat['std'].loc[rowIndex, name_col] = d1.std
+        else:  
+            perc = d1.quantile([ 0, 0.25, 0.5, 0.75, 1 ]).values
+            sim_stat['min'].loc[rowIndex, name_col] = perc[0,:]
+            sim_stat['Q1'].loc[rowIndex, name_col] = perc[1,:]
+            sim_stat['median'].loc[rowIndex, name_col] = perc[2,:]
+            sim_stat['Q3'].loc[rowIndex, name_col] = perc[3,:]
+            sim_stat['max'].loc[rowIndex, name_col] = perc[4,:]
+            sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
+            sim_stat['std'].loc[rowIndex, name_col] = d1.std
+    return sim_stat
 
 def init_result(del_t, DA=False):
 
@@ -212,7 +226,7 @@ def init_result(del_t, DA=False):
 def forcing_table(lat_idx, lon_idx, step=0):
 
     nc_forcing_path = cfg.nc_forcing_path
-    frocing_var_names = cfg.frocing_var_names
+    forcing_var_names = cfg.forcing_var_names
     param_var_names = cfg.param_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
@@ -234,15 +248,15 @@ def forcing_table(lat_idx, lon_idx, step=0):
     else:
 
         prec = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    frocing_var_names["Precip_var_name"],
+                                    forcing_var_names["Precip_var_name"],
                                     date_ini, date_end)
 
         temp = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    frocing_var_names["Temp_var_name"],
+                                    forcing_var_names["Temp_var_name"],
                                     date_ini, date_end)
 
         press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                     frocing_var_names["Press_var_name"],
+                                     forcing_var_names["Press_var_name"],
                                      date_ini, date_end)
         try:
             XLAT = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
