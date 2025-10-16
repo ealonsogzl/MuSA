@@ -241,7 +241,7 @@ lon_obs_var_name = "easting"
 # Press_var_name can be "Press_var_name": "from_DEM". With this option, a
 # stationary pressure value is estimated from the DEM (if provided)
 # assuming standard atmosphere.
-frocing_var_names = {"SW_var_name": "SW",
+forcing_var_names = {"SW_var_name": "SW",
                      "LW_var_name": "LW",
                      "Precip_var_name": "PRECC",
                      "Press_var_name": "PRESS",
@@ -288,3 +288,14 @@ EXCHNG = 1   # turbulent exchange            : 0, 1
 HYDROL = 2   # snow hydraulics               : 0, 1, 2
 SGRAIN = 2   # snow grain growth             : 1, 2
 SNFRAC = 3   # snow cover fraction           : 1, 2, 3
+
+# -----------------------------------
+# Export option
+# -----------------------------------
+
+# If True, the min, max, 1st, 3rd quartile, median, mean and std will be exported. 
+# Otherwise, only the mean and std. 
+write_stat_full = False 
+
+# if True, the output are averaged at daily time step.
+write_stat_daily = False
