@@ -602,7 +602,8 @@ def simulation_steps(observations, dates_obs):
 
 def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
 
-    print("No observations in: " + str(lat_idx) + "," + str(lon_idx))
+    if cfg.da_algorithm != 'deterministic_OL':
+        print("No observations in: " + str(lat_idx) + "," + str(lon_idx))
     # create temporal simulation
     temp_dest = model.model_copy(lat_idx, lon_idx)
     real_forcing = main_forcing.copy()
