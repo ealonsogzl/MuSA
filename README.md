@@ -54,10 +54,10 @@ Resampling (for particle filters only):
 The outputs of MuSA are pickles compressed with blosc (the latid_lonid.pkl.bl format). Each file stores a dictionary containing the following dataframes:
 -  **DA_Results**: Contains information about the observed variables and posterior parameters (in the normal space).
 -  **OL_Sim**: Contains the reference simulation (snow simulation without any assimilation).
+-  **mean_Prior**: Contains the prior mean of the ensemble (no assimilation)
+-  **std_Prior**: Contains the prior standar deviation of the ensemble (no assimilation)
 -  **mean_Post**: Contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulations.
 -  **std_Post**: Contains the weighted standard deviation of the ensemble after the assimilation.
--  **std_Prior**: Contains the prior standar deviation of the ensemble (no assimilation)
--  **mean_Prior**: Contains the prior mean of the ensemble (no assimilation)
 
 You can open these files by your own means, or by using the following function:
 
