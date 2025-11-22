@@ -65,6 +65,9 @@ def pre_cheks():
     if cfg.da_algorithm not in ["ES", "IES"] and cfg.implementation == 'Spatial_propagation':
         raise Exception("Spatial_propagation needs ES/IES methods")
 
+    if cfg.spatial_in_mem:
+        raise Exception("spatial_in_mem not implemented yet")
+
 
 def last_line(filename):
     with open(filename, 'r') as file:
