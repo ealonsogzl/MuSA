@@ -220,6 +220,8 @@ def MuSA():
             ini_DA_window = spM.domain_steps()
 
             # DA loop
+            iteration_sims = list()
+            count = 0
             for gsc_count, step in enumerate(range(len(ini_DA_window))):
 
                 if cfg.restart_run and step < prev_step:
@@ -229,12 +231,15 @@ def MuSA():
                 inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
                           [ini_DA_window] * len(ids),
                           [step] * len(ids),
-                          [gsc_count] * len(ids)]
+                          [gsc_count] * len(ids),
+                          [iteration_sims[-1] if iteration_sims else None] * len(ids)]
 
-                ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
+                iteration_sims.append(ifn.safe_pool(spM.create_ensemble_cell, inputs,
+                                                    nprocess, in_mem=cfg.spatial_in_mem))
 
                 # Wait untill all ensembles are created
-                spM.wait_for_ensembles(step, 0)
+                if not cfg.spatial_in_mem:
+                    spM.wait_for_ensembles(step, 0)
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
@@ -245,12 +250,15 @@ def MuSA():
 
                     inputs = [list(grid[:, 0]), list(grid[:, 1]),
                               [step] * grid.shape[0],
-                              [j] * grid.shape[0]]
+                              [j] * grid.shape[0],
+                              [iteration_sims[-1] if iteration_sims else None] * len(ids)]
 
-                    ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
+                    iteration_sims.append(ifn.safe_pool(spM.spatial_assim, inputs, nprocess,
+                                                        in_mem=cfg.spatial_in_mem))
 
                     # Wait untill all ensembles are updated and remove prior
-                    spM.wait_for_ensembles(step, 0, j)
+                    if not cfg.spatial_in_mem:
+                        spM.wait_for_ensembles(step, 0, j)
 
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]

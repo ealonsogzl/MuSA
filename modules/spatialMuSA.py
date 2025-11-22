@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import netCDF4 as nc
 import datetime as dt
+from copy import deepcopy
 from scipy.spatial import distance, cKDTree
 from scipy.sparse import lil_matrix, csc_array, issparse, eye
 import sksparse
@@ -41,6 +42,7 @@ else:
 from statsmodels.stats.weightstats import DescrStatsW
 import pdcast as pdc
 import warnings
+from fnmatch import fnmatchcase
 
 
 def GC(d, c):
@@ -875,7 +877,7 @@ def read_distances(lat_idx, lon_idx):
     return distances
 
 
-def create_neigb(lat_idx, lon_idx, step, j):
+def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
 
     mask = cfg.nc_maks_path
 
@@ -949,14 +951,17 @@ def create_neigb(lat_idx, lon_idx, step, j):
     neigb = list(dict.fromkeys(neigb))
 
     # remove files if they do not exist
-    check = [i for i in neigb if os.path.isfile(i)]
+    if cfg.spatial_in_mem:
+        check = [i for i in neigb if i in sim_dic]
+    else:
+        check = [i for i in neigb if os.path.isfile(i)]
 
     return check
 
 
-def get_neig_info(lat_idx, lon_idx, step, j):
+def get_neig_info(lat_idx, lon_idx, step, j, sim_dic):
 
-    files = create_neigb(lat_idx, lon_idx, step, j)
+    files = create_neigb(lat_idx, lon_idx, step, j, sim_dic)
 
     neig_obs = []
     neig_pred_obs = []
@@ -976,7 +981,12 @@ def get_neig_info(lat_idx, lon_idx, step, j):
     for count, file in enumerate(files):
 
         try:  # If the file do not have observations, it will fail
-            ens_tmp = ifn.io_read(file)
+
+            if cfg.spatial_in_mem:
+                ens_tmp = ifn.io_read(sim_dic[file], in_mem=True)
+            else:
+                ens_tmp = ifn.io_read(file)
+
         except FileNotFoundError:
             continue
 
@@ -1122,7 +1132,9 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
     return rho_par_predicted_obs, rho_predicted_obs
 
 
-def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
+def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
+                         step, gsc_count, sim_dic=None,
+                         in_mem=cfg.spatial_in_mem):
 
     real_time_restart = cfg.real_time_restart
 
@@ -1150,7 +1162,6 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
         lon=lon_idx,
         obs=obs_flag)
 
-    name_ensemble_end = os.path.join(cfg.save_ensemble_path, name_ensemble_end)
     # If file exists adn restart = True, continue to next
     if cfg.restart_run and os.path.isfile(name_ensemble_end):
 
@@ -1188,9 +1199,12 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
                    lon=lon_idx,
                    obs=obs_flag)
 
-        name_ensemble = os.path.join(cfg.output_path, name_ensemble)
-
-        Ensemble = ifn.io_read(name_ensemble)
+        if in_mem:
+            Ensemble = deepcopy(ifn.io_read(
+                sim_dic[name_ensemble], in_mem=True))
+        else:
+            name_ensemble = os.path.join(cfg.output_path, name_ensemble)
+            Ensemble = ifn.io_read(name_ensemble)
 
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
@@ -1206,7 +1220,14 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window, step, gsc_count):
     # Save space. Not possible. If save space and no local or neig obs, the
     # output would be broken
     # Ensemble.save_space()
-    ifn.io_write(name_ensemble_end, Ensemble)
+
+    if in_mem:
+        ens_comp = ifn.io_write(Ensemble, in_mem=True)
+        return {name_ensemble_end: ens_comp}
+    else:
+        name_ensemble_end = os.path.join(
+            cfg.save_ensemble_path, name_ensemble_end)
+        ifn.io_write(name_ensemble_end, Ensemble)
 
 
 def wait_for_ensembles(step, HPC_task_id, j=None):
@@ -1281,7 +1302,8 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                                                                  j=j)))
 
 
-def spatial_assim(lat_idx, lon_idx, step, j):
+def spatial_assim(lat_idx, lon_idx, step, j,
+                  sim_dic=None, in_mem=cfg.spatial_in_mem):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
@@ -1296,12 +1318,19 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                                                                     lat=lat_idx,
                                                                     lon=lon_idx)
 
-    file = os.path.join(cfg.save_ensemble_path, file)
-    file = glob.glob(file)[0]  # trick to find the local ensemble
-    # in both obs:TRUE/FALSE using wildcards
-    try:  # If current cell do not exist return None
+    # trick to find the local ensemble
+    if in_mem:
+        file = [k for k in sim_dic.keys() if fnmatchcase(k, file)][0]
+    else:
+        file = glob.glob(file)[0]
 
-        Ensemble = ifn.io_read(file)
+    # in both obs:TRUE/FALSE using wildcardsEnsemble = ifn.io_read(sim_dic[file], in_mem=True)
+    try:  # If current cell do not exist return None
+        if in_mem:
+            Ensemble = deepcopy(ifn.io_read(sim_dic[file], in_mem=True))
+        else:
+            file = os.path.join(cfg.save_ensemble_path, file)
+            Ensemble = ifn.io_read(file)
 
     except FileNotFoundError:
         print('Not found: ' + file)
@@ -1317,8 +1346,6 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                lon=lon_idx,
                obs=obs_flag)
 
-    name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
-
     if cfg.restart_run and os.path.isfile(name_ensemble):
         # If file exists, continue to next
         return None
@@ -1327,7 +1354,7 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     try:
 
         neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = \
-            get_neig_info(lat_idx, lon_idx, step, j)
+            get_neig_info(lat_idx, lon_idx, step, j, sim_dic)
 
         # in case var_to_prop != var_to_assim, get_neig_info gets only the neigborhood obs and not the local observation:
         # add the local observations and coordinates in case some variables are not spatially propagated.
@@ -1406,7 +1433,12 @@ def spatial_assim(lat_idx, lon_idx, step, j):
     if j < cfg.max_iterations-1 and save_space_flag:
         Ensemble.save_space()
 
-    ifn.io_write(name_ensemble, Ensemble)
+    if in_mem:
+        ens_comp = ifn.io_write(Ensemble, in_mem=True)
+        return {name_ensemble: ens_comp}
+    else:
+        name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
+        ifn.io_write(name_ensemble, Ensemble)
 
     return None
 
