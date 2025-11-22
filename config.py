@@ -7,7 +7,7 @@ Note that not all the options will be used in all the experimental setups.
 """
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = 'dIm'  # model to use from FSM2, dIm or snow17
+numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -56,7 +56,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'IES'
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -107,7 +107,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "Spatial_propagation"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
