@@ -1,0 +1,52 @@
+2025-11-22 16:33:35,164 - step: 0 - j: 0
+2025-11-22 16:33:43,016 - step: 0 - j: 1
+2025-11-22 16:33:50,961 - step: 0 - j: 2
+2025-11-22 16:33:59,008 - step: 0 - j: 3
+2025-11-22 16:34:18,180 - step: 1 - j: 0
+2025-11-22 16:34:26,414 - step: 1 - j: 1
+2025-11-22 16:34:35,099 - step: 1 - j: 2
+2025-11-22 16:34:43,963 - step: 1 - j: 3
+2025-11-22 16:40:11,687 - step: 0 - j: 0
+2025-11-22 16:40:24,927 - step: 0 - j: 1
+2025-11-22 16:40:33,041 - step: 0 - j: 2
+2025-11-22 16:40:41,211 - step: 0 - j: 3
+2025-11-22 16:41:05,192 - step: 1 - j: 0
+2025-11-22 16:41:20,028 - step: 1 - j: 1
+2025-11-22 16:41:29,532 - step: 1 - j: 2
+2025-11-22 16:41:37,761 - step: 1 - j: 3
+2025-11-22 16:46:34,706 - step: 0 - j: 0
+2025-11-22 16:46:45,394 - step: 0 - j: 1
+2025-11-22 16:46:51,222 - step: 0 - j: 2
+2025-11-22 16:46:57,875 - step: 0 - j: 3
+2025-11-22 16:47:18,880 - step: 1 - j: 0
+2025-11-22 16:47:31,240 - step: 1 - j: 1
+2025-11-22 16:47:37,910 - step: 1 - j: 2
+2025-11-22 16:47:44,508 - step: 1 - j: 3
+2025-11-22 16:48:41,047 - step: 0 - j: 0
+2025-11-22 16:48:47,571 - step: 0 - j: 1
+2025-11-22 16:48:54,396 - step: 0 - j: 2
+2025-11-22 16:49:01,255 - step: 0 - j: 3
+2025-11-22 16:49:17,886 - step: 1 - j: 0
+2025-11-22 16:49:24,614 - step: 1 - j: 1
+2025-11-22 16:49:31,771 - step: 1 - j: 2
+2025-11-22 16:49:38,953 - step: 1 - j: 3
+2025-11-22 16:58:45,617 - Task was destroyed but it is pending!
+task: <Task pending name='Task-1' coro=<Kernel.poll_control_queue() running at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/site-packages/ipykernel/kernelbase.py:287> wait_for=<Future pending cb=[<TaskWakeupMethWrapper object at 0x7f16f644d220>()]> cb=[_chain_future.<locals>._call_set_state() at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/asyncio/futures.py:391]>
+2025-11-22 16:59:25,108 - step: 0 - j: 0
+2025-11-22 16:59:38,033 - step: 0 - j: 1
+2025-11-22 16:59:46,075 - step: 0 - j: 2
+2025-11-22 16:59:54,665 - step: 0 - j: 3
+2025-11-22 17:00:20,111 - step: 1 - j: 0
+2025-11-22 17:00:33,641 - step: 1 - j: 1
+2025-11-22 17:00:42,205 - step: 1 - j: 2
+2025-11-22 17:00:50,990 - step: 1 - j: 3
+2025-11-22 17:02:17,089 - Task was destroyed but it is pending!
+task: <Task pending name='Task-2' coro=<Kernel.poll_control_queue() running at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/site-packages/ipykernel/kernelbase.py:287> wait_for=<Future pending cb=[<TaskWakeupMethWrapper object at 0x7f37099a8a60>()]> cb=[_chain_future.<locals>._call_set_state() at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/asyncio/futures.py:391]>
+2025-11-22 17:04:38,720 - step: 0 - j: 0
+2025-11-22 17:04:42,434 - step: 0 - j: 1
+2025-11-22 17:04:46,467 - step: 0 - j: 2
+2025-11-22 17:04:50,605 - step: 0 - j: 3
+2025-11-22 17:05:02,863 - step: 1 - j: 0
+2025-11-22 17:05:07,291 - step: 1 - j: 1
+2025-11-22 17:05:12,611 - step: 1 - j: 2
+2025-11-22 17:05:17,368 - step: 1 - j: 3

@@ -1438,7 +1438,8 @@ def collect_results(lat_idx, lon_idx):
 
     # HACK: fake time_dict
     time_dict = {'Assimilation_steps':
-                 np.append(ini_DA_window, len(del_t))}
+                 np.append(ini_DA_window, len(del_t)),
+                 'del_t': ifn.generate_dates(date_ini, date_end)}
 
     # loop over DA steps
     for step in range(len(ini_DA_window)):

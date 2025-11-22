@@ -62,6 +62,8 @@ def pre_cheks():
     if cfg.write_stat_daily and cfg.restart_run:
         raise Exception(
             "write_stat_daily and restart_run cannot be activated simultaneously. To be implemented.")
+    if cfg.da_algorithm not in ["ES", "IES"] and cfg.implementation == 'Spatial_propagation':
+        raise Exception("Spatial_propagation needs ES/IES methods")
 
 
 def last_line(filename):

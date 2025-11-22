@@ -122,8 +122,6 @@ def MuSA():
             raise Exception("Choose an available paralelization scheme")
 
     elif cfg.implementation == 'Spatial_propagation':
-        if cfg.da_algorithm not in ["ES", "IES"]:
-            raise Exception("Spatial_propagation needs ES/IES methods")
 
         ids = np.arange(0, grid.shape[0])
 

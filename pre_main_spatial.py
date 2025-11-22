@@ -49,12 +49,12 @@ def main():
 
         spM.generate_prior_maps_onenode(ini_DA_window[ids])
 
+        dist_name = os.path.join(cfg.spatial_propagation_storage_path,
+                                 'dist_0.nc')
+        ifn.change_chunk_size_nccopy(dist_name)
+
 
 if __name__ == "__main__":
     print('Running MuSA pre-processor')
 
     main()
-    dist_name = os.path.join(cfg.spatial_propagation_storage_path,
-                             'dist_0.nc')
-    ifn.change_chunk_size_nccopy(dist_name)
-

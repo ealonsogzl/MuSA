@@ -56,7 +56,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = 'IES'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -107,7 +107,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "Spatial_propagation"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -140,6 +140,9 @@ season_ini_day = 1    # In smoothers, beginning of DA window (day)
 # -----------------------------------
 # Spatial propagation configuration
 # -----------------------------------
+# Run the simulation in memory to avoid I/O (uses a lot of memory)
+# Only for MPI or multiprocessing, and no restart
+spatial_in_mem = False  # Work in prog.
 
 # Cut-off distance for the Gaspari and Cohn function.
 c = [5, 5]
