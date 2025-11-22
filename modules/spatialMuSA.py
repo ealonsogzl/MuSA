@@ -1322,6 +1322,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
     if in_mem:
         file = [k for k in sim_dic.keys() if fnmatchcase(k, file)][0]
     else:
+        file = os.path.join(cfg.save_ensemble_path, file)
         file = glob.glob(file)[0]
 
     # in both obs:TRUE/FALSE using wildcardsEnsemble = ifn.io_read(sim_dic[file], in_mem=True)
@@ -1329,7 +1330,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
         if in_mem:
             Ensemble = deepcopy(ifn.io_read(sim_dic[file], in_mem=True))
         else:
-            file = os.path.join(cfg.save_ensemble_path, file)
+
             Ensemble = ifn.io_read(file)
 
     except FileNotFoundError:

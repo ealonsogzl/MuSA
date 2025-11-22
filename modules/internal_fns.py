@@ -57,12 +57,15 @@ def pre_cheks():
 
     if cfg.write_stat_full and cfg.restart_run:
         raise Exception(
-            "write_stat_full and restart_run cannot be activated simultaneously. To be implemented.")
+            "write_stat_full and restart_run cannot be activated \
+                simultaneously. To be implemented.")
 
     if cfg.write_stat_daily and cfg.restart_run:
         raise Exception(
-            "write_stat_daily and restart_run cannot be activated simultaneously. To be implemented.")
-    if cfg.da_algorithm not in ["ES", "IES"] and cfg.implementation == 'Spatial_propagation':
+            "write_stat_daily and restart_run cannot be activated \
+                simultaneously. To be implemented.")
+    if cfg.da_algorithm not in ["ES", "IES"] and cfg.implementation ==\
+            'Spatial_propagation':
         raise Exception("Spatial_propagation needs ES/IES methods")
 
     if cfg.spatial_in_mem:
@@ -407,7 +410,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     error_matrix = np.squeeze(error_matrix)
     # check if num of dates == num of observations
     #    if obs_matrix.shape[0] != len(dates_obs):
-    #        raise Exception("Number of dates different of number of obs files")
+    #       raise Exception("Number of dates different of number of obs files")
 
     # add lowest value possible to avoid numerical issues if for some reason
     # r_cov == 0

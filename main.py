@@ -257,12 +257,17 @@ def MuSA():
                                                         in_mem=cfg.spatial_in_mem))
 
                     # Wait untill all ensembles are updated and remove prior
-                    if not cfg.spatial_in_mem:
+                    if cfg.spatial_in_mem:
+                        if j != cfg.max_iterations:
+                            iteration_sims[count] = None
+                    else:
                         spM.wait_for_ensembles(step, 0, j)
 
+                    count = count + 1
+                count = count + 1  # this is not a bug, is to skip the last iter
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]
-            ifn.safe_pool(spM.collect_results, inputs, nprocess)
+            # ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
     elif cfg.implementation == "open_loop":
 
