@@ -56,7 +56,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = 'AdaPBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -293,9 +293,9 @@ SNFRAC = 3   # snow cover fraction           : 1, 2, 3
 # Export option
 # -----------------------------------
 
-# If True, the min, max, 1st, 3rd quartile, median, mean and std will be exported. 
-# Otherwise, only the mean and std. 
-write_stat_full = False 
+# If True, the min, max, 1st, 3rd quartile, median, mean and std will be exported.
+# Otherwise, only the mean and std.
+write_stat_full = False
 
 # if True, the output are averaged at daily time step.
 write_stat_daily = False

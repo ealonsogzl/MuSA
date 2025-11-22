@@ -560,7 +560,7 @@ def get_rho(prior_id):
             # NOTE: this masks the current cell, but the current cell
             # is added anyway when the neig is created
             tmp_dis[tmp_dis == 0.] = np.nan
-            tmp_dis[n] = 0. # put 0 in diagonal
+            tmp_dis[n] = 0.  # put 0 in diagonal
 
             distnc[:, n] = tmp_dis
         f.close()
@@ -1342,14 +1342,13 @@ def spatial_assim(lat_idx, lon_idx, step, j):
                                  neig_lat, neig_long)
 
         # if no obs do nothing
-            
+
         if len(neig_obs) == 0:
             save_space_flag = False
             Ensemble.iter_update(create=False)
 
         else:
             save_space_flag = True
-
 
             # create neig rho
             rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(
@@ -1495,18 +1494,6 @@ def collect_results(lat_idx, lon_idx):
         pass
 
     # Write results
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-
-        DA_Results = pdc.downcast(DA_Results,
-                                  numpy_dtypes_only=True)
-        OL_Sim = pdc.downcast(OL_Sim,
-                              numpy_dtypes_only=True)
-        updated_Sim = pdc.downcast(updated_Sim,
-                                   numpy_dtypes_only=True)
-        sd_Sim = pdc.downcast(sd_Sim,
-                              numpy_dtypes_only=True)
-
     cell_data = {"DA_Results": DA_Results,
                  "OL_Sim": OL_Sim,
                  "updated_Sim": updated_Sim,

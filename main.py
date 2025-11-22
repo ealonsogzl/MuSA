@@ -277,10 +277,13 @@ def MuSA():
         raise Exception("Choose an available implementation")
 
     if cfg.write_stat_full and cfg.restart_run:
-        raise Exception("write_stat_full and restart_run cannot be activated simultaneously. To be implemented.")
+        raise Exception(
+            "write_stat_full and restart_run cannot be activated simultaneously. To be implemented.")
 
     if cfg.write_stat_daily and cfg.restart_run:
-        raise Exception("write_stat_daily and restart_run cannot be activated simultaneously. To be implemented.")
+        raise Exception(
+            "write_stat_daily and restart_run cannot be activated simultaneously. To be implemented.")
+
 
 def check_platform():
 

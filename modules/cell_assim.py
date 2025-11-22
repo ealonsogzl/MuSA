@@ -24,17 +24,20 @@ elif cfg.numerical_model == 'snow17':
 else:
     raise Exception('Model not implemented')
 
+
 def mean_daily(var_df_hourly):
     # Resample variables to be output to daily time step
-    var_df_hourly['Date'] = pd.to_datetime(var_df_hourly['Date'], format='%d/%m/%Y-%H:%M')
+    var_df_hourly['Date'] = pd.to_datetime(
+        var_df_hourly['Date'], format='%d/%m/%Y-%H:%M')
     var_df_hourly.set_index('Date', inplace=True)
-    
+
     # Resample to daily frequency and take the mean
     var_df_daily = var_df_hourly.resample('D').mean()
-    
+
     var_df_hourly.reset_index(inplace=True)
     var_df_daily.reset_index(inplace=True)
     return var_df_daily
+
 
 def cell_assimilation(lat_idx, lon_idx):
 
@@ -58,12 +61,12 @@ def cell_assimilation(lat_idx, lon_idx):
         filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
 
     filename = os.path.join(cfg.output_path, filename)
-    
+
     if cfg.write_stat_full:
         stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
     else:
         stat_name_list = ['mean', 'std']
-        
+
     # Check if file allready exist if is a restart run
     if (cfg.restart_run and os.path.exists(filename)):
         return None
@@ -87,7 +90,7 @@ def cell_assimilation(lat_idx, lon_idx):
             cfg.da_algorithm == "deterministic_OL") and not cfg.load_prev_run:
         ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
         return None
-        
+
     # Inicialice results dataframes
     # TODO: make function
     DA_Results = model.init_result(time_dict["del_t"], DA=True)  # DA parameter
@@ -122,7 +125,8 @@ def cell_assimilation(lat_idx, lon_idx):
         Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
         # store prior ensemble
-        prior_stat = model.store_sim( Ensemble, time_dict, step, save_prior=True)
+        prior_stat = model.store_sim(
+            Ensemble, time_dict, step, save_prior=True)
 
         if cfg.load_prev_run:
             # HACK: Simply, store the prior before any DA to reconstruct
@@ -135,14 +139,14 @@ def cell_assimilation(lat_idx, lon_idx):
             return None
 
         step_results = flt.implement_assimilation(Ensemble, step)
-
+        breakpoint()
         # Store results in dataframesprior_mean
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
-                      time_dict, step) 
-        poste_stat = model.store_sim( Ensemble, time_dict, step)
+                      time_dict, step)
+        poste_stat = model.store_sim(Ensemble, time_dict, step)
 
         if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
-            mcmc_stat = model.store_sim( Ensemble, time_dict, step, MCMC=True)
+            mcmc_stat = model.store_sim(Ensemble, time_dict, step, MCMC=True)
 
         # If redraw, calculate the postrior shape
         if cfg.redraw_prior:
@@ -161,29 +165,23 @@ def cell_assimilation(lat_idx, lon_idx):
                   time_dict, step)
 
     # Save some space
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-
-        DA_Results = pdc.downcast(DA_Results,
-                                  numpy_dtypes_only=True)
-        OL_Sim = pdc.downcast(OL_Sim,
-                              numpy_dtypes_only=True)
-        poste_stat = {key: pdc.downcast(poste_stat[key], numpy_dtypes_only=True) for key in stat_name_list}
-        prior_stat = {key: pdc.downcast(prior_stat[key], numpy_dtypes_only=True) for key in stat_name_list}
-
     if cfg.write_stat_daily:
-        poste_stat = {key: mean_daily(poste_stat[key]) for key in stat_name_list}
-        prior_stat = {key: mean_daily(prior_stat[key]) for key in stat_name_list}
-    
+        poste_stat = {key: mean_daily(
+            poste_stat[key]) for key in stat_name_list}
+        prior_stat = {key: mean_daily(
+            prior_stat[key]) for key in stat_name_list}
+
     # Write results
     cell_data = {**{"DA_Results": DA_Results, "OL_Sim": OL_Sim},
-                 **{key+'_Prior':prior_stat[key] for key in stat_name_list},
-                 **{key+'_Post': poste_stat[key] for key in stat_name_list},}
+                 **{key+'_Prior': prior_stat[key] for key in stat_name_list},
+                 **{key+'_Post': poste_stat[key] for key in stat_name_list}, }
 
     if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            mcmc_stat = {key: pdc.downcast(mcmc_stat[key], numpy_dtypes_only=True) for key in stat_name_list}
+            mcmc_stat = {key: pdc.downcast(
+                mcmc_stat[key], numpy_dtypes_only=True) for key in
+                stat_name_list}
 
         cell_data['mcmc_stat'] = {**cell_data, **mcmc_stat}
 

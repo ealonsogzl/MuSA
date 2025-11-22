@@ -10,7 +10,7 @@ import modules.internal_fns as ifn
 import matplotlib.pyplot as plt
 
 # name of the file to be visualized
-name = './DATA/RESULTS/cell_0_2.pkl.blp'
+name = './DATA/RESULTS/cell_0_0.pkl.blp'
 
 
 def main(name):
@@ -18,10 +18,10 @@ def main(name):
 
     obs = output['DA_Results']
     ol = output['OL_Sim']
-    sd = output['sd_Sim']
-    updated = output['updated_Sim']
-    prior_mean = output['prior_mean']
-    prior_sd = output['prior_sd']
+    sd = output['std_Post']
+    updated = output['mean_Post']
+    prior_mean = output['mean_Prior']
+    prior_sd = output['std_Prior']
     try:
         sdmcmc = output['mcmcSD_Sim']
         updatedmcmc = output['mcmc_Sim']
