@@ -1496,8 +1496,8 @@ def collect_results(lat_idx, lon_idx):
     # Write results
     cell_data = {"DA_Results": DA_Results,
                  "OL_Sim": OL_Sim,
-                 "updated_Sim": updated_Sim,
-                 "sd_Sim": sd_Sim}
+                 "mean_Post": updated_Sim,
+                 "std_Post": sd_Sim}
 
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)

@@ -54,6 +54,14 @@ def pre_cheks():
         if os.path.isfile(fsm_filename):
             warnings.warn("FSM binary exists, reusing compile options")
 
+    if cfg.write_stat_full and cfg.restart_run:
+        raise Exception(
+            "write_stat_full and restart_run cannot be activated simultaneously. To be implemented.")
+
+    if cfg.write_stat_daily and cfg.restart_run:
+        raise Exception(
+            "write_stat_daily and restart_run cannot be activated simultaneously. To be implemented.")
+
 
 def last_line(filename):
     with open(filename, 'r') as file:
@@ -118,20 +126,38 @@ def change_chunk_size_nccopy(input_file):
               "Manual chunking is recommended")
 
 
-def io_write(filename, obj):
-    # TODO: Explore more compression options
-    with open(filename, "wb") as f:
-        pickled_data = pickle.dumps(obj)
-        compressed_pickle = blosc.compress(pickled_data)
-        f.write(compressed_pickle)
+def io_write(filename_or_obj, obj=None, codec="lz4", clevel=5, in_mem=False):
+    """
+    Serializa y comprime un objeto con pickle+blosc.
+    Si in_mem=True, devuelve un buffer de bytes.
+    Si in_mem=False, escribe a un archivo.
+    """
+    pickled = pickle.dumps(filename_or_obj if in_mem else obj,
+                           protocol=pickle.HIGHEST_PROTOCOL)
+
+    compressed = blosc.compress(pickled, cname=codec, clevel=clevel)
+
+    if in_mem:
+        return compressed
+    else:
+        with open(filename_or_obj, "wb") as f:
+            f.write(compressed)
 
 
-def io_read(filename):
-    with open(filename, "rb") as f:
-        compressed_pickle = f.read()
-        depressed_pickle = blosc.decompress(compressed_pickle)
-        obj = pickle.loads(depressed_pickle)
-        return obj
+def io_read(source, in_mem=False):
+    """
+    Lee un objeto serializado con io_write.
+    Si in_mem=True, 'source' debe ser un buffer de bytes.
+    Si in_mem=False, 'source' es el filename.
+    """
+    if in_mem:
+        compressed = source
+    else:
+        with open(source, "rb") as f:
+            compressed = f.read()
+
+    decompressed = blosc.decompress(compressed)
+    return pickle.loads(decompressed)
 
 
 def reduce_size_state(df_state, observations):
