@@ -7,7 +7,7 @@ Note that not all the options will be used in all the experimental setups.
 """
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
+numerical_model = 'dIm'  # model to use from FSM2, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
