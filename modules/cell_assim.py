@@ -139,7 +139,6 @@ def cell_assimilation(lat_idx, lon_idx):
             return None
 
         step_results = flt.implement_assimilation(Ensemble, step)
-        breakpoint()
         # Store results in dataframesprior_mean
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
                       time_dict, step)
