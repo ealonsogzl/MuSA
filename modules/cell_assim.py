@@ -13,6 +13,7 @@ import config as cfg
 import modules.internal_fns as ifn
 import modules.filters as flt
 from modules.internal_class import SnowEnsemble
+from threadpoolctl import threadpool_limits
 
 if cfg.numerical_model == 'FSM2':
     import modules.fsm_tools as model
@@ -137,7 +138,8 @@ def cell_assimilation(lat_idx, lon_idx):
             ifn.io_write(filename, ifn.downcast_output(cell_data))
             return None
 
-        step_results = flt.implement_assimilation(Ensemble, step)
+        with threadpool_limits(limits=cfg.numpy_threads):
+            step_results = flt.implement_assimilation(Ensemble, step)
         # Store results in dataframesprior_mean
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
                       time_dict, step)

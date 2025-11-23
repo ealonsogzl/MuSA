@@ -41,6 +41,7 @@ else:
     raise Exception('Model not implemented')
 from statsmodels.stats.weightstats import DescrStatsW
 from fnmatch import fnmatchcase
+from threadpoolctl import threadpool_limits
 
 
 def GC(d, c):
@@ -1394,24 +1395,25 @@ def spatial_assim(lat_idx, lon_idx, step, j,
             # translate paramsto normal distribution
             prior = flt.transform_space(prior, 'to_normal')
 
-            try:
+            with threadpool_limits(limits=4):
+                try:
 
-                updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                           cfg.max_iterations, neig_r_cov,
-                                           rho_AB=rho_par_predicted_obs,
-                                           rho_BB=rho_predicted_obs,
-                                           stochastic=False)
-            # Avoid crash if there are no local obs
-            # and there is only one obs in neig
-            except Exception as ex:
-                print('({ex}) update fail, trying with rho=1:'
-                      '{lat}:lat_idx, {lon}:lon_idx'.
-                      format(lat=lat_idx, lon=lon_idx, ex=ex))
-                updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                           cfg.max_iterations, neig_r_cov,
-                                           stochastic=False)
+                    updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
+                                               cfg.max_iterations, neig_r_cov,
+                                               rho_AB=rho_par_predicted_obs,
+                                               rho_BB=rho_predicted_obs,
+                                               stochastic=False)
+                # Avoid crash if there are no local obs
+                # and there is only one obs in neig
+                except Exception as ex:
+                    print('({ex}) update fail, trying with rho=1:'
+                          '{lat}:lat_idx, {lon}:lon_idx'.
+                          format(lat=lat_idx, lon=lon_idx, ex=ex))
+                    updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
+                                               cfg.max_iterations, neig_r_cov,
+                                               stochastic=False)
 
-            updated_pars = flt.transform_space(updated_pars, 'from_normal')
+                updated_pars = flt.transform_space(updated_pars, 'from_normal')
 
             Ensemble.iter_update(step, updated_pars,
                                  create=True, iteration=j)
@@ -1434,8 +1436,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
     else:
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
         ifn.io_write(name_ensemble, Ensemble)
-
-    return None
+        return None
 
 
 def collect_results(lat_idx, lon_idx):
