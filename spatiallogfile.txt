@@ -1,2 +1,0 @@
-2025-11-23 18:05:36,591 - Task was destroyed but it is pending!
-task: <Task pending name='Task-1' coro=<Kernel.poll_control_queue() running at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/site-packages/ipykernel/kernelbase.py:287> wait_for=<Future pending cb=[<TaskWakeupMethWrapper object at 0x7fadb3fd0b80>()]> cb=[_chain_future.<locals>._call_set_state() at /home/alonsoe/anaconda3/envs/MuSA/lib/python3.9/asyncio/futures.py:391]>
