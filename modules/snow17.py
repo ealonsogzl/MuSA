@@ -8,12 +8,13 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 import numpy as np
 import numba as nb
 import constants as cnt
+import config as cfg
 
 
 @nb.njit(fastmath=True, cache=True)
-def snow17(time, prec, tair, p_atm, lat, init, dt=24, scf=1.0, rvs=1,
-           uadj=0.04, mbase=1.0, mfmax=1.05, mfmin=0.6, tipm=0.1, nmf=0.15,
-           plwhc=0.04, pxtemp=1.0, pxtemp1=-1.0, pxtemp2=3.0):
+def snow17(time, prec, tair, p_atm, lat, init, dt=(cfg.dt/3600), scf=1.0,
+           rvs=1, uadj=0.04, mbase=1.0, mfmax=1.05, mfmin=0.6, tipm=0.1,
+           nmf=0.15, plwhc=0.04, pxtemp=1.0, pxtemp1=-1.0, pxtemp2=3.0):
     """
     Snow-17 accumulation and ablation model. This version of Snow-17 is
     intended for use at a point location.

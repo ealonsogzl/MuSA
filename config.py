@@ -300,8 +300,8 @@ SNFRAC = 3   # snow cover fraction           : 1, 2, 3
 # Export option
 # -----------------------------------
 
-# If True, the min, max, 1st, 3rd quartile, median, mean and std will be exported.
-# Otherwise, only the mean and std.
+# If True, the min, max, 1st, 3rd quartile, median, mean and
+# std will be exported. Otherwise, only the mean and std.
 write_stat_full = False
 
 # if True, the output are averaged at daily time step.
