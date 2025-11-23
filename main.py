@@ -267,6 +267,7 @@ def MuSA():
                 count = count + 1  # this is not a bug, is to skip the last iter
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]
+            # TODO: Colect when in memory and fix output here
             # ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
     elif cfg.implementation == "open_loop":

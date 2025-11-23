@@ -40,8 +40,6 @@ elif cfg.numerical_model == 'snow17':
 else:
     raise Exception('Model not implemented')
 from statsmodels.stats.weightstats import DescrStatsW
-import pdcast as pdc
-import warnings
 from fnmatch import fnmatchcase
 
 
@@ -918,9 +916,6 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
             lon=neigb[x, 1])
             for x in range(neigb.shape[0])]
 
-        neigb = [os.path.join(cfg.save_ensemble_path, neigb[x])
-                 for x in range(len(neigb))]
-
     else:
         neigb = ["{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".
                  format(step=step,
@@ -928,9 +923,6 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
                         lat=neigb[x, 0],
                         lon=neigb[x, 1])
                  for x in range(neigb.shape[0])]
-
-        neigb = [os.path.join(cfg.save_ensemble_path, neigb[x])
-                 for x in range(len(neigb))]
 
     # add current cell
     if j == 0:
@@ -952,8 +944,10 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
 
     # remove files if they do not exist
     if cfg.spatial_in_mem:
-        check = [i for i in neigb if i in sim_dic]
+        check = [i for i in neigb if i in sim_dic.keys()]
     else:
+        neigb = [os.path.join(cfg.save_ensemble_path, neigb[x])
+                 for x in range(len(neigb))]
         check = [i for i in neigb if os.path.isfile(i)]
 
     return check
@@ -1424,7 +1418,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
 
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
-        print('({ex}) Cel not updated: {lat}:lat_idx, {lon}:lon_idx'.
+        print('({ex}) Cell not updated: {lat}:lat_idx, {lon}:lon_idx'.
               format(lat=lat_idx, lon=lon_idx, ex=ex))
 
         save_space_flag = False

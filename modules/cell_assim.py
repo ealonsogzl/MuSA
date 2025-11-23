@@ -6,7 +6,6 @@ Main function performing DA over a cell
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 import os
-import pdcast as pdc
 import warnings
 import numpy as np
 import pandas as pd
@@ -178,9 +177,9 @@ def cell_assimilation(lat_idx, lon_idx):
     if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            mcmc_stat = {key: pdc.downcast(
-                mcmc_stat[key], numpy_dtypes_only=True) for key in
-                stat_name_list}
+            mcmc_stat = {key:
+                         mcmc_stat[key] for key in
+                         stat_name_list}
 
         cell_data['mcmc_stat'] = {**cell_data, **mcmc_stat}
 

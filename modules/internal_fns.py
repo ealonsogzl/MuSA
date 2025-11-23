@@ -135,7 +135,7 @@ def change_chunk_size_nccopy(input_file):
               "Manual chunking is recommended")
 
 
-def io_write(filename_or_obj, obj=None, codec="lz4", clevel=5, in_mem=False):
+def io_write(filename_or_obj, obj=None, codec="lz4", clevel=3, in_mem=False):
     """
     Serializa y comprime un objeto con pickle+blosc.
     Si in_mem=True, devuelve un buffer de bytes.
