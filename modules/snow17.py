@@ -12,9 +12,9 @@ import config as cfg
 
 
 @nb.njit(fastmath=True, cache=True)
-def snow17(time, prec, tair, p_atm, lat, init, dt=(cfg.dt/3600), scf=1.0,
-           rvs=1, uadj=0.04, mbase=1.0, mfmax=1.05, mfmin=0.6, tipm=0.1,
-           nmf=0.15, plwhc=0.04, pxtemp=1.0, pxtemp1=-1.0, pxtemp2=3.0):
+def snow17(time, prec, tair, p_atm, lat, init,
+           uadj, mbase, mfmax, mfmin, tipm,
+           nmf, plwhc, pxtemp, pxtemp1, pxtemp2):
     """
     Snow-17 accumulation and ablation model. This version of Snow-17 is
     intended for use at a point location.
@@ -24,6 +24,9 @@ def snow17(time, prec, tair, p_atm, lat, init, dt=(cfg.dt/3600), scf=1.0,
     Modified from original code available at https://github.com/UW-Hydro/tonic
 
     """
+
+    dt = (cfg.dt/3600)
+    rvs = 1
 
     # Convert to numpy array if scalars
     time = np.asarray(time)
@@ -88,7 +91,7 @@ def snow17(time, prec, tair, p_atm, lat, init, dt=(cfg.dt/3600), scf=1.0,
 
         # Snow Accumulation
         # water equivalent of new snowfall (mm)
-        pn = precip * fracsnow * scf
+        pn = precip * fracsnow
         # w_i = accumulated water equivalent of the ice portion of the snow
         # cover (mm)
         w_i += pn

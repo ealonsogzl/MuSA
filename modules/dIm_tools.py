@@ -32,26 +32,11 @@ else:
 def prepare_forz(forcing_sbst):
 
     Temp = forcing_sbst['Ta'].values
-    if cfg.precipitation_phase == "Harder":
-        _, Sf = met.pp_psychrometric(forcing_sbst["Ta"].values,
-                                     forcing_sbst["RH"].values,
-                                     forcing_sbst["Prec"].values)
 
-    elif cfg.precipitation_phase == "temp_thld":
+    _, Sf = met.linear_liston(forcing_sbst["Ta"].values,
+                              forcing_sbst["Prec"].values)
 
-        _, Sf = met.pp_temp_thld_log(forcing_sbst["Ta"].values,
-                                     forcing_sbst["Prec"].values)
-
-    elif cfg.precipitation_phase == "Liston":
-
-        _, Sf = met.linear_liston(forcing_sbst["Ta"].values,
-                                  forcing_sbst["Prec"].values)
-
-    else:
-
-        raise Exception("Precipitation phase partitioning not implemented")
-
-    return Temp-cnt.KELVING_CONVER, Sf*3600, forcing_sbst["DMF"].values
+    return Temp-cnt.KELVING_CONVER, Sf*cfg.dt, forcing_sbst["DMF"].values
 
 
 @nb.njit(fastmath=True, cache=True)
@@ -144,11 +129,6 @@ def stable_forcing(forcing_df):
 
     # Negative wind to 0
     temp_forz_def["Ua"].values[temp_forz_def["Ua"].values < 0] = 0
-
-    # Not to allow HR values out of 1-100%
-    temp_forz_def["RH"].values[temp_forz_def["RH"].values > 100] = 100
-    # 1% of RH is actually almost impossible, increase?
-    temp_forz_def["RH"].values[temp_forz_def["RH"].values < 0] = 1
 
     return temp_forz_def
 
@@ -308,9 +288,6 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                     forcing_var_names["Temp_var_name"],
                                     date_ini, date_end)
 
-        rel_humidity = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                            forcing_var_names["RH_var_name"],
-                                            date_ini, date_end)
         try:
             DMF = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
                                        param_var_names["DMF_var_name"],
@@ -328,7 +305,6 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                    "hours": del_t,
                                    "Prec": prec,
                                    "Ta": temp,
-                                   "RH": rel_humidity,
                                    "DMF": DMF})
 
         forcing_df["year"] = forcing_df["year"].dt.year
@@ -355,11 +331,9 @@ def unit_conversion(forcing_df):
 
     forcing_df.Prec = forcing_df.Prec * forcing_multiplier["Prec"]
     forcing_df.Ta = forcing_df.Ta * forcing_multiplier["Ta"]
-    forcing_df.RH = forcing_df.RH * forcing_multiplier["RH"]
 
     forcing_df.Prec = forcing_df.Prec + forcing_offset["Prec"]
     forcing_df.Ta = forcing_df.Ta + forcing_offset["Ta"]
-    forcing_df.RH = forcing_df.RH + forcing_offset["RH"]
 
     # Save some space
     with warnings.catch_warnings():

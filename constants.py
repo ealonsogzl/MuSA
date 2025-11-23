@@ -14,9 +14,6 @@ R = 8.31441                     # Universal Gas Constant [J mol**-1 K**-1]
 MW = 0.01801528                 # Molecular weight of water [kg mol**-1]
 LF = 334000                     # latent heat of fusion [J kg**-1]
 sdfrac = 0.7                    # fraction of the sd_errors to use if collapse
-DMF = 3/24                      # Degree melt index [dIm model]
-FIX_density = 0.3               # Fixed snow density [dIm model]
-aprox_lat = 50
 
 # -----------------------------------
 # Default FSM2 vegetation characteristics
@@ -49,7 +46,33 @@ Wirr = 0.03           # Irreducible liquid water content of snow
 z0sn = 0.001          # Snow roughness length (m)
 
 # -----------------------------------
-# Ground surface and soil FSM2parameters
+# Default dIm model and snow17 parameters
+# -----------------------------------
+DMF = 3/24                      # Degree melt index [dIm model]
+FIX_density = 0.3               # Fixed snow density [dIm model, snow17]
+aprox_lat = 50                  # Fixed latitude [snow17]
+# Average wind function during rain on snow (mm/mb) [snow17]
+uadj = 0.04
+# Base temperature above which melt typically occurs (deg C) [snow17]
+mbase = 1.0
+# Maximum melt factor during non-rain periods (mm/deg C 6 hr) [snow17]
+mfmax = 1.05
+# Minimum melt factor during non-rain periods (mm/deg C 6 hr) [snow17]
+mfmin = 0.6
+tipm = 0.1                        # Model parameter (>0.0 and <1.0) [snow17]
+# Percent liquid water holding capacity of the snow pack - max is 0.4 [snow17]
+nmf = 0.15
+# percent liquid water holding capacity of the snow pack - max is 0.4 [snow17]
+plwhc = 0.04
+# Temperature dividing rain from snow, deg C [snow17]
+pxtemp = 1.0
+# Lower Limit Temperature dividing tranistion from snow, deg C [snow17]
+pxtemp1 = -1.0
+# Upper Limit Temperature dividing rain from transition, deg C [snow17]
+pxtemp2 = 3.0
+
+# -----------------------------------
+# Ground surface and soil FSM2 parameters
 # -----------------------------------
 fcly = 0.3            # Soil clay fraction
 fsnd = 0.6            # Soil sand fraction
