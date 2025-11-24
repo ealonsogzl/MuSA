@@ -273,19 +273,7 @@ def MuSA():
 
                     count = count + 1
 
-                """
-                if cfg.spatial_in_mem:  # Save results and release mem
-                    filename_res = '{step}_result.pkl.blp'.format(step=step)
-                    filename_res = os.path.join(cfg.output_path, filename_res)
-                    ifn.io_write(filename_res,
-                                 iteration_sims[count],
-                                 clevel=3)
-                    iteration_sims[count] = None
-                """
                 count = count + 1  # Not a bug, is to skip the last iter
-            # collect results
-
-            # TODO: Colect when in memory and fix output here
 
             iteration_sims = [x for x in iteration_sims if x is not None]
 
