@@ -33,6 +33,18 @@ def snow17(time, prec, tair, p_atm, lat, init,
     prec = np.asarray(prec)
     tair = np.asarray(tair)
 
+    # Convert params in scalars
+    uadj = uadj[0]
+    mbase = mbase[0]
+    mfmax = mfmax[0]
+    mfmin = mfmin[0]
+    tipm = tipm[0]
+    nmf = nmf[0]
+    plwhc = plwhc[0]
+    pxtemp = pxtemp[0]
+    pxtemp1 = pxtemp1[0]
+    pxtemp2 = pxtemp2[0]
+
     # Initialization
     # Antecedent Temperature Index, deg C
     ait = init[0]

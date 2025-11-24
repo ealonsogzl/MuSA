@@ -7,7 +7,7 @@ Note that not all the options will be used in all the experimental setups.
 """
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
+numerical_model = 'snow17'  # model to use from FSM2, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -56,7 +56,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = 'AdaPBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
@@ -243,7 +243,7 @@ lon_obs_var_name = "easting"
 # Note II: param_var_names is optional. It can be used to change some of the
 # model parameters, including vegetation ones. If they are not included as
 # part of the forcing, those defined in constants.py will be used.
-# These parameters can be included within the assimilation
+# These parameters can be included within the assimilation (vars_to_perturbate)
 
 # Press_var_name can be "Press_var_name": "from_DEM". With this option, a
 # stationary pressure value is estimated from the DEM (if provided)
@@ -260,8 +260,7 @@ forcing_dim_names = {"lat_forz_var_name": "northing",
                      "lon_forz_var_name": "easting",
                      "time_forz_var_name": "time"}
 
-param_var_names = {"RealLat_var_name": " XLAT",
-                   "vegh_var_name": "vegh",
+param_var_names = {"vegh_var_name": "vegh",
                    "VAI_var_name": "VAI",
                    "hbas_var_name": "hbas"}
 

@@ -48,9 +48,9 @@ z0sn = 0.001          # Snow roughness length (m)
 # -----------------------------------
 # Default dIm model and snow17 parameters
 # -----------------------------------
-DMF = 3/24                      # Degree melt index [dIm model]
+DMF = 3./24                      # Degree melt index [dIm model]
 FIX_density = 0.3               # Fixed snow density [dIm model, snow17]
-aprox_lat = 50                  # Fixed latitude [snow17]
+aprox_lat = 43                  # Fixed latitude [snow17]
 # Average wind function during rain on snow (mm/mb) [snow17]
 uadj = 0.04
 # Base temperature above which melt typically occurs (deg C) [snow17]

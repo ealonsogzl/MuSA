@@ -46,18 +46,32 @@ def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat
     prec = forcing_sbst["Prec"].values
     p_atm = forcing_sbst["press"].values
     lat = forcing_sbst["XLAT"].values
+    uadj = forcing_sbst['uadj'].values
+    mbase = forcing_sbst['mbase'].values
+    mfmax = forcing_sbst['mfmax'].values
+    mfmin = forcing_sbst['mfmin'].values
+    tipm = forcing_sbst['tipm'].values
+    nmf = forcing_sbst['nmf'].values
+    plwhc = forcing_sbst['plwhc'].values
+    pxtemp = forcing_sbst['pxtemp'].values
+    pxtemp1 = forcing_sbst['pxtemp1'].values
+    pxtemp2 = forcing_sbst['pxtemp2'].values
 
-    return time_jday, prec*cfg.dt, Temp-cnt.KELVING_CONVER, p_atm*0.01, lat
+    return time_jday, prec*cfg.dt, Temp-cnt.KELVING_CONVER, p_atm*0.01, lat, \
+        uadj, mbase, mfmax, mfmin, tipm, nmf, plwhc, pxtemp, pxtemp1, pxtemp2
 
 
 def model_run(forcing_sbst, init=None):
 
-    time_jday, prec, tair, p_atm, lat = prepare_forz(forcing_sbst)
+    time_jday, prec, tair, p_atm, lat, uadj, mbase, mfmax, mfmin, tipm,\
+        nmf, plwhc, pxtemp, pxtemp1, pxtemp2 = prepare_forz(forcing_sbst)
 
     if init is None:
         init = np.zeros(5)
 
-    SWE, snd, outflow, init = snow17(time_jday, prec, tair, p_atm, lat, init)
+    SWE, snd, outflow, init = snow17(time_jday, prec, tair, p_atm, lat, init,
+                                     uadj, mbase, mfmax, mfmin, tipm, nmf,
+                                     plwhc, pxtemp, pxtemp1, pxtemp2)
 
     Results = pd.DataFrame({'SWE': SWE,
                             'snd': snd,
@@ -266,6 +280,76 @@ def forcing_table(lat_idx, lon_idx, step=0):
         except KeyError:
             XLAT = np.repeat(cnt.aprox_lat, len(prec))
 
+        try:
+            uadj = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        param_var_names["uadj_var_name"],
+                                        date_ini, date_end)
+        except KeyError:
+            uadj = np.repeat(cnt.uadj, len(prec))
+
+        try:
+            mbase = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         param_var_names["mbase_var_name"],
+                                         date_ini, date_end)
+        except KeyError:
+            mbase = np.repeat(cnt.mbase, len(prec))
+
+        try:
+            mfmax = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         param_var_names["mfmax_var_name"],
+                                         date_ini, date_end)
+        except KeyError:
+            mfmax = np.repeat(cnt.mfmax, len(prec))
+
+        try:
+            mfmin = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         param_var_names["mfmin_var_name"],
+                                         date_ini, date_end)
+        except KeyError:
+            mfmin = np.repeat(cnt.mfmin, len(prec))
+
+        try:
+            tipm = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                        param_var_names["tipm_var_name"],
+                                        date_ini, date_end)
+        except KeyError:
+            tipm = np.repeat(cnt.tipm, len(prec))
+
+        try:
+            nmf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                       param_var_names["nmf_var_name"],
+                                       date_ini, date_end)
+        except KeyError:
+            nmf = np.repeat(cnt.nmf, len(prec))
+
+        try:
+            plwhc = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                         param_var_names["plwhc_var_name"],
+                                         date_ini, date_end)
+        except KeyError:
+            plwhc = np.repeat(cnt.plwhc, len(prec))
+
+        try:
+            pxtemp = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                          param_var_names["pxtemp_var_name"],
+                                          date_ini, date_end)
+        except KeyError:
+            pxtemp = np.repeat(cnt.pxtemp, len(prec))
+
+        try:
+            pxtemp1 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                           param_var_names["pxtemp1_var_name"],
+                                           date_ini, date_end)
+        except KeyError:
+            pxtemp1 = np.repeat(cnt.pxtemp1, len(prec))
+
+        try:
+            pxtemp2 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
+                                           param_var_names["pxtemp2_var_name"],
+                                           date_ini, date_end)
+        except KeyError:
+            pxtemp2 = np.repeat(cnt.pxtemp2, len(prec))
+
         date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
         del_t = ifn.generate_dates(date_ini, date_end)
@@ -277,7 +361,17 @@ def forcing_table(lat_idx, lon_idx, step=0):
                                    "Prec": prec,
                                    "Ta": temp,
                                    "press": press,
-                                   "XLAT": XLAT})
+                                   "XLAT": XLAT,
+                                   "uadj": uadj,
+                                   "mbase": mbase,
+                                   "mfmax": mfmax,
+                                   "mfmin": mfmin,
+                                   "tipm": tipm,
+                                   "nmf": nmf,
+                                   "plwhc": plwhc,
+                                   "pxtemp": pxtemp,
+                                   "pxtemp1": pxtemp1,
+                                   "pxtemp2": pxtemp2})
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month
