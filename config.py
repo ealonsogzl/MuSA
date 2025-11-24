@@ -56,7 +56,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'AdaPBS'
+da_algorithm = 'PBS'
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
