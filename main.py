@@ -279,6 +279,7 @@ def MuSA():
 
             inputs = [grid[:, 0], grid[:, 1], [iteration_sims] *
                       len(ids)]
+
             ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
     elif cfg.implementation == "open_loop":

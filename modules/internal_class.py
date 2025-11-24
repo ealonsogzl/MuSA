@@ -404,3 +404,10 @@ class SnowEnsemble():
 
         self.state_membres = [fns.reduce_size_state(x, self.observations)
                               for x in self.state_membres]
+
+    def reduce_precision(self):
+        self.state_membres = [x.round(2).astype(np.float16)
+                              for x in self.state_membres]
+
+    def rm_forz(self):
+        self.forcing = None

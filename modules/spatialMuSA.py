@@ -1217,6 +1217,7 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
     # Ensemble.save_space()
 
     if in_mem:
+        Ensemble.reduce_precision()
         ens_comp = ifn.io_write(Ensemble, in_mem=True)
         return {name_ensemble_end: ens_comp}
     else:
@@ -1429,8 +1430,11 @@ def spatial_assim(lat_idx, lon_idx, step, j,
     # Save updated ensemble
     if j < cfg.max_iterations-1 and save_space_flag:
         Ensemble.save_space()
+    if j == cfg.max_iterations-1:
+        Ensemble.rm_forz()
 
     if in_mem:
+        Ensemble.reduce_precision()
         ens_comp = ifn.io_write(Ensemble, in_mem=True)
         return {name_ensemble: ens_comp}
     else:
