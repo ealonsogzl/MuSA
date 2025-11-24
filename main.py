@@ -28,6 +28,7 @@ else:
 from modules.cell_assim import cell_assimilation
 from mpi4py import MPI
 import logging
+import os
 
 
 def MuSA():
@@ -271,11 +272,26 @@ def MuSA():
                         spM.wait_for_ensembles(step, 0, j)
 
                     count = count + 1
+
+                """
+                if cfg.spatial_in_mem:  # Save results and release mem
+                    filename_res = '{step}_result.pkl.blp'.format(step=step)
+                    filename_res = os.path.join(cfg.output_path, filename_res)
+                    ifn.io_write(filename_res,
+                                 iteration_sims[count],
+                                 clevel=3)
+                    iteration_sims[count] = None
+                """
                 count = count + 1  # Not a bug, is to skip the last iter
             # collect results
-            inputs = [grid[:, 0], grid[:, 1]]
+
             # TODO: Colect when in memory and fix output here
-            # ifn.safe_pool(spM.collect_results, inputs, nprocess)
+
+            iteration_sims = [x for x in iteration_sims if x is not None]
+
+            inputs = [grid[:, 0], grid[:, 1], [iteration_sims] *
+                      len(ids)]
+            ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
     elif cfg.implementation == "open_loop":
 
@@ -290,6 +306,7 @@ def MuSA():
               str(mp.cpu_count()) + " processors")
 
         inputs = [grid[:, 0], grid[:, 1]]
+
         ifn.safe_pool(ifn.open_loop_simulation, inputs, nprocess)
 
     else:

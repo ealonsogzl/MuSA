@@ -1439,7 +1439,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
         return None
 
 
-def collect_results(lat_idx, lon_idx):
+def collect_results(lat_idx, lon_idx, list_of_simdic):
 
     date_ini = cfg.date_ini
     date_end = cfg.date_end
@@ -1458,38 +1458,52 @@ def collect_results(lat_idx, lon_idx):
     # loop over files to retrieve results
     ini_DA_window = domain_steps()
 
-    # create filenames
-    DA_Results = model.init_result(del_t, DA=True)  # DA parameter
-    updated_Sim = model.init_result(del_t)  # posterior simulaiton
-    sd_Sim = model.init_result(del_t)       # posterios stndr desv
-    OL_Sim = model.init_result(del_t)       # OL simulation
+    if cfg.write_stat_full:
+        stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
+    else:
+        stat_name_list = ['mean', 'std']
 
     # HACK: fake time_dict
     time_dict = {'Assimilation_steps':
                  np.append(ini_DA_window, len(del_t)),
                  'del_t': ifn.generate_dates(date_ini, date_end)}
 
+    # create filenames
+    DA_Results = model.init_result(time_dict["del_t"], DA=True)  # DA parameter
+    OL_Sim = model.init_result(
+        time_dict["del_t"], OL=True)       # OL simulation
+    poste_stat = model.init_result(time_dict["del_t"])
+
     # loop over DA steps
     for step in range(len(ini_DA_window)):
 
-        fname = os.path.join(
-            cfg.output_path,
-            "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}_obs*.pkl.blp".format(
-                step=step,
-                j=cfg.max_iterations - 1,
-                lat_idx=lat_idx,
-                lon_idx=lon_idx))
-        fname = glob.glob(fname)[0]
-
         # Open file
+        fname = "{step}_{j}it_ensbl_{lat_idx}_{lon_idx}_obs*.pkl.blp".format(
+            step=step,
+            j=cfg.max_iterations - 1,
+            lat_idx=lat_idx,
+            lon_idx=lon_idx)
+
         try:
-            Ensemble = ifn.io_read(fname)
+            if cfg.spatial_in_mem:
+                fname = [k for k in list_of_simdic[step].keys()
+                         if fnmatchcase(k, fname)][0]
+                Ensemble = deepcopy(ifn.io_read(list_of_simdic[step][fname],
+                                                in_mem=True))
+
+            else:
+                fname = os.path.join(cfg.output_path, fname)
+                fname = glob.glob(fname)[0]
+                Ensemble = ifn.io_read(fname)
+
         except FileNotFoundError:
             continue
 
         # Rm de ensemble file
         if os.path.isfile(fname):
             os.remove(fname)
+        if cfg.spatial_in_mem:
+            list_of_simdic[step][fname] = None
 
         step_results = {}
         # extract psoterior parameters
@@ -1512,7 +1526,7 @@ def collect_results(lat_idx, lon_idx):
         model.storeDA(DA_Results, step_results, Ensemble.observations,
                       Ensemble.errors, time_dict, step)
 
-        model.store_sim(updated_Sim, sd_Sim, Ensemble,
+        model.store_sim(poste_stat, Ensemble,
                         time_dict, step)
 
     # the whole OL is stored in the last Ensemble
@@ -1523,10 +1537,8 @@ def collect_results(lat_idx, lon_idx):
         pass
 
     # Write results
-    cell_data = {"DA_Results": DA_Results,
-                 "OL_Sim": OL_Sim,
-                 "mean_Post": updated_Sim,
-                 "std_Post": sd_Sim}
+    cell_data = {**{"DA_Results": DA_Results, "OL_Sim": OL_Sim},
+                 **{key+'_Post': poste_stat[key] for key in stat_name_list}, }
 
     filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
     filename = os.path.join(cfg.output_path, filename)

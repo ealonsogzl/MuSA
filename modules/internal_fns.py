@@ -68,8 +68,8 @@ def pre_cheks():
             'Spatial_propagation':
         raise Exception("Spatial_propagation needs ES/IES methods")
 
-    if cfg.spatial_in_mem:
-        raise Exception("spatial_in_mem not implemented yet")
+    if cfg.spatial_in_mem and cfg.parallelization == "HPC.array":
+        raise Exception("spatial_in_mem not compatible with HPC.array")
 
 
 def last_line(filename):

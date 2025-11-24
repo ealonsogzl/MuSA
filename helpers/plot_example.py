@@ -10,7 +10,7 @@ import modules.internal_fns as ifn
 import matplotlib.pyplot as plt
 
 # name of the file to be visualized
-name = './DATA/RESULTS/cell_0_2.pkl.blp'
+name = './DATA/RESULTS/cell_0_0.pkl.blp'
 
 
 def main(name):

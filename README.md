@@ -67,7 +67,7 @@ You can open these files by your own means, or by using the following function:
 ```
 from modules.internal_fns.py import  io_read
 
-my_cell = io_read(./RESULTS/latid_lonid.pkl.bl)
+my_cell = io_read(./RESULTS/latid_lonid.pkl.blp)
 ```
 
 **lonid** and **latid** are the longitude and latitude ids of each cell of the simulation.
