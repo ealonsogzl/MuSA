@@ -185,14 +185,8 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
-def store_sim(Ensemble, time_dict, step, MCMC=False, save_prior=False):
-
-    if cfg.write_stat_full:
-        stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
-    else:
-        stat_name_list = ['mean', 'std']
-
-    sim_stat = {key: init_result(time_dict["del_t"]) for key in stat_name_list}
+def store_sim(sim_stat, Ensemble, time_dict,
+              step, MCMC=False, save_prior=False):
 
     if MCMC:
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
@@ -232,7 +226,7 @@ def store_sim(Ensemble, time_dict, step, MCMC=False, save_prior=False):
     return sim_stat
 
 
-def init_result(del_t, DA=False):
+def init_result(del_t, DA=False, OL=False):
 
     if DA:
         # Concatenate
@@ -246,14 +240,28 @@ def init_result(del_t, DA=False):
         return Results
 
     else:
-        # Concatenate
+
         # Create results dataframe
         Results = pd.DataFrame(np.nan, index=range(len(del_t)),
                                columns=model_columns)
 
         Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        # Reordenar las columnas para que 'Date' sea la primera
+        cols = ['Date'] + [col for col in Results if col != 'Date']
+        Results = Results[cols]
 
-        return Results
+        if cfg.write_stat_full:
+            stat_name_list = ['min', 'max', 'Q1',
+                              'Q3', 'median', 'mean', 'std']
+        else:
+            stat_name_list = ['mean', 'std']
+
+        sim_stat = {key: Results.copy() for key in stat_name_list}
+
+        if OL:
+            return sim_stat["mean"]
+
+        return sim_stat
 
 
 def forcing_table(lat_idx, lon_idx, step=0):

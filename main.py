@@ -37,7 +37,8 @@ def MuSA():
     else:
         model.model_compile()
 
-    if cfg.implementation in ["distributed", "Spatial_propagation", "open_loop"]:
+    if cfg.implementation in ["distributed", "Spatial_propagation",
+                              "open_loop"]:
         grid = ifn.expand_grid()
 
     """
@@ -232,10 +233,13 @@ def MuSA():
                           [ini_DA_window] * len(ids),
                           [step] * len(ids),
                           [gsc_count] * len(ids),
-                          [iteration_sims[-1] if iteration_sims else None] * len(ids)]
+                          [iteration_sims[-1] if iteration_sims else None] *
+                          len(ids)]
 
-                iteration_sims.append(ifn.safe_pool(spM.create_ensemble_cell, inputs,
-                                                    nprocess, in_mem=cfg.spatial_in_mem))
+                iteration_sims.append(ifn.safe_pool(spM.create_ensemble_cell,
+                                                    inputs,
+                                                    nprocess,
+                                                    in_mem=cfg.spatial_in_mem))
 
                 # Wait untill all ensembles are created
                 if not cfg.spatial_in_mem:
@@ -251,9 +255,12 @@ def MuSA():
                     inputs = [list(grid[:, 0]), list(grid[:, 1]),
                               [step] * grid.shape[0],
                               [j] * grid.shape[0],
-                              [iteration_sims[-1] if iteration_sims else None] * len(ids)]
+                              [iteration_sims[-1] if iteration_sims else None]
+                              * len(ids)]
 
-                    iteration_sims.append(ifn.safe_pool(spM.spatial_assim, inputs, nprocess,
+                    iteration_sims.append(ifn.safe_pool(spM.spatial_assim,
+                                                        inputs,
+                                                        nprocess,
                                                         in_mem=cfg.spatial_in_mem))
 
                     # Wait untill all ensembles are updated and remove prior
@@ -264,7 +271,7 @@ def MuSA():
                         spM.wait_for_ensembles(step, 0, j)
 
                     count = count + 1
-                count = count + 1  # this is not a bug, is to skip the last iter
+                count = count + 1  # Not a bug, is to skip the last iter
             # collect results
             inputs = [grid[:, 0], grid[:, 1]]
             # TODO: Colect when in memory and fix output here

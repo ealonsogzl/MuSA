@@ -280,7 +280,7 @@ def model_read_output(fsm_path, read_dump=True):
     # add optional variables
     if cfg.DAsord:
         state = snd_ord(state)
-    
+
     if (state.isnull().values.any()):
         error_dir = shutil.copytree(fsm_path,
                                     "./DATA/ERRORS/{cords}".
@@ -565,15 +565,8 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
-def store_sim( Ensemble, time_dict, step, MCMC=False, save_prior=False):
+def store_sim(sim_stat, Ensemble, time_dict, step, MCMC=False, save_prior=False):
 
-    if cfg.write_stat_full:
-        stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
-    else:
-        stat_name_list = ['mean', 'std']
-        
-    sim_stat = {key: init_result(time_dict["del_t"]) for key in stat_name_list}
-            
     if MCMC:
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
@@ -582,7 +575,7 @@ def store_sim( Ensemble, time_dict, step, MCMC=False, save_prior=False):
     # TODO: modify directly FSM code to not to output time id's
 
     rowIndex = sim_stat['mean'].index[time_dict["Assimilation_steps"][step]:
-                                 time_dict["Assimilation_steps"][step + 1]]
+                                      time_dict["Assimilation_steps"][step + 1]]
 
     if save_prior:
         pesos = np.ones_like(Ensemble.wgth)
@@ -595,24 +588,25 @@ def store_sim( Ensemble, time_dict, step, MCMC=False, save_prior=False):
         col_arr = [list_state[x].iloc[:, n].to_numpy()
                    for x in range(len(list_state))]
         col_arr = np.vstack(col_arr)
-        
+
         d1 = DescrStatsW(col_arr, weights=pesos)
 
-        if len( sim_stat.keys()) == 2: # Mean, Std 
+        if len(sim_stat.keys()) == 2:  # Mean, Std
             sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
             sim_stat['std'].loc[rowIndex, name_col] = d1.std
-        else:  
-            perc = d1.quantile([ 0, 0.25, 0.5, 0.75, 1 ]).values
-            sim_stat['min'].loc[rowIndex, name_col] = perc[0,:]
-            sim_stat['Q1'].loc[rowIndex, name_col] = perc[1,:]
-            sim_stat['median'].loc[rowIndex, name_col] = perc[2,:]
-            sim_stat['Q3'].loc[rowIndex, name_col] = perc[3,:]
-            sim_stat['max'].loc[rowIndex, name_col] = perc[4,:]
+        else:
+            perc = d1.quantile([0, 0.25, 0.5, 0.75, 1]).values
+            sim_stat['min'].loc[rowIndex, name_col] = perc[0, :]
+            sim_stat['Q1'].loc[rowIndex, name_col] = perc[1, :]
+            sim_stat['median'].loc[rowIndex, name_col] = perc[2, :]
+            sim_stat['Q3'].loc[rowIndex, name_col] = perc[3, :]
+            sim_stat['max'].loc[rowIndex, name_col] = perc[4, :]
             sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
             sim_stat['std'].loc[rowIndex, name_col] = d1.std
     return sim_stat
-            
-def init_result(del_t, DA=False):
+
+
+def init_result(del_t, DA=False, OL=False):
 
     if DA:
         # Concatenate
@@ -636,7 +630,18 @@ def init_result(del_t, DA=False):
         cols = ['Date'] + [col for col in Results if col != 'Date']
         Results = Results[cols]
 
-        return Results
+        if cfg.write_stat_full:
+            stat_name_list = ['min', 'max', 'Q1',
+                              'Q3', 'median', 'mean', 'std']
+        else:
+            stat_name_list = ['mean', 'std']
+
+        sim_stat = {key: Results.copy() for key in stat_name_list}
+
+        if OL:
+            return sim_stat["mean"]
+
+        return sim_stat
 
 
 def forcing_table(lat_idx, lon_idx, step=0):

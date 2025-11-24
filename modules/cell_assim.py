@@ -94,7 +94,10 @@ def cell_assimilation(lat_idx, lon_idx):
     # Inicialice results dataframes
     # TODO: make function
     DA_Results = model.init_result(time_dict["del_t"], DA=True)  # DA parameter
-    OL_Sim = model.init_result(time_dict["del_t"])       # OL simulation
+    OL_Sim = model.init_result(
+        time_dict["del_t"], OL=True)       # OL simulation
+    poste_stat = model.init_result(time_dict["del_t"])
+    prior_stat = model.init_result(time_dict["del_t"])
 
     # initialice Ensemble class
     # open previous ensemble if reastart (not if reconstruct)
@@ -125,8 +128,8 @@ def cell_assimilation(lat_idx, lon_idx):
         Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
         # store prior ensemble
-        prior_stat = model.store_sim(
-            Ensemble, time_dict, step, save_prior=True)
+        model.store_sim(prior_stat,
+                        Ensemble, time_dict, step, save_prior=True)
 
         if cfg.load_prev_run:
             # HACK: Simply, store the prior before any DA to reconstruct
@@ -141,9 +144,11 @@ def cell_assimilation(lat_idx, lon_idx):
         with threadpool_limits(limits=cfg.numpy_threads):
             step_results = flt.implement_assimilation(Ensemble, step)
         # Store results in dataframesprior_mean
+
         model.storeDA(DA_Results, step_results, observations_sbst, error_sbst,
                       time_dict, step)
-        poste_stat = model.store_sim(Ensemble, time_dict, step)
+
+        model.store_sim(poste_stat, Ensemble, time_dict, step)
 
         if cfg.da_algorithm in ['IES-MCMC', 'IES-MCMC_AI']:
             mcmc_stat = model.store_sim(Ensemble, time_dict, step, MCMC=True)
