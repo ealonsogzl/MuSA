@@ -361,9 +361,6 @@ def stable_forcing(forcing_df):
     # Remove drizzle (very small precipitation)
     temp_forz_def.loc[temp_forz_def['Prec'] < 0.01/3600, 'Prec'] = 0
 
-    # Temperature correction
-    temp_forz_def.loc[temp_forz_def['Ta'] < 0.0, 'Ta'] = 273.15
-
     return temp_forz_def
 
 
