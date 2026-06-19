@@ -119,16 +119,16 @@ def stable_forcing(forcing_df):
     temp_forz_def = forcing_df.copy()
 
     # Negative SW to 0
-    temp_forz_def["SW"].values[temp_forz_def["SW"].values < 0] = 0
+    temp_forz_def.loc[temp_forz_def["SW"] < 0, "SW"] = 0
 
     # Negative LW to 0
-    temp_forz_def["LW"].values[temp_forz_def["LW"].values < 0] = 0
+    temp_forz_def.loc[temp_forz_def["LW"] < 0, "LW"] = 0
 
     # Negative Prec to 0
-    temp_forz_def["Prec"].values[temp_forz_def["Prec"].values < 0] = 0
+    temp_forz_def.loc[temp_forz_def["Prec"] < 0, "Prec"] = 0
 
     # Negative wind to 0
-    temp_forz_def["Ua"].values[temp_forz_def["Ua"].values < 0] = 0
+    temp_forz_def.loc[temp_forz_def["Ua"] < 0, "Ua"] = 0
 
     return temp_forz_def
 
