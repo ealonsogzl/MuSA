@@ -8,7 +8,7 @@ In its current version, it also offers support for the Snow17 model and a simple
 <em> Figure 1: Comparison between open loop and updated simulation after assimilating UAV snow depth retrievals at 5m resolution </em>
 ### Inputs  
   
-The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be provided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. In this version, the meteorological forcing must be provided in an hourly timestep. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
+The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be provided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
 - Incident shortwave radiation (W m<sup>-2</sup>)
 - Incident longwave radiation ( W m<sup>-2</sup>)
 - Precipitation  (Kg<sup>-2</sup> m<sup>-2</sup> s<sup>-1</sup>) 
