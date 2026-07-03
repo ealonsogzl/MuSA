@@ -2,7 +2,7 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
-import os,re
+import os,re, sys
 
 #---functions---
 def flipLatds(
@@ -74,7 +74,7 @@ def saveXrtoNetCDF(ds:xr.Dataset,
     if os.path.exists(outfile):
         os.remove(outfile)
     ds.to_netcdf(outfile, encoding=enc_deflate)
-    print(f"Saved the file to: {outfile}")
+    print(f"Saved the file to: {outfile}", file=sys.stderr)
 
 def target_chunk_len(
     obj:xr.DataArray|xr.Dataset,
@@ -246,10 +246,10 @@ def saveXrToZarr(
         
     #---save to zarr---
     os.makedirs(savedir, exist_ok=True)
-    print(f"Saving the file to: {os.path.join(savedir,filename)}")
+    print(f"Saving the file to: {os.path.join(savedir,filename)}", file=sys.stderr)
     ds.to_zarr(os.path.join(savedir,filename), 
                   mode="w", 
                   consolidated=True,
                   zarr_format=2
                   )
-    print(f"Saved the file to: {os.path.join(savedir,filename)}")
+    print(f"Saved the file to: {os.path.join(savedir,filename)}", file=sys.stderr)
