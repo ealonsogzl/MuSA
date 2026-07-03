@@ -1,13 +1,20 @@
-#script containing code to read in individual focing files (*.nc-files), and
-#convert them to a single zarr file, which is then used as input for the MuSA model.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+script containing code to read in individual focing files (*.nc-files), and
+convert them to a single zarr file, which is then used as input for the MuSA model.
 
-# author: Lucas.boeykens@ugent.be, lucas.boeykens@kuleuven.be
+The function expects the forcings to be devided in tiles using the naming convention "y{ty:03d}x{tx:03d}" in the folder name, 
+where ty and tx are the tile coordinates.
+
+# author: Lucas Boeykens - Lucas.boeykens@ugent.be, lucas.boeykens@kuleuven.be
+"""
 
 #----modules---
 import numpy as np
 import xarray as xr
 import pandas as pd
-import os, sys, re, tarfile, shutil
+import os, sys, re, tarfile, shutil, glob
 sys.path.append((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.SelectDataFromFolders import extract_files_to_read 
 from utils.OperationsXrDatasets import transpose_dataset, saveXrToZarr
@@ -15,7 +22,7 @@ from pathlib import Path
 import dask.array as da
 from joblib import Parallel, delayed
 
-#---custom functions---
+#---functions---
 def _makeEmptyTemplateZarrForcings(
     rootdirForcings:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/Forcings/tiles/3hourly",
     tx:int=201, 
@@ -120,6 +127,7 @@ def _makeEmptyTemplateZarrForcings(
 
 def ConvertForcingIntegerToFloatFile(
         file_to_read:str|tuple[str,str]=None,
+        dsPcor:xr.Dataset=None,
         verbose:bool=True
     ) -> xr.Dataset:
     ''' 
@@ -130,7 +138,7 @@ def ConvertForcingIntegerToFloatFile(
     Note: The function assumes that the time dimension for the files/stores is date!
     '''
 
-    #---helper function---
+    #---helper functions---
     def _convertForcings(
             ds:xr.Dataset=None
         ) -> xr.Dataset:
@@ -158,6 +166,28 @@ def ConvertForcingIntegerToFloatFile(
                 ds_converted[k].attrs=metadata[k]
 
         return ds_converted
+
+    def _ScalePwithPcor(
+            ds_feature:xr.Dataset=None,
+            dsPcor:xr.Dataset=None
+        ) -> xr.Dataset:
+        '''
+        helper function to scale the precipitation with a correction factor!
+        This correction factor is needed to correct for the underestimation of precipitation in the 
+        MSWEP dataset, which is used as input for the forcings.
+
+        #TODO: make it non-hard-coded for P 
+        '''
+        scale=dsPcor["scale_index"].assign_coords(
+            lat=ds_feature["lat"],
+            lon=ds_feature["lon"],
+        )
+        ds_feature = ds_feature.assign_coords(
+            month=("date", ds_feature["date"].dt.month.data)
+        )
+        ds_feature["P"]=ds_feature["P"].groupby("month") * scale
+
+        return ds_feature.drop_vars("month")
 
     #---hard coded---
     date_pattrn=r"\d{4}(0[1-9]|1[0-2])([0-2][0-9]|3[0-1])"
@@ -216,10 +246,10 @@ def ConvertForcingIntegerToFloatFile(
     timeDim=ds_feature.sizes[time_dim] if time_dim else 1
     nTimeSteps=24//timeDim
     
-    ds_feature["P"]=ds_feature["P"]*1000 #convert from m to mm
-    ds_feature["SWd"]=ds_feature["SWd"]*nTimeSteps*1000 #convert from kJ/m2/h to J/m2/nTimesteps h
-    ds_feature["LWd"]=ds_feature["LWd"]*nTimeSteps*1000 #convert from kJ/m2/h to J/m2/nTimesteps h
-
+    ds_feature["P"]=ds_feature["P"]*1000/(nTimeSteps*3600) #convert from m/3h to mm/s = kg/m2/s
+    ds_feature["SWd"]=ds_feature["SWd"]*1000/3600 #convert from kJ/m2/h to J/m2/s
+    ds_feature["LWd"]=ds_feature["LWd"]*1000/3600 #convert from kJ/m2/h to J/m2/s
+    ds_feature["Ps"]=ds_feature["Ps"]*100 #convert from hPa to Pa
 
     #---expand the date dimension if it is not present in the dataset---
     if re.search(date_pattrn, file_to_read):
@@ -243,12 +273,19 @@ def ConvertForcingIntegerToFloatFile(
                 ds_feature=ds_feature.assign_coords(
                     date=pd.Index(date_index, name='date')
                     )
+                
+    #---scale the precipitation with the correction factor---
+    ds_feature=_ScalePwithPcor(
+                    ds_feature=ds_feature, 
+                    dsPcor=dsPcor
+                    )
 
     return ds_feature
 
 def TransformForcingsFileWriteToZarr(
         store:str=None,
         file_to_read:str=None,
+        dsPcor:xr.Dataset=None,
         index:int=0
     ) -> None:
     ''' 
@@ -260,7 +297,9 @@ def TransformForcingsFileWriteToZarr(
         - write the transformed dataset to the zarr store at the specified index
     '''
     #read in the file to read and convert the forcings from integer to float based on the offset values
-    ds_transformed=ConvertForcingIntegerToFloatFile(file_to_read=file_to_read, verbose=False)
+    ds_transformed=ConvertForcingIntegerToFloatFile(file_to_read=file_to_read,
+                                                    dsPcor=dsPcor,
+                                                    verbose=False)
 
     #transpose the dataset to match the zarr store and drop the lat, lon and time variables (if they exist)
     #why: they are constant and need to be dropped to avoid conflicts when writing to the zarr store
@@ -279,6 +318,7 @@ def TransformForcingsFileWriteToZarr(
 
 def CreateZarrTransformedForcings(
     rootdirForcings:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/Forcings/tiles/3hourly",
+    PcorDir:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/auxdata/Pcor/MSWEP2CHELSA",
     tx:int=201, 
     ty:int=35,
     date_ini:str=None,
@@ -286,7 +326,8 @@ def CreateZarrTransformedForcings(
     savedir:str=os.getcwd(),
     filename:str="test.zarr",
     ncores:int=len(os.sched_getaffinity(0)),
-    ncores_min:int=8     
+    ncores_min:int=8,
+    maxPcor:float=2.0  
     ) -> None:
     ''' 
     Function that creates a zarr store with converted forcings from integer to float based on the offset values for a specific tile (tx, ty).
@@ -309,6 +350,12 @@ def CreateZarrTransformedForcings(
         filename=filename
     )
 
+    #---extract the Pcor dataset for the specified tile---
+    PcorTile=next((f for f  in glob.glob(os.path.join(PcorDir,"*.nc")) if f"y{ty:03d}x{tx:03d}" in f), None)
+    if PcorTile is None:
+        raise FileNotFoundError(f"No Pcor file found for tile y{ty:03d}x{tx:03d} in {PcorDir}! This file is needed to correct the precipitation in the forcings.")
+    dsPcor=transpose_dataset(xr.open_dataset(PcorTile)).clip(max=maxPcor)
+
     #---add the transformed data to the zarr store---
     _ = Parallel(
         n_jobs=ncores,          # or -1, but ncores is often safer for IO
@@ -317,7 +364,8 @@ def CreateZarrTransformedForcings(
         delayed(TransformForcingsFileWriteToZarr)(
             store=store_tmp,
             file_to_read=file_to_read,
-            index=i,
+            dsPcor=dsPcor,
+            index=i
         )
         for i, file_to_read in enumerate(files_to_read)
     )
