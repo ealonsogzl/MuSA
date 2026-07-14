@@ -13,6 +13,7 @@ import numpy as np
 sys.path.append((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.OperationsXrDatasets import saveXrtoNetCDF
 import config_template as cfg #HARD CODED: this is the config fil that is adjusted for the specific experiment
+import modules.internal_fns as ifns
 
 #---functions---
 def _save_config_module(
@@ -98,64 +99,6 @@ def _CreateMaskMsitesTile(
 
         cfg.nc_maks_path=os.path.join(cfg.rootdirRun, "mask_msites_tile.nc")
 
-def check_forcings_timerange(
-        date_ini:str="2018-09-01 00:00",
-        date_end:str="2020-08-30 23:00",
-        forcing_dir:str=os.getcwd(),
-        verbose:bool=False
-    ) -> str|list[str]:
-    '''
-    Function that checks if the forcing zarr already exists given the specified date_ini and date_end. 
-    If it does, it returns the file, otherwise it returns None.
-
-    Only if no zarr store is found within the specified date_range, it will return None. 
-    This None will be then used to trigger the creation of a new zarr store containing the forcings. 
-    '''
-    files=glob.glob(os.path.join(forcing_dir, "*"))
-
-    if not files:
-        if verbose:
-            print(f"No forcing files found in {forcing_dir}.", file=sys.stderr)
-        return None
-    
-    elif any(re.search(r".zarr", f) for f in files):
-        if verbose:
-            print(f"Found forcing zarr files in {forcing_dir}. Checking for the specified date range: {date_ini} to {date_end}", file=sys.stderr)
-
-        if date_ini is None or date_end is None:
-            store_search=re.compile(rf"forcings.zarr")
-        else:
-            date_ini_str=pd.Timestamp(date_ini).strftime('%Y%m%d')
-            date_end_str=pd.Timestamp(date_end).strftime('%Y%m%d')
-            
-            store_search=re.compile(rf"forcings(.+?){date_ini_str}(.+?){date_end_str}.zarr")
-        
-        forcing_file=next((f for f in glob.glob(os.path.join(forcing_dir, "*")) if store_search.search(f)), None)
-        if forcing_file is not None:
-            return forcing_file
-        else:
-            if verbose:
-                print(f"No forcing zarr files found in {forcing_dir} for the specified date range!", file=sys.stderr)
-            return None
-        
-    else:
-        if verbose:
-            print(f"No forcing zarr files found in {forcing_dir}", file=sys.stderr)
-
-        files=sorted(glob.glob(os.path.join(forcing_dir, "*.nc")))
-        if date_ini is None or date_end is None:
-            return files
-        else:
-            date_ini_str=pd.Timestamp(date_ini)
-            date_end_str=pd.Timestamp(date_end)
-
-            date_range=pd.date_range(start=date_ini_str, end=date_end_str, freq='D')
-
-            if len(files) == len(date_range):
-                return files
-            else:
-                raise ValueError("Number of nc-files does not match the specified date_range. Please remove the files outside this date range.")
-
 def _check_data_ini_end_nc(
         forcing_files:list[str],
         date_pattern=re.compile(r"\d{8}")
@@ -236,7 +179,7 @@ def _check_date_ini_end(
     If correct, it adjusts them to the first and last timestep of the forcing zarr dataset/forcing nc files!
 
     '''
-    forcing_files=check_forcings_timerange(date_ini=date_ini, 
+    forcing_files=ifns.check_forcings_timerange(date_ini=date_ini, 
                                             date_end=date_end, 
                                             forcing_dir=forcing_dir
                                             )
@@ -323,7 +266,7 @@ def adjust_config_file(
     dem_dir=os.path.join(rootdirRun,"DEM")
 
     #---open the forcing data---
-    forcing_file=check_forcings_timerange(date_ini=date_ini, 
+    forcing_file=ifns.check_forcings_timerange(date_ini=date_ini, 
                                         date_end=date_end,
                                         forcing_dir=forcing_dir,
                                         verbose=True)

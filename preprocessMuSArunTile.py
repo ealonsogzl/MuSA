@@ -19,6 +19,19 @@ def load_config(
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Regrid DEM to Forcings")
+
+    def str2bool(value: str) -> bool:
+        if isinstance(value, bool):
+            return value
+        value = value.strip().lower()
+        if value in {"true", "1", "yes", "y", "t"}:
+            return True
+        if value in {"false", "0", "no", "n", "f"}:
+            return False
+        raise argparse.ArgumentTypeError(
+            f"Invalid boolean value: {value}. Use True/False."
+        )
+
     parser.add_argument("--implementation",
                         type=str,
                         default="open_loop",
@@ -44,7 +57,7 @@ def parse_arguments():
                         help="Root directory for MuSA runs (default: current working directory)"
                         )
     parser.add_argument("--model_only_sites",
-                        type=bool,
+                        type=str2bool,
                         default=False,
                         help="Flag to indicate if only model sites should be considered (default: False)"
                         )
