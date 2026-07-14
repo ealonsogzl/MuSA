@@ -10,10 +10,8 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 
 edited by: Lucas Boeykens - lucas.boeykens@ugent.be lucas.boeykens@kuleuven.be
 """
-# at the very top of main.py, before importing project modules
 import importlib.util
-import os
-import sys
+import os, sys, argparse
 
 config_path = os.environ.get("MUSA_CONFIG", "config.py")
 spec = importlib.util.spec_from_file_location("config", config_path)
@@ -21,15 +19,9 @@ cfg = importlib.util.module_from_spec(spec)
 sys.modules["config"] = cfg
 spec.loader.exec_module(cfg)
 
-
+import modules.transformMuSAoutputs_tools as transformMuSA
 import modules.internal_fns as ifn
 import modules.spatialMuSA as spM
-
-
-
-
-# import config as cfg
-
 if cfg.numerical_model == 'FSM2':
     import modules.fsm_tools as model
 elif cfg.numerical_model == 'dIm':
@@ -52,6 +44,17 @@ from modules.cell_assim import cell_assimilation
 from mpi4py import MPI
 import logging
 import os
+
+def getArgsFromCfg():
+    args = {
+        "nc_maks_path": cfg.nc_maks_path,
+        "output_path": cfg.output_path,
+        "nc_forcing_path": cfg.nc_forcing_path,
+        "date_ini": cfg.date_ini,
+        "date_end": cfg.date_end,
+
+    }
+    return argparse.Namespace(**args)
 
 def autoGenerateOutputPaths() -> None:
     """
@@ -366,6 +369,22 @@ def check_platform():
 
     if (sys.platform not in ("linux", "darwin")):
         raise Exception(sys.platform + " is not supported by MuSA yet")
+    
+
+def transform_results():
+    """
+    Function that transforms the results of the MuSA run into a more user-friendly format.
+    This function is called at the end of the MuSA run.
+
+    The zarr store contains still all time steps, whereas for the sites only daily outputs are retrieved.
+    """
+    #get the arguments from the config file
+    args=getArgsFromCfg()
+
+    if args.nc_maks_path is None:
+        transformMuSA.saveFinalOutputToZarr(args)
+    else:
+        transformMuSA.saveFinalOutputSitesOnly(args)
 
 
 if __name__ == "__main__":
@@ -377,3 +396,5 @@ if __name__ == "__main__":
     ifn.pre_cheks()
 
     MuSA()
+    
+    transform_results()
