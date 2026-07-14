@@ -5,17 +5,19 @@ Internal functions to read and tidy the forcing, as well as launch the real
 assimilation functions.
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
+
+This file has been modified with new functions and bug fixes by:
+    - Lucas Boeykens - lucas.boeykens@ugent.be lucas.boeykens@kuleuven.be
 """
 
 from multiprocessing import TimeoutError
-import glob
-import os
-import shutil
+import glob, os, sys, shutil, pickle, blosc, warnings, re, gc, subprocess, time
 import datetime as dt
 import netCDF4 as nc
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
+import xarray as xr
 import config as cfg
 if cfg.numerical_model == 'FSM2':
     import modules.fsm_tools as model
@@ -25,16 +27,10 @@ elif cfg.numerical_model == 'snow17':
     import modules.snow17_tools as model
 else:
     raise Exception('Model not implemented')
-import pickle
-import blosc
-import warnings
 import pdcast as pdc
 if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
-import re
-import subprocess
-import gc
-import time
+
 
 
 def pre_cheks():
@@ -452,6 +448,154 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
 
     return np.asarray(del_t)
 
+def check_forcings_timerange(
+        date_ini:str="2018-09-01 00:00",
+        date_end:str="2020-08-30 23:00",
+        forcing_dir:str=os.getcwd(),
+        verbose:bool=False
+    ) -> str|list[str]:
+    '''
+    Function that checks if the forcing zarr already exists given the specified date_ini and date_end. 
+    If it does, it returns the file, otherwise it returns None.
+
+    Only if no zarr store is found within the specified date_range, it will return None. 
+    This None will be then used to trigger the creation of a new zarr store containing the forcings. 
+    '''
+    files=glob.glob(os.path.join(forcing_dir, "*"))
+
+    if not files:
+        if verbose:
+            print(f"No forcing files found in {forcing_dir}.", file=sys.stderr)
+        return None
+    
+    elif any(re.search(r".zarr", f) for f in files):
+        if verbose:
+            print(f"Found forcing zarr files in {forcing_dir}. Checking for the specified date range: {date_ini} to {date_end}", file=sys.stderr)
+
+        if date_ini is None or date_end is None:
+            store_search=re.compile(rf"forcings.zarr")
+        else:
+            date_ini_str=pd.Timestamp(date_ini).strftime('%Y%m%d')
+            date_end_str=pd.Timestamp(date_end).strftime('%Y%m%d')
+            
+            store_search=re.compile(rf"forcings(.+?){date_ini_str}(.+?){date_end_str}.zarr")
+        
+        forcing_file=next((f for f in glob.glob(os.path.join(forcing_dir, "*")) if store_search.search(f)), None)
+        if forcing_file is not None:
+            return forcing_file
+        else:
+            if verbose:
+                print(f"No forcing zarr files found in {forcing_dir} for the specified date range!", file=sys.stderr)
+            return None
+        
+    else:
+        if verbose:
+            print(f"No forcing zarr files found in {forcing_dir}", file=sys.stderr)
+
+        files=sorted(glob.glob(os.path.join(forcing_dir, "*.nc")))
+        if date_ini is None or date_end is None:
+            return files
+        else:
+            date_ini_str=pd.Timestamp(date_ini)
+            date_end_str=pd.Timestamp(date_end)
+
+            date_range=pd.date_range(start=date_ini_str, end=date_end_str, freq='D')
+
+            if len(files) == len(date_range):
+                return files
+            else:
+                raise ValueError("Number of nc-files does not match the specified date_range. Please remove the files outside this date range.")
+
+def check_vars_in_forcings(
+    nc_forcing_path:str = "test/y034x201/FORCINGS",
+    date_ini: str = "2015-09-01 00:00",
+    date_end: str = "2024-08-31 21:00",
+    vars_to_check:list[str] = ["vegh", "VAI", "alb0", "asmn", "asmx", "eta0",
+        "hfsn", "kfix", "rcld", "rfix", "rgr0", "rhof", "rhow", "rmlt", "Salb", "snda",
+        "Talb", "tcld", "tmlt", "trho", "Wirr", "z0sn", "fcly", "fsnd", "gsat", "z0sf",
+        "acn0", "acns", "avg0", "avgs", "cvai", "hbas", "gsnf", "kext", "leaf", "svai",
+        "tunl", "wcan"]
+    ) -> tuple[list[str], list[str]]:
+    '''
+    Function that checks if the specified variables are present in the forcing files within the specified date range.
+    It returns a tuple containing two lists: the first list contains the variables that are present, and the second list contains the variables that are missing.
+    '''
+    #---extract the forcing files within the specified date range---
+    files=check_forcings_timerange(
+        date_ini=date_ini,
+        date_end=date_end,
+        forcing_dir=nc_forcing_path,
+        verbose=False
+    )
+
+    #---extract the data variables from the forcing files---
+    if files is None:
+        raise ValueError(f"No forcing files found in {nc_forcing_path} for the specified date range: {date_ini} to {date_end}.")
+
+    if isinstance(files, list):
+        with xr.open_dataset(files[0], chunks={}) as ds:
+            dvars=list(ds.data_vars)
+    else:
+        with xr.open_zarr(files, consolidated=True) as ds:
+            dvars=list(ds.data_vars)
+
+    non_present=[v for v in vars_to_check if v not in dvars]
+    present=[v for v in vars_to_check if v in dvars]
+
+    return non_present, present
+
+def load_array_forcing(
+    date_ini: str = "2015-09-01 00:00",
+    date_end: str = "2024-08-31 21:00",
+    nc_forcing_path:str = "test/y034x201/FORCINGS",
+    var_names: str|list[str] = ["P", "T", "Ua", "LWd", "SWd"],
+    lat_idx:int = 0,
+    lon_idx:int = 0
+    ) -> dict[str, np.ndarray]:
+    '''
+    New function to load the forcing data from the specified directory and date range. 
+
+    author: Lucas Boeykens - lucas.boeykens@ugent.be lucas.boeykens@kuleuven.be
+    '''
+    #---extract the forcing files within the specified date range---
+    files=check_forcings_timerange(
+        date_ini=date_ini,
+        date_end=date_end,
+        forcing_dir=nc_forcing_path,
+        verbose=False
+    )
+
+    #---extract the data variables from the forcing files---
+    dict_array_nc = {}
+    if not isinstance(files, list):
+        with xr.open_zarr(files, consolidated=True) as ds_forcings:
+            ds_forcing=ds_forcings.sel(date=slice(date_ini, date_end))[var_names]
+            ds_forcing=ds_forcing.stack(datetime=("date", "time"))
+            
+            ds_forcing=ds_forcing.isel(lat=lat_idx, lon=lon_idx).compute()
+            for nc_var in var_names:
+                dict_array_nc[nc_var] = np.asarray(ds_forcing[nc_var].values)
+    else:
+        for nc_var in var_names:
+            array_nc = []
+            for ncfile in files:
+                data_temp = nc.Dataset(ncfile)
+                array_temp = data_temp.variables[nc_var][:, lat_idx, lon_idx]
+                array_temp = np.ma.getdata(array_temp)
+                array_nc.extend(array_temp)
+                data_temp.close()
+        dict_array_nc[nc_var] = np.array(array_nc)
+
+    # --- check if the length of the forcing data matches the expected length based on the date range and timestep ---
+    #change date ini and end and generate del_t
+    date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
+    date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
+    del_t = generate_dates(date_ini, date_end)
+
+    if len(del_t) != len(dict_array_nc[nc_var]):
+            raise Exception("date_end - date_ini longuer than forcing")
+
+    return dict_array_nc
 
 def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
                      date_ini, date_end):
@@ -460,7 +604,7 @@ def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
     Parameters
     ----------
     nc_forcing_path : string
-        Path of the netcdf.
+           Path of the the forcings: either multiple netCDF files or a zarr store.
     lat_idx : int
         Netcdf latitude idx.
     lon_idx : int
@@ -477,24 +621,38 @@ def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
     array_nc : np array
         Array of forcing timesteps.
     """
-
+    #change date ini and end and generate del_t
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
     del_t = generate_dates(date_ini, date_end)
 
-    files = glob.glob(nc_forcing_path + "*.nc")
+    #list up the files
+    files=glob.glob(os.path.join(nc_forcing_path, "*.nc"))
     files.sort()
 
-    array_nc = []
+    if not files:
+        #find the zarr store -> expects only one zarr store in the directory!!
+        store=next(iter(glob.glob(os.path.join(nc_forcing_path, "*.zarr"))), None)
+        if store is None:
+            raise FileNotFoundError("No netCDF or zarr files found in the specified directory.")
+        #open the store and extract the values
+        ds_forcings=xr.open_zarr(store)
+        ds_forcing=ds_forcings.sel(date=slice(date_ini, date_end))[nc_var_name]
+        ds_forcing=ds_forcing.stack(datetime=("date", "time"))
 
-    for ncfile in files:
-        data_temp = nc.Dataset(ncfile)
-        array_temp = data_temp.variables[nc_var_name][:, lat_idx, lon_idx]
-        array_temp = np.ma.getdata(array_temp)
-        array_nc.extend(array_temp)
-        data_temp.close()
+        array_nc=np.asarray(ds_forcing.isel(lat=lat_idx, lon=lon_idx).values)
 
-    array_nc = np.array(array_nc)
+        ds_forcings.close()
+        del ds_forcings, ds_forcing
+    else:
+        array_nc = []
+        for ncfile in files:
+            data_temp = nc.Dataset(ncfile)
+            array_temp = data_temp.variables[nc_var_name][:, lat_idx, lon_idx]
+            array_temp = np.ma.getdata(array_temp)
+            array_nc.extend(array_temp)
+            data_temp.close()
+        array_nc = np.array(array_nc)
 
     if len(del_t) != len(array_nc):
         raise Exception("date_end - date_ini longuer than forcing")
@@ -526,21 +684,48 @@ def nc_idx():
 
 
 def get_dims(return_ncdim=False):
+    ''' 
+    Function that determines the dimensions of the forcing data. 
+    '''
 
     nc_forcing_path = cfg.nc_forcing_path
     forcing_dim_names = cfg.forcing_dim_names
 
-    example_file = glob.glob(nc_forcing_path + "*.nc")[0]
-    example_file = nc.Dataset(example_file)
+    #search for the example file, if no netCDF file is found, search for a zarr store
+    example_file = glob.glob(os.path.join(nc_forcing_path, "*.nc"))
+    if len(example_file) == 0:
+        try:
+            example_file=next(iter(glob.glob(os.path.join(nc_forcing_path, "*.zarr"))))
+            example_file=xr.open_zarr(example_file)
+        except:
+            raise Exception('Forcing files not found')
+    else:
+        example_file = example_file[0]
+        example_file = nc.Dataset(example_file)
 
+    #get the dimensions of the forcing data, either as netCDF dimensions or as lengths of the lat/lon arrays
     lat_name_var = forcing_dim_names["lat_forz_var_name"]
     lon_name_var = forcing_dim_names["lon_forz_var_name"]
-    if return_ncdim:
-        lon = example_file.variables[lon_name_var]
-        lat = example_file.variables[lat_name_var]
-        return lat, lon
-    n_lats = len(example_file.variables[lat_name_var][:])
-    n_lons = len(example_file.variables[lon_name_var][:])
+    
+    try:
+        if return_ncdim:
+            lon = example_file.variables[lon_name_var]
+            lat = example_file.variables[lat_name_var]
+            return lat, lon
+        else:
+            n_lats = len(example_file.variables[lat_name_var][:])
+            n_lons = len(example_file.variables[lon_name_var][:])
+    except:
+        try:
+            if return_ncdim:
+                lon = example_file[lon_name_var]
+                lat = example_file[lat_name_var]
+                return lat, lon
+            else:
+                n_lats = len(example_file[lat_name_var])
+                n_lons = len(example_file[lon_name_var])
+        except:
+            raise Exception('Could not determine dimensions of forcing data')
     return n_lats, n_lons
 
 
@@ -634,22 +819,123 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
 
     if cfg.da_algorithm != 'deterministic_OL':
         print("No observations in: " + str(lat_idx) + "," + str(lon_idx))
+    profile = getattr(cfg, "profile_timing", False)
+
     # create temporal simulation
+    start_time = time.perf_counter()
     temp_dest = model.model_copy(lat_idx, lon_idx)
+    copy_time = time.perf_counter() - start_time
+
     real_forcing = main_forcing.copy()
+    start_time = time.perf_counter()
     model.model_forcing_wrt(real_forcing, temp_dest, step=0)
+    forcing_time = time.perf_counter() - start_time
+
     if cfg.numerical_model in ['FSM2']:
+        start_time = time.perf_counter()
         model.model_run(temp_dest)
+        run_time = time.perf_counter() - start_time
+
+        start_time = time.perf_counter()
         state = model.model_read_output(temp_dest, read_dump=False)
+        read_time = time.perf_counter() - start_time
     elif cfg.numerical_model in ['dIm', 'snow17']:
+        start_time = time.perf_counter()
         state = model.model_run(real_forcing)[0]
+        run_time = time.perf_counter() - start_time
+        read_time = 0.0
     else:
         Exception("Numerical model not implemented")
     state.columns = list(model.model_columns)
 
+    start_time = time.perf_counter()
     io_write(filename, state)
+    write_time = time.perf_counter() - start_time
+
+    if profile:
+        total_time = copy_time + forcing_time + run_time + read_time + write_time
+        print(
+            "[FSM timing] cell ({}, {}) total: {:.3f} s | copy: {:.3f} s | "
+            "prepare forcing: {:.3f} s | run: {:.3f} s | read: {:.3f} s | "
+            "write: {:.3f} s".format(
+                lat_idx, lon_idx, total_time, copy_time, forcing_time,
+                run_time, read_time, write_time))
     # Clean tmp directory
     try:
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
+
+def open_loop_simulation(lat_idx, lon_idx) -> None:
+    ''' 
+    Function to perform the open-loop simulation without the need of having 
+    observations. Usefull to test our setup with the downscaled data.
+
+    for more infromation contact:
+        - lucas.boeykens@ugent.be
+        - lucas.boeykens@kuleueven.be
+    '''
+    total_start = time.perf_counter()
+    pid = os.getpid()
+
+    print(
+        f"[CELL START] ({lat_idx}, {lon_idx}) pid={pid}",
+        flush=True
+    )
+
+
+    #real restart information
+    real_time_restart = cfg.real_time_restart_OL
+
+    if real_time_restart:
+        name_restart = "init_" + str(lat_idx) +\
+            "_" + str(lon_idx) + ".pkl.blp"
+        name_restart = os.path.join(cfg.real_time_restart_path_OL, name_restart)
+
+    if cfg.load_prev_run_OL:
+        filename = ("Reconstructed_cell_OL_" + str(lat_idx)
+                    + "_" + str(lon_idx) + ".pkl.blp")
+    else:
+        filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
+
+    filename = os.path.join(cfg.output_path, filename)
+
+
+    # Check if file allready exist if is a restart run
+    if (cfg.restart_run and os.path.exists(filename)):
+        print(
+            f"[CELL SKIPPED] ({lat_idx}, {lon_idx})",
+            flush=True
+        )
+        return None
+
+    #get the forcings
+    start = time.perf_counter()
+    main_forcing = model.forcing_table(lat_idx, lon_idx)
+    forcing_load_time = time.perf_counter() - start
+
+    start = time.perf_counter()
+    invalid_forcing = forcing_check(main_forcing)
+    forcing_check_time = time.perf_counter() - start
+
+    if invalid_forcing:
+        print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
+        return None
+
+    #do the OL without any DA
+    start = time.perf_counter()
+    run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
+    model_time = time.perf_counter() - start
+
+    total_time = time.perf_counter() - total_start
+
+    print(
+        f"[CELL END] ({lat_idx}, {lon_idx}) | "
+        f"total={total_time:.3f}s | "
+        f"forcing load={forcing_load_time:.3f}s | "
+        f"forcing check={forcing_check_time:.3f}s | "
+        f"model={model_time:.3f}s",
+        flush=True
+    )
+
+    return None
