@@ -161,10 +161,8 @@ def model_compile():
 
     bin_name = os.path.join(fsm_path, "FSM2")
 
-    try:  # remove FSM binary if exists
-        os.remove(bin_name)
-    except OSError:
-        pass
+    if os.path.isfile(bin_name):
+        return None
 
     with open(os.path.join(fsm_path, "compil_base.sh"), "r") as file:
         filedata = file.read()
@@ -191,12 +189,8 @@ def model_compile():
 
     compile_path = os.path.join(fsm_path, "compil.sh")
 
-    # Ensure the compile.sh file is not there
-    if (os.path.exists(compile_path)):
-        os.remove(compile_path)
-
     # Write the file out again
-    with open(compile_path, "x") as file:
+    with open(compile_path, "w") as file:
         file.write(filedata)
 
     # Forze executable permision
@@ -641,7 +635,20 @@ def init_result(del_t, DA=False, OL=False):
 
 
 def forcing_table(lat_idx, lon_idx, step=0):
-
+    '''
+    Function to read the forcing and standard parameters from nc/zarr files and transform it to a pandas dataframe
+    
+    This function has been adjusted by:
+        - Lucas Boeykens - lucas.boeykens@ugent.be lucas.boeykens@kuleuven.be
+    '''
+    # --- hard coded ---
+    cnst_vars=["vegh", "VAI", "alb0", "asmn", "asmx", "eta0",
+            "hfsn", "kfix", "rcld", "rfix", "rgr0", "rhof", "rhow", "rmlt", "Salb", "snda",
+            "Talb", "tcld", "tmlt", "trho", "Wirr", "z0sn", "fcly", "fsnd", "gsat", "z0sf",
+            "acn0", "acns", "avg0", "avgs", "cvai", "hbas", "gsnf", "kext", "leaf", "svai",
+            "tunl", "wcan"]
+ 
+    # --- extract the configuration parameters from the config file ---
     nc_forcing_path = cfg.nc_forcing_path
     forcing_var_names = cfg.forcing_var_names
     param_var_names = cfg.param_var_names
@@ -649,349 +656,315 @@ def forcing_table(lat_idx, lon_idx, step=0):
     date_end = cfg.date_end
     intermediate_path = cfg.intermediate_path
 
+
     # Path to intermediate file
     final_directory = os.path.join(intermediate_path,
-                                   (str(lat_idx) + "_" +
+                                    (str(lat_idx) + "_" +
                                     str(lon_idx) + ".pkl"))
 
     # try to read the forcing from a dumped file
     if os.path.exists(final_directory) and (cfg.restart_forcing or
                                             (cfg.implementation ==
-                                             "Spatial_propagation" and
-                                             step != 0)):
+                                            "Spatial_propagation" and
+                                            step != 0)):
 
         forcing_df = ifn.io_read(final_directory)
 
     else:
+        # --- read in the meteorological forcing data from the netCDF files or zarr store ---
+        dict_forcings = ifn.load_array_forcing(
+            date_ini = date_ini,
+            date_end = date_end,
+            nc_forcing_path = nc_forcing_path,
+            var_names = list(forcing_var_names.values()),
+            lat_idx = lat_idx,
+            lon_idx = lon_idx
+            )
 
-        short_w = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       forcing_var_names["SW_var_name"],
-                                       date_ini, date_end)
-
-        long_wave = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                         forcing_var_names["LW_var_name"],
-                                         date_ini, date_end)
-
-        prec = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    forcing_var_names["Precip_var_name"],
-                                    date_ini, date_end)
-
-        temp = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    forcing_var_names["Temp_var_name"],
-                                    date_ini, date_end)
-
-        rel_humidity = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                            forcing_var_names["RH_var_name"],
-                                            date_ini, date_end)
-
-        wind = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    forcing_var_names["Wind_var_name"],
-                                    date_ini, date_end)
+        short_w = dict_forcings[forcing_var_names["SW_var_name"]]
+        long_wave = dict_forcings[forcing_var_names["LW_var_name"]]
+        prec = dict_forcings[forcing_var_names["Precip_var_name"]]
+        temp = dict_forcings[forcing_var_names["Temp_var_name"]]
+        rel_humidity = dict_forcings[forcing_var_names["RH_var_name"]]
+        wind = dict_forcings[forcing_var_names["Wind_var_name"]]
 
         if forcing_var_names["Press_var_name"] == "from_DEM":
-
             with nc.Dataset(cfg.dem_path) as dem:
                 topo = dem.variables[cfg.nc_dem_varname][lat_idx, lon_idx]
                 sfc_pres = met.pres_from_dem(topo)
                 press = np.full_like(wind, sfc_pres)
 
         else:
-            press = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                         forcing_var_names["Press_var_name"],
-                                         date_ini, date_end)
+            press = dict_forcings[forcing_var_names["Press_var_name"]]
 
+
+        # --- read in all other parameters from the netCDF files or zarr store ---
+        _, present_cnt_vars = ifn.check_vars_in_forcings(
+            nc_forcing_path = nc_forcing_path,
+            date_ini = date_ini,
+            date_end = date_end,
+            vars_to_check = cnst_vars
+            )
+        
+        if present_cnt_vars:
+            dict_constants = ifn.load_array_forcing(
+                date_ini = date_ini,
+                date_end = date_end,
+                nc_forcing_path = nc_forcing_path,
+                var_names = present_cnt_vars,
+                lat_idx = lat_idx,
+                lon_idx = lon_idx
+                )
+            
         # Search for parameters or use the default settings
         # vegetation parameters
         try:
-            vegh = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["vegh_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            vegh = dict_constants[param_var_names["vegh_var_name"]]
+        except:
             vegh = np.repeat(cnt.vegh, len(prec))
 
         try:
-            VAI = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       param_var_names["VAI_var_name"],
-                                       date_ini, date_end)
-        except KeyError:
+            VAI = dict_constants[param_var_names["VAI_var_name"]]
+        except:
             VAI = np.repeat(cnt.VAI, len(prec))
 
         # FSM2 internal parameters
         try:
-            alb0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["alb0_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            alb0 = dict_constants[param_var_names["alb0_var_name"]]
+        except:
             alb0 = np.repeat(cnt.alb0, len(prec))
 
         try:
-            asmn = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["asmn_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            asmn = dict_constants[param_var_names["asmn_var_name"]]
+        except:
             asmn = np.repeat(cnt.asmn, len(prec))
+
         try:
-            asmx = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["asmx_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            asmx = dict_constants[param_var_names["asmx_var_name"]]
+        except:
             asmx = np.repeat(cnt.asmx, len(prec))
+
         try:
-            eta0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["eta0_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            eta0 = dict_constants[param_var_names["eta0_var_name"]]
+        except:
             eta0 = np.repeat(cnt.eta0, len(prec))
+
         try:
-            hfsn = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["hfsn_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            hfsn = dict_constants[param_var_names["hfsn_var_name"]]
+        except:
             hfsn = np.repeat(cnt.hfsn, len(prec))
+
         try:
-            kfix = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["kfix_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            kfix = dict_constants[param_var_names["kfix_var_name"]]
+        except:
             kfix = np.repeat(cnt.kfix, len(prec))
+
         try:
-            rcld = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rcld_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rcld = dict_constants[param_var_names["rcld_var_name"]]
+        except:
             rcld = np.repeat(cnt.rcld, len(prec))
+
         try:
-            rfix = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rfix_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rfix = dict_constants[param_var_names["rfix_var_name"]]
+        except:
             rfix = np.repeat(cnt.rfix, len(prec))
+
         try:
-            rgr0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rgr0_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rgr0 = dict_constants[param_var_names["rgr0_var_name"]]
+        except:
             rgr0 = np.repeat(cnt.rgr0, len(prec))
+
         try:
-            rhof = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rhof_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rhof = dict_constants[param_var_names["rhof_var_name"]]
+        except:
             rhof = np.repeat(cnt.rhof, len(prec))
+
         try:
-            rhow = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rhow_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rhow = dict_constants[param_var_names["rhow_var_name"]]
+        except:
             rhow = np.repeat(cnt.rhow, len(prec))
+
         try:
-            rmlt = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["rmlt_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            rmlt = dict_constants[param_var_names["rmlt_var_name"]]
+        except:
             rmlt = np.repeat(cnt.rmlt, len(prec))
+
         try:
-            Salb = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["Salb_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            Salb = dict_constants[param_var_names["Salb_var_name"]]
+        except:
             Salb = np.repeat(cnt.Salb, len(prec))
+
         try:
-            snda = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["snda_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            snda = dict_constants[param_var_names["snda_var_name"]]
+        except:
             snda = np.repeat(cnt.snda, len(prec))
+
         try:
-            Talb = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["Talb_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            Talb = dict_constants[param_var_names["Talb_var_name"]]
+        except:
             Talb = np.repeat(cnt.Talb, len(prec))
+
         try:
-            tcld = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["tcld_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            tcld = dict_constants[param_var_names["tcld_var_name"]]
+        except:
             tcld = np.repeat(cnt.tcld, len(prec))
+
         try:
-            tmlt = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["tmlt_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            tmlt = dict_constants[param_var_names["tmlt_var_name"]]
+        except:
             tmlt = np.repeat(cnt.tmlt, len(prec))
+
         try:
-            trho = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["trho_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            trho = dict_constants[param_var_names["trho_var_name"]]
+        except:
             trho = np.repeat(cnt.trho, len(prec))
+
         try:
-            Wirr = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["Wirr_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            Wirr = dict_constants[param_var_names["Wirr_var_name"]]
+        except:
             Wirr = np.repeat(cnt.Wirr, len(prec))
+
         try:
-            z0sn = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["z0sn_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            z0sn = dict_constants[param_var_names["z0sn_var_name"]]
+        except:
             z0sn = np.repeat(cnt.z0sn, len(prec))
 
         # FSM2 soil parameters
         try:
-            fcly = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["fcly_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            fcly = dict_constants[param_var_names["fcly_var_name"]]
+        except:
             fcly = np.repeat(cnt.fcly, len(prec))
+
         try:
-            fsnd = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["fsnd_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            fsnd = dict_constants[param_var_names["fsnd_var_name"]]
+        except:
             fsnd = np.repeat(cnt.fsnd, len(prec))
+
         try:
-            gsat = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["gsat_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            gsat = dict_constants[param_var_names["gsat_var_name"]]
+        except:
             gsat = np.repeat(cnt.gsat, len(prec))
+
         try:
-            z0sf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["z0sf_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            z0sf = dict_constants[param_var_names["z0sf_var_name"]]
+        except:
             z0sf = np.repeat(cnt.z0sf, len(prec))
 
         # FSM2 vegetation parameters
         try:
-            acn0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["acn0_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            acn0 = dict_constants[param_var_names["acn0_var_name"]]
+        except:
             acn0 = np.repeat(cnt.acn0, len(prec))
+
         try:
-            acns = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["acns_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            acns = dict_constants[param_var_names["acns_var_name"]]
+        except:
             acns = np.repeat(cnt.acns, len(prec))
+
         try:
-            avg0 = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["avg0_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            avg0 = dict_constants[param_var_names["avg0_var_name"]]
+        except:
             avg0 = np.repeat(cnt.avg0, len(prec))
+
         try:
-            avgs = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["avgs_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            avgs = dict_constants[param_var_names["avgs_var_name"]]
+        except:
             avgs = np.repeat(cnt.avgs, len(prec))
+
         try:
-            cvai = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["cvai_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            cvai = dict_constants[param_var_names["cvai_var_name"]]
+        except:
             cvai = np.repeat(cnt.cvai, len(prec))
+
         try:
-            hbas = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["hbas_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            hbas = dict_constants[param_var_names["hbas_var_name"]]
+        except:
             hbas = np.repeat(cnt.hbas, len(prec))
+
         try:
-            gsnf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["gsnf_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            gsnf = dict_constants[param_var_names["gsnf_var_name"]]
+        except:
             gsnf = np.repeat(cnt.gsnf, len(prec))
+
         try:
-            kext = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["kext_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            kext = dict_constants[param_var_names["kext_var_name"]]
+        except:
             kext = np.repeat(cnt.kext, len(prec))
+
         try:
-            leaf = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["leaf_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            leaf = dict_constants[param_var_names["leaf_var_name"]]
+        except:
             leaf = np.repeat(cnt.leaf, len(prec))
+
         try:
-            svai = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["svai_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            svai = dict_constants[param_var_names["svai_var_name"]]
+        except:
             svai = np.repeat(cnt.svai, len(prec))
+
         try:
-            tunl = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["tunl_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            tunl = dict_constants[param_var_names["tunl_var_name"]]
+        except:
             tunl = np.repeat(cnt.tunl, len(prec))
+
         try:
-            wcan = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                        param_var_names["wcan_var_name"],
-                                        date_ini, date_end)
-        except KeyError:
+            wcan = dict_constants[param_var_names["wcan_var_name"]]
+        except:
             wcan = np.repeat(cnt.wcan, len(prec))
 
+        # --- store all forcing data in a pandas dataframe ---
         date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
         del_t = ifn.generate_dates(date_ini, date_end)
 
         forcing_df = pd.DataFrame({"year": del_t,
-                                  "month": del_t,
-                                   "day": del_t,
-                                   "hours": del_t,
-                                   "SW": short_w,
-                                   "LW": long_wave,
-                                   "Prec": prec,
-                                   "Ta": temp,
-                                   "RH": rel_humidity,
-                                   "Ua": wind,
-                                   "Ps": press,
-                                   "VAI": VAI,
-                                   "vegh": vegh,
-                                   "asmn": asmn,
-                                   "asmx": asmx,
-                                   "eta0": eta0,
-                                   "hfsn": hfsn,
-                                   "kfix": kfix,
-                                   "rcld": rcld,
-                                   "rfix": rfix,
-                                   "rgr0": rgr0,
-                                   "rhof": rhof,
-                                   "rhow": rhow,
-                                   "rmlt": rmlt,
-                                   "Salb": Salb,
-                                   "snda": snda,
-                                   "Talb": Talb,
-                                   "tcld": tcld,
-                                   "tmlt": tmlt,
-                                   "trho": trho,
-                                   "Wirr": Wirr,
-                                   "z0sn": z0sn,
-                                   "alb0": alb0,
-                                   "fcly": fcly,
-                                   "fsnd": fsnd,
-                                   "gsat": gsat,
-                                   "z0sf": z0sf,
-                                   "acn0": acn0,
-                                   "acns": acns,
-                                   "avg0": avg0,
-                                   "avgs": avgs,
-                                   "cvai": cvai,
-                                   "gsnf": gsnf,
-                                   "hbas": hbas,
-                                   "kext": kext,
-                                   "leaf": leaf,
-                                   "svai": svai,
-                                   "tunl": tunl,
-                                   "wcan": wcan})
+                                    "month": del_t,
+                                    "day": del_t,
+                                    "hours": del_t,
+                                    "SW": short_w,
+                                    "LW": long_wave,
+                                    "Prec": prec,
+                                    "Ta": temp,
+                                    "RH": rel_humidity,
+                                    "Ua": wind,
+                                    "Ps": press,
+                                    "VAI": VAI,
+                                    "vegh": vegh,
+                                    "asmn": asmn,
+                                    "asmx": asmx,
+                                    "eta0": eta0,
+                                    "hfsn": hfsn,
+                                    "kfix": kfix,
+                                    "rcld": rcld,
+                                    "rfix": rfix,
+                                    "rgr0": rgr0,
+                                    "rhof": rhof,
+                                    "rhow": rhow,
+                                    "rmlt": rmlt,
+                                    "Salb": Salb,
+                                    "snda": snda,
+                                    "Talb": Talb,
+                                    "tcld": tcld,
+                                    "tmlt": tmlt,
+                                    "trho": trho,
+                                    "Wirr": Wirr,
+                                    "z0sn": z0sn,
+                                    "alb0": alb0,
+                                    "fcly": fcly,
+                                    "fsnd": fsnd,
+                                    "gsat": gsat,
+                                    "z0sf": z0sf,
+                                    "acn0": acn0,
+                                    "acns": acns,
+                                    "avg0": avg0,
+                                    "avgs": avgs,
+                                    "cvai": cvai,
+                                    "gsnf": gsnf,
+                                    "hbas": hbas,
+                                    "kext": kext,
+                                    "leaf": leaf,
+                                    "svai": svai,
+                                    "tunl": tunl,
+                                    "wcan": wcan})
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month
