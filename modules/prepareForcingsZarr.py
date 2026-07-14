@@ -359,7 +359,7 @@ def CreateZarrTransformedForcings(
     #---add the transformed data to the zarr store---
     _ = Parallel(
         n_jobs=ncores,          # or -1, but ncores is often safer for IO
-        verbose=10,
+        verbose=0,
     )(
         delayed(TransformForcingsFileWriteToZarr)(
             store=store_tmp,
@@ -376,7 +376,10 @@ def CreateZarrTransformedForcings(
              savedir=savedir,
              filename=filename,
              dim_to_rechunk="date",
-             target_mb_per_chunk=150
+             target_mb_per_chunk=150,
+            chunk_total_ds=False,
+            chunk_latlon=True,
+            chunksize_latlon=24 #HARD CODED: see if need to transform
     )
 
     #--remove the temporary zarr store---
