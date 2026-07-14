@@ -10,6 +10,8 @@ Currently the config file is only adjusted per tile!
 TODO: let the config file also be adjusted per year, additional to the tile!
 
 """
+import os 
+
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
 numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
@@ -71,7 +73,7 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
 # If True, print a timing breakdown for the main FSM stages.
-profile_timing = True
+profile_timing = False
 Neffthrs = 0.1           # Low Neff threshold
 # MCMC parameters
 chain_len = 20000   # Length of the mcmc
@@ -130,7 +132,7 @@ MPI = False
 # Note: if nprocess = None, the number of processors will be
 # estimated (max(n)-1). In HPC.array nprocess is an argument
 # (see e.g. run_slurm.sh), and this variable is ignored
-nprocess = 8
+nprocess = len(os.sched_getaffinity(0)) - 1
 # number of threads used by numpy, configure carefully jointlly with nprocess
 # to avoid processor concurrency. numpy_threads = 1 is fine if you're not sure
 # what you're doing.
