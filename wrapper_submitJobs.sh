@@ -1,5 +1,6 @@
 #!/bin/bash
-cluster=${1:-"doduo"}
+cluster=${1:-"skiddo"}
+modelOnlySites=${2:-True}
 
 ntiles=44
 #read in the tiles
@@ -16,8 +17,9 @@ job=$(sbatch --job-name=test_MuSArun \
   --cpus-per-task=12 \
   --time="01:00:00" \
   --cluster=${cluster} \
-  --array=1-1 \
+  --array=0-0 \
   --wrap="$jobscript \${SLURM_ARRAY_TASK_ID} \
-                        $rootdirMuSAruns")
+                        $rootdirMuSAruns \
+                        $modelOnlySites")
 
 #--array=0-$((ntiles-1)) \
