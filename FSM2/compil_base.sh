@@ -9,7 +9,7 @@ cat > OPTS.h << EOF
 #define CANINT pyCANINT   /* canopy interception of snow   : 1, 2            */
 #define CANMOD pyCANMOD   /* forest canopy layers          : 1, 2            */
 #define CANRAD pyCANRAD   /* canopy radiative properties   : 1, 2            */
-#define CANUNL pyCANUL    /* unloading of canopy           : 1, 2            */
+#define CANUNL pyCANUNL   /* unloading of canopy           : 1, 2            */
 #define CONDCT pyCONDCT   /* snow thermal conductivity     : 0, 1            */
 #define DENSTY pyDENSTY  /* snow density                  : 0, 1, 2         */
 #define EXCHNG pyEXCHNG   /* turbulent exchange            : 0, 1            */
