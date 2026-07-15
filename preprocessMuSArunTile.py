@@ -5,6 +5,7 @@ sys.path.append(project_root)
 from modules.dem_tools import RegridDEMtoForcings
 import modules.prepareForcingsZarr as prepForcing_tools
 import modules.prepareRunTile_tools as prepRuntile_tools
+import modules.internal_fns as ifn
 
 #---custom functions---
 def load_config(
@@ -108,7 +109,7 @@ class PrepareRunTile:
                                                         rootdirMuSAruns=self.rootdirMuSAruns
                                                         )
         #check if forcings are availble for the specified time period
-        check_forcings_store=prepRuntile_tools.check_forcings_timerange(
+        check_forcings_store=ifn.check_forcings_timerange(
             date_ini=self.date_ini,
             date_end=self.date_end,
             forcing_dir=forcing_dir,
