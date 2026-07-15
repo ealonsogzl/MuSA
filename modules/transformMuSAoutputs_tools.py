@@ -6,14 +6,15 @@ sys.path.append(os.getcwd())
 import modules.internal_fns as ifn
 import dask.array as da
 import numpy as np
-import modules.prepareRunTile_tools as prepRuntile_tools
+import modules.internal_fns as ifn
 from joblib import Parallel, delayed
 from utils.OperationsXrDatasets import transpose_dataset, saveXrToZarr, saveXrtoNetCDF
+from pathlib import Path
 
 #---functions---
 def _ReturnSpecificsForcingArray(args:dict) -> tuple[tuple, dict, dict]:
     #---get the forcing files---
-    forcings=prepRuntile_tools.check_forcings_timerange(
+    forcings=ifn.check_forcings_timerange(
         date_ini=args.date_ini,
         date_end=args.date_end,
         forcing_dir=args.nc_forcing_path,
@@ -55,12 +56,23 @@ def _ReturnSpecificsForcingArray(args:dict) -> tuple[tuple, dict, dict]:
     
     return shape_array, dims_array, coords_array
 
+
 def create_template_zarr(
         args:dict,
-        vars_to_save:list[str]=["snd", "SWE"],
+        vars_to_save:list[str]=["snd", "SWE", "fSCA"],
         ) -> str:
+    ''' 
+    Function to create a template zarr file. Note that the mean per day is taken for the vars to save.
+    '''
+    # get the shape of the array and the dimensions and coordinates for the forcing data
     shape_array, dims_forcings, coords_forcings=_ReturnSpecificsForcingArray(args)
-        
+    
+    # remove the time dimension from the shape and dims and coords
+    shape_array = tuple(v for k,v in dims_forcings.items() if not re.fullmatch(r'time|t', k))
+    dims_forcings = {k: v for k, v in dims_forcings.items() if not re.fullmatch(r'time|t', k)}
+    coords_forcings = {k: v for k, v in coords_forcings.items() if not re.fullmatch(r'time|t', k)}
+    
+    # create an empty dataset with the specified variables and dimensions
     ds_template=[]
     for var in vars_to_save:
         arr=da.empty(
@@ -85,41 +97,50 @@ def create_template_zarr(
 
     return out_path
 
+
 def WriteCellsToZarr(
-        file:str=None,
-        template_ds:xr.Dataset=None,
-        store_to_write:str=None,
-        vars_to_save:list[str]=["snd", "SWE"]
+        file: str ,
+        store_to_write: str,
+        args: dict,
+        vars_to_save:list[str]=["snd", "SWE", "fSCA"],
     ) -> None:
-    ''' 
-    TODO: add docstring
 
-
-    '''
-    #extract the datetime index from the forcings zarr file
-    index_datetime=template_ds[["date", "time"]].\
-        stack(datetime=("date", "time")).to_dataframe().index
-    
-    #open the file -> using io_read and set index
-    cell=ifn.io_read(file)
-    cell=cell.set_index(index_datetime)
-
-    #extarct lat and lon indices from the filename
+    #extract lat and lon indices from the filename
     idx_match=re.search(r"(\d{1,3})_(\d{1,3}).pkl", file)
     idx_lat=int(idx_match.group(1))
     idx_lon=int(idx_match.group(2))
 
-    #generate an xr dataset from the vars to save
+    #extract the datetime index from the forcings zarr file
+    forcings=ifn.check_forcings_timerange(
+        date_ini=args.date_ini,
+        date_end=args.date_end,
+        forcing_dir=args.nc_forcing_path,
+        verbose=False
+        )
+    with xr.open_zarr(forcings, consolidated=True) as ds_forcings:
+        index_datetime=ds_forcings[["date", "time"]].\
+            stack(datetime=("date", "time")).to_dataframe().index
+        
+        lat_idx = ds_forcings["lat"].isel(lat=idx_lat).item()
+        lon_idx = ds_forcings["lon"].isel(lon=idx_lon).item()
+
+    # open the file -> using io_read and set index
+    cell=ifn.io_read(file)
+    cell=cell.set_index(index_datetime)
+
+    # take the mean of the outputs per day
+    cell=cell.groupby(cell.index.get_level_values("date"))[vars_to_save].mean()
+
+
+    # generate an xr dataset from the vars to save
     cell_ds=cell[vars_to_save].to_xarray()
 
     #add lat, lon info
-    lat_idx = template_ds["lat"].isel(lat=idx_lat).item()
-    lon_idx = template_ds["lon"].isel(lon=idx_lon).item()
-    cell_ds=cell_ds.expand_dims({"lat": [lat_idx], 
+    cell_ds = cell_ds.expand_dims({"lat": [lat_idx], 
                                 "lon": [lon_idx]})
 
     #save to the zarr
-    cell_ds.drop_vars(["date", "time"]).to_zarr(
+    cell_ds.drop_vars(["date"]).to_zarr(
         store_to_write,
         region={"lat": slice(idx_lat, idx_lat + 1), "lon": slice(idx_lon, idx_lon + 1)},
         mode="r+",
@@ -127,16 +148,17 @@ def WriteCellsToZarr(
 
 def saveFinalOutputToZarr(
         args:dict,
-        vars_to_save:list[str]=["snd", "SWE"]
+        vars_to_save:list[str]=["snd", "SWE", "fSCA"],
+        removeCells:bool=True
     ) -> None:
     ''' 
     Function to save the finall output to a zarr store.
     
     '''
-    #creat the tmplate zarr file
-    vars_to_save=["snd", "SWE"]
-
-    out_path=create_template_zarr(args, vars_to_save=vars_to_save)
+    #creat the template zarr file
+    out_path=create_template_zarr(args, 
+                                  vars_to_save=vars_to_save
+                                  )
 
     #write the cells to the zarr file
     cells=glob.glob(os.path.join(args.output_path, "*.pkl*"))
@@ -146,11 +168,11 @@ def saveFinalOutputToZarr(
         )(
         delayed(WriteCellsToZarr)(
             file=cell,
-            template_ds=xr.open_zarr(out_path, consolidated=True),
             store_to_write=out_path,
+            args=args,
             vars_to_save=vars_to_save
         )
-        for i, cell in enumerate(cells)
+        for cell in cells
         )
 
     #rechunk the zarr file to optimize for reading
@@ -166,13 +188,19 @@ def saveFinalOutputToZarr(
             chunk_latlon=True,
             chunksize_latlon=192
             )
+    
+    # remove the temporary zarr file and the individual cell files
     shutil.rmtree(out_path)
+    
+    if removeCells:
+        for cell in cells:
+            Path(cell).unlink(missing_ok=True)
+
 
 def _process_cells_onlysites(
         args:dict,
         dsMeas: xr.Dataset = None,
-        n_jobs: int = -1,
-        vars_to_save:list[str]=["snd", "SWE"]
+        vars_to_save:list[str]=["snd", "SWE", "fSCA"]
     ) -> xr.Dataset:
     '''
     Process all cell files in parallel and return one xarray dataset.
@@ -195,18 +223,39 @@ def _process_cells_onlysites(
     #open the mask dataset
     mask_ds = xr.open_dataset(args.nc_maks_path)
 
-    def _process_single_file(file: str) -> pd.DataFrame:
-        ''' 
-        helper function to process a single cell file and return a DataFrame with the relevant information.
-        '''
-        #read the cell
+    # extract the measurement sites from the output path 
+    tile_match = re.search(r"y(\d{3})x(\d{3})", args.output_path)
+    ty = int(tile_match.group(1))
+    tx = int(tile_match.group(2))
+
+    index=(dsMeas["tx"]==tx) & (dsMeas["ty"]==ty)
+    dsMeasTile=dsMeas.where(index, drop=True)
+    sites=dsMeasTile["site"].values
+
+    # generate a DataFrame for each site and concatenate them
+    df_sites=[]
+    for site in sites:
+        # print(f"Processing site {site}...")
+        # select the site and the coordinates of the site
+        dsSite=dsMeas.sel(site=site)
+
+
+        idx_lat_site=np.argmin(abs(mask_ds["lat"].values-dsSite["lat"].values))
+        idx_lon_site=np.argmin(abs(mask_ds["lon"].values-dsSite["lon"].values))
+
+        file=next((c for c in cells if re.search(rf"cell_{idx_lat_site}_{idx_lon_site}.+?", c)), None)
+        if file is None:
+            print(f"No cell file found for site {site} at indices ({idx_lat_site}, {idx_lon_site}).")
+            continue
+
+        # read the cell
         cell = ifn.io_read(file).copy()
-        #error handling: check if the length of the cell matches the length of the index
+        # error handling: check if the length of the cell matches the length of the index
         if len(cell) != len(index_datetime):
             raise ValueError(
                 f"File {file} has {len(cell)} rows, but the forcing index has {len(index_datetime)} entries."
             )
-        #set the index and take daily means of the cell data
+        # set the index and take daily means of the cell data
         cell.index = index_datetime
         cell = (
             cell.reset_index()
@@ -215,22 +264,7 @@ def _process_cells_onlysites(
         )
         cell["date"] = pd.to_datetime(cell["date"])
 
-        idx_match = re.search(r"(\d{1,3})_(\d{1,3})\.pkl", file)
-        if idx_match is None:
-            raise ValueError(f"Could not extract lat/lon indices from {file}")
-
-        idx_lat = int(idx_match.group(1))
-        idx_lon = int(idx_match.group(2))
-
-        cell_lat = mask_ds["lat"].isel(lat=idx_lat).item()
-        cell_lon = mask_ds["lon"].isel(lon=idx_lon).item()
-
-        lat = dsMeas["lat"].values
-        lon = dsMeas["lon"].values
-
-        dist2 = (lat - cell_lat) ** 2 + ((lon - cell_lon) * np.cos(np.deg2rad(cell_lat))) ** 2
-        site = int(np.argmin(dist2))
-
+        # get the site information from the measurements dataset
         site_info = (
             dsMeas.isel(site=site)
             .sel(date=slice(cell["date"].min(), cell["date"].max()))
@@ -239,28 +273,24 @@ def _process_cells_onlysites(
         )
         site_info["site"] = site
 
+        # merge the cell data with the site information
         df_site = pd.merge(cell, site_info, on="date", how="left", suffixes=("", "_meas"))
         df_site["site"] = site
-        
-        return df_site
+        df_site["idx_lat"] = idx_lat_site
+        df_site["idx_lon"] = idx_lon_site
 
-    #process all cell files in parallel and concatenate the results
-    df_site = pd.concat(
-        Parallel(n_jobs=n_jobs, verbose=10)(
-            delayed(_process_single_file)(cell)
-            for cell in cells
-        ),
-        ignore_index=True,
-    )
+        df_sites.append(df_site)
+    df_sites=pd.concat(df_sites).set_index(["date", "site"]).sort_index()
+    df_sites=df_sites.rename(columns={v:f"{v}_FSM" for v in vars_to_save})
 
-    df_site = df_site.set_index(["date", "site"]).sort_index()
+    return df_sites.to_xarray()
 
-    return df_site.to_xarray()
 
 def saveFinalOutputSitesOnly(
         args:dict,
         dsMeas:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/measurements/insitu/Alps_dataset_SD.nc",
-        vars_to_save:list[str]=["snd", "SWE"]
+        vars_to_save:list[str]=["snd", "SWE", "fSCA"],
+        removeCells:bool=True
     ) -> None:
     '''
     Function to save the final output cells to a netcdf file, using only the sites from the measurements dataset.
@@ -274,3 +304,9 @@ def saveFinalOutputSitesOnly(
         savedir=args.output_path,
         filename="resultsSitesOnly.nc",
         )
+    
+    # remove the individual cell files
+    if removeCells:
+        cells=glob.glob(os.path.join(args.output_path, "*.pkl*"))
+        for cell in cells:
+            Path(cell).unlink(missing_ok=True)
