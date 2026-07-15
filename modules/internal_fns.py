@@ -755,6 +755,9 @@ def expand_grid():
         grid = grid[mask == 1]
         grid = np.squeeze(grid)
 
+        if np.ndim(grid) == 1: #HACK: if only one cell in the AOI, reshape to 2D array
+            grid = grid.reshape(1, -1)  
+
     return grid
 
 
