@@ -17,7 +17,7 @@ job=$(sbatch --job-name=test_MuSArun \
   --cpus-per-task=12 \
   --time="01:00:00" \
   --cluster=${cluster} \
-  --array=0-0 \
+  --array=0-$((ntiles-1)) \
   --wrap="$jobscript \${SLURM_ARRAY_TASK_ID} \
                         $rootdirMuSAruns \
                         $modelOnlySites")
