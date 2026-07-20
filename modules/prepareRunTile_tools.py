@@ -255,7 +255,8 @@ def adjust_config_file(
         implementation:str="open_loop",
         nprocess:int=len(os.sched_getaffinity(0)),
         nprocess_min:int=8,
-        model_only_sites:bool=False
+        model_only_sites:bool=False,
+        remove_output_cells:bool=False
     ) -> None:
     ''' 
     Function that changes the config file based on the input arguments. 
@@ -341,6 +342,9 @@ def adjust_config_file(
         )
     else:
         cfg.nc_maks_path=None
+
+    #--adjust the remove_output_cells in the config file--
+    cfg.remove_output_cells=remove_output_cells
 
     #--save the adjusted config file to the rootdirRun--
     out_path=_save_config_module(rootdirRun)

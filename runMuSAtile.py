@@ -52,7 +52,7 @@ def getArgsFromCfg():
         "nc_forcing_path": cfg.nc_forcing_path,
         "date_ini": cfg.date_ini,
         "date_end": cfg.date_end,
-
+        "remove_output_cells": cfg.remove_output_cells
     }
     return argparse.Namespace(**args)
 
@@ -382,9 +382,9 @@ def transform_results():
     args=getArgsFromCfg()
 
     if args.nc_maks_path is None:
-        transformMuSA.saveFinalOutputToZarr(args)
+        transformMuSA.saveFinalOutputToZarr(args, removeCells=args.remove_output_cells)
     else:
-        transformMuSA.saveFinalOutputSitesOnly(args)
+        transformMuSA.saveFinalOutputSitesOnly(args, removeCells=args.remove_output_cells)
 
 
 if __name__ == "__main__":

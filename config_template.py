@@ -319,3 +319,8 @@ write_stat_full = False
 
 # if True, the output are averaged at daily time step.
 write_stat_daily = False
+
+# -----------------------------------
+# Handling outputs
+# -----------------------------------
+remove_output_cells =  False # If True, the pickle output files (cells) will be removed after the run

@@ -73,6 +73,11 @@ def parse_arguments():
                         default=0,
                         help="Index of the tile to process (default: 0)")
     
+    parser.add_argument("--remove_output_cells",
+                        type=str2bool,
+                        default=False,
+                        help="Flag to indicate if output cells should be removed after the run (default: False)")
+    
     args = parser.parse_args()
     
     return args
@@ -87,7 +92,8 @@ class PrepareRunTile:
                  date_end:str, 
                  snow_model:str, 
                  implementation:str, 
-                 model_only_sites:bool
+                 model_only_sites:bool,
+                 remove_output_cells:bool
                  ):
         self.tx=tx
         self.ty=ty
@@ -97,6 +103,7 @@ class PrepareRunTile:
         self.snow_model=snow_model
         self.implementation=implementation
         self.model_only_sites=model_only_sites
+        self.remove_output_cells=remove_output_cells
 
     def runPreprocessing(self):
         ''' 
@@ -142,7 +149,8 @@ class PrepareRunTile:
                 date_ini=self.date_ini,
                 date_end=self.date_end,
                 implementation=self.implementation,
-                model_only_sites=self.model_only_sites
+                model_only_sites=self.model_only_sites,
+                remove_output_cells=self.remove_output_cells
             )
         print("Preprocessing complete!", file=sys.stderr)
 
