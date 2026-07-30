@@ -46,7 +46,7 @@ job=$(sbatch --job-name=MuSArun_Alps \
   --time=$time \
   --cluster=${cluster} \
   --array=0-$((ntiles-1)) \
-  --wrap="$jobscript \${SLURM_ARRAY_TASK_ID} \
+  --wrap="$submitJobsScript \${SLURM_ARRAY_TASK_ID} \
                         $rootdirMuSAruns \
                         $date_ini \
                         $date_end \
