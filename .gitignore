@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.vscode
 env/
 venv/
 ENV/
@@ -130,3 +131,14 @@ dmypy.json
 
 mydir
 DATA/ERRORS
+
+
+# notebooks
+*.ipynb
+
+# zarr stores
+*.zarr
+
+#all in data
+DATA/*
+test/*
