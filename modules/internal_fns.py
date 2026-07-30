@@ -453,7 +453,7 @@ def check_forcings_timerange(
         date_end:str="2020-08-30 23:00",
         forcing_dir:str=os.getcwd(),
         verbose:bool=False
-    ) -> str|list[str]:
+    ) -> str|list[str]|None:
     '''
     Function that checks if the forcing zarr already exists given the specified date_ini and date_end. 
     If it does, it returns the file, otherwise it returns None.
