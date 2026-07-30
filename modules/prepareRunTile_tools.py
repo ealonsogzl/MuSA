@@ -1,5 +1,6 @@
 ''' 
-TODO: update this file with the relevant information 
+Python file containing functions to prepare the run of MuSA for a 
+specific tile of the meteorological forcing data.
 
 author: Lucas Boeykens - lucas.boeykens@ugent.be lucas.boeykens@kuleuven.be
 '''
@@ -13,7 +14,7 @@ import numpy as np
 sys.path.append((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.OperationsXrDatasets import saveXrtoNetCDF
 import config_template as cfg #HARD CODED: this is the config fil that is adjusted for the specific experiment
-import modules.internal_fns as ifns
+import modules.internal_fns as ifn
 
 #---functions---
 def _save_config_module(
@@ -68,6 +69,8 @@ def _CreateMaskMsitesTile(
         ''' 
         Helper function that creates a mask for the measurement sites within a specific tile (tx, ty) 
         and saves it as a NetCDF file.
+
+        Note that this function also adapths the cfg.nc_maks_path variable to point to the newly created mask file!
         '''
 
         dsMeas=xr.open_dataset(store_measurements)
@@ -102,7 +105,7 @@ def _CreateMaskMsitesTile(
 def _check_data_ini_end_nc(
         forcing_files:list[str],
         date_pattern=re.compile(r"\d{8}")
-    ):
+    ) -> tuple[str,str]:
     ''' 
     Helper function to automatically extract the date_ini and date_end from a list of nc-files!
     Function is used in check_date_ini_end.
@@ -126,6 +129,7 @@ def _check_data_ini_end_nc(
 
         start_date=pd.Timestamp(start_date).strftime('%Y-%m-%d')
         end_date=pd.Timestamp(end_date).strftime('%Y-%m-%d')
+        
     except AttributeError:
         raise ValueError("Could not find date in the forcing file names. Please make sure the date is in the format YYYYMMDD in the file names.")
 
@@ -133,7 +137,7 @@ def _check_data_ini_end_nc(
 
 def _check_data_ini_end_zarr(
         forcing_file:str=None,
-    ):
+    ) -> tuple[str,str]:
     ''' 
     Helper function to automatically extract the date_ini and date_end from a zarr store of forcings!
     Function is used in check_date_ini_end.
@@ -179,13 +183,17 @@ def _check_date_ini_end(
     If correct, it adjusts them to the first and last timestep of the forcing zarr dataset/forcing nc files!
 
     '''
-    forcing_files=ifns.check_forcings_timerange(date_ini=date_ini, 
+    forcing_files=ifn.check_forcings_timerange(date_ini=date_ini, 
                                             date_end=date_end, 
                                             forcing_dir=forcing_dir
                                             )
 
+    if forcing_files is None:
+        raise FileNotFoundError(f"No forcing files found in {forcing_dir} for the specified date range: {date_ini} to {date_end}.")
+
     if isinstance(forcing_files, list):
         date_ini, date_end=_check_data_ini_end_nc(forcing_files=forcing_files)
+
     else:
         date_ini, date_end=_check_data_ini_end_zarr(forcing_file=forcing_files)
 
@@ -212,7 +220,7 @@ def _UpdateConfigPaths(
     #adjust the implementation type in the config file--
     cfg.implementation=implementation
     if cfg.implementation=="open_loop":
-        cfg.da_algorithm="deterministic_OL" #ADDED: make it deterministic OL to not priunt out unnecessary info in ifns.run_model_openloop
+        cfg.da_algorithm="deterministic_OL" #ADDED: make it deterministic OL to not print out unnecessary info in ifn.run_model_openloop
 
     #adjust results and intermediate folders based on the implementation type
     results_folder=os.path.join(rootdirRun, "RESULTS_OL") if cfg.implementation=="open_loop" \
@@ -257,7 +265,7 @@ def adjust_config_file(
         nprocess_min:int=8,
         model_only_sites:bool=False,
         remove_output_cells:bool=False
-    ) -> None:
+    ) -> str:
     ''' 
     Function that changes the config file based on the input arguments. 
     It generates and saves the adjusted config file, which is later used to run MuSA. 
@@ -267,7 +275,7 @@ def adjust_config_file(
     dem_dir=os.path.join(rootdirRun,"DEM")
 
     #---open the forcing data---
-    forcing_file=ifns.check_forcings_timerange(date_ini=date_ini, 
+    forcing_file=ifn.check_forcings_timerange(date_ini=date_ini, 
                                         date_end=date_end,
                                         forcing_dir=forcing_dir,
                                         verbose=True)
