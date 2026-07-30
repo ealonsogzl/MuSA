@@ -1,3 +1,22 @@
+'''
+Script that performs the preprocessing of the data and config file before running MuSA!
+Within the script, the following steps are performed:
+
+1) checks if the forcings are available. 
+    Currently, it checks if the forcings are available for the specified time period (start_date, end_date)!
+
+2) if no forcing file found, generate a zarr store with the forcings!
+
+3) Regrids a DEM file to the resolution and grid of the forcings.
+    Note that the DEM files are stored at a specific directory, whcih you might have to adjust
+
+4) Adjusts the config file for the specific tile (tx,ty) and time period (start_date, end_date)
+
+contact: Lucas Boeykens -lucas.boeyykens@ugent.be lucas.boeykens@kuleuven.be
+'''
+
+#---modules---
+from glob import glob
 import os, sys, argparse, yaml
 import pandas as pd
 project_root=os.getcwd()
@@ -18,10 +37,12 @@ def load_config(
         return yaml.safe_load(f)
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Regrid DEM to Forcings")
-
+def parse_arguments() -> argparse.Namespace:
+    '''
+    Function to parse command line arguments for the script.
+    '''
     def str2bool(value: str) -> bool:
+        '''helper function to convert string to boolean'''
         if isinstance(value, bool):
             return value
         value = value.strip().lower()
@@ -33,6 +54,7 @@ def parse_arguments():
             f"Invalid boolean value: {value}. Use True/False."
         )
 
+    parser = argparse.ArgumentParser(description="Regrid DEM to Forcings")
     parser.add_argument("--implementation",
                         type=str,
                         default="open_loop",
@@ -84,6 +106,23 @@ def parse_arguments():
 
 
 class PrepareRunTile:
+    """
+    Class that prepares the run of MuSA for a specific tile (tx,ty) and time period (date_ini, date_end).
+
+    Args:
+        tx: int tile x-coordinate.
+        ty: int tile y-coordinate.
+        rootdirMuSAruns: str, root directory for MuSA runs
+        date_ini: str, initial date for the simulation.
+        date_end: str, end date for the simulation.
+        snow_model: str, snow model to use.
+        implementation: str, implementation type (e.g., "open_loop").
+        model_only_sites: bool, flag to indicate if only model sites should be considered.
+        remove_output_cells: bool, flag to indicate if output cells should be removed after the run
+
+    Returns:
+        str, path to the adjusted config file
+    """
     def __init__(self, 
                  tx:int, 
                  ty:int, 
@@ -105,7 +144,7 @@ class PrepareRunTile:
         self.model_only_sites=model_only_sites
         self.remove_output_cells=remove_output_cells
 
-    def runPreprocessing(self):
+    def runPreprocessing(self) -> str:
         ''' 
         Function that prepares the run of MuSA for a specific tile (tx,ty) and time period (date_ini, date_end).
         '''
