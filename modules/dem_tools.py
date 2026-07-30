@@ -18,16 +18,28 @@ from utils.OperationsXrDatasets import transpose_dataset, saveXrtoNetCDF
 
 #---functions---
 def RegridDEMtoForcings(
-        rootdir_dem:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/auxdata/dem/cop90/100m",
-        datadir_forcings:str=None, 
-        savedir:str=os.getcwd(),
-        overwrite:bool=False
+        datadir_forcings:str, 
+        savedir:str,
+        rootdir_dem:str="/kyukon/data/gent/vo/000/gvo00090/SNOWSHOP/auxdata/dem/cop90/100m"
     ) -> tuple[str, int]:
     ''' 
     Function that searches for the DEM file corresponding to the tile of the forcings,
     upscales the DEM to the same resolution as the forcing data,
     makes sure both datasets have the same grid and saves the regridded DEM to a netcdf file.
+
+    #NOTE: the function expects the forcings to have lat,lon as coordinate names!
+    #TODO: make lat,lon coordinates non-hardcoded!
     '''
+    check_exist=glob.glob(os.path.join(savedir, "*regridded*"))
+
+    if check_exist:
+        with xr.open_dataset(check_exist[0]) as ds:
+            dem_var=next(d for d in ds.data_vars if "dem" in d.lower())
+            dem_res=960//ds.sizes["lat"]*100
+        print(f"DEM regridded to forcings already exists. DEM variable name: {dem_var}, DEM resolution: {dem_res} m.", file=sys.stderr)
+
+        return dem_var, dem_res
+
     #open the file with forcing data
     ds_forcings=next((iter(glob.glob(os.path.join(datadir_forcings, "*")))), None)
 
@@ -61,20 +73,10 @@ def RegridDEMtoForcings(
     dem_res=upscale_factor*100
 
     #save the regridded DEM to a netcdf file -> only if not existent
-    if not os.path.exists(os.path.join(savedir, "dem_regridded.nc")):
-        saveXrtoNetCDF(ds=ds_dem, 
-                    savedir=savedir, 
-                    filename="dem_regridded.nc"
-                    )
-        print(f"DEM regridded to forcings successfully. DEM variable name: {dem_var}, DEM resolution: {dem_res} m.", file=sys.stderr)
+    saveXrtoNetCDF(ds=ds_dem, 
+                savedir=savedir, 
+                filename="dem_regridded.nc"
+                )
+    print(f"DEM regridded to forcings successfully. DEM variable name: {dem_var}, DEM resolution: {dem_res} m.", file=sys.stderr)
 
-    elif os.path.exists(os.path.join(savedir, "dem_regridded.nc")) and overwrite:
-        saveXrtoNetCDF(ds=ds_dem, 
-                    savedir=savedir, 
-                    filename="dem_regridded.nc"
-                    )
-        print(f"DEM regridded to forcings successfully. DEM variable name: {dem_var}, DEM resolution: {dem_res} m.", file=sys.stderr)
-    else:
-        print(f"DEM regridded to forcings already exists. DEM variable name: {dem_var}, DEM resolution: {dem_res} m.", file=sys.stderr)
-        
     return dem_var, dem_res
