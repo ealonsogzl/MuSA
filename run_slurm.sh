@@ -5,9 +5,6 @@
 njobs=$1
 nprocs=$2
 
-# clean dirs
-python clean.py
-
 cat << end_jobarray > slurmScript.sh
 #!/bin/bash
 #SBATCH --export=none
@@ -19,8 +16,6 @@ cat << end_jobarray > slurmScript.sh
 #SBATCH --time=24:00:00
 
 # Load software
-module load gcc
-module load conda
 conda activate MuSA
 
 # cd to directory from which the job whas run 

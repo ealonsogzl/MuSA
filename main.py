@@ -28,7 +28,6 @@ else:
 from modules.cell_assim import cell_assimilation
 from mpi4py import MPI
 import logging
-import os
 
 
 def MuSA():

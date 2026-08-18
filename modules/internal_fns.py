@@ -324,7 +324,7 @@ def get_dates_obs():
 def obs_array(dates_obs, lat_idx, lon_idx):
 
     nc_obs_path = cfg.nc_obs_path
-    mask = cfg.nc_maks_path
+    mask_file = cfg.nc_maks_path
     obs_var_names = cfg.obs_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
@@ -332,89 +332,105 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
+
     del_t = generate_dates(date_ini, date_end)
     obs_idx = np.searchsorted(del_t, dates_obs)
 
-    files = glob.glob(nc_obs_path + "*.nc")
-    # TODO: let the user define the prefix of the observations
-    if len(files) == 0:
-        raise Exception('Observation files not found')
+    files = sorted(glob.glob(os.path.join(nc_obs_path, "*.nc")))
 
-    files.sort()
+    if not files:
+        raise Exception("Observation files not found")
 
-    if mask:  # If mask exists, return string if masked
-        mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][lat_idx, lon_idx]
-        mask.close()
+    # Check mask
+    if mask_file:
+
+        with nc.Dataset(mask_file) as ds_mask:
+            mask_value = ds_mask.variables["mask"][lat_idx, lon_idx]
+
         if np.isnan(mask_value):
-            array_obs = "Out_of_AOI"
-            return array_obs
+            return "Out_of_AOI"
 
-    # Initialize obs matrix
-    obs_matrix = np.empty((len(del_t), len(obs_var_names)))
-    error_matrix = np.empty((len(del_t), len(obs_var_names)))
+    n_times = len(del_t)
+    n_vars = len(obs_var_names)
 
+    # Matrices finales
+    obs_matrix = np.full((n_times, n_vars), np.nan)
+    error_matrix = np.full((n_times, n_vars), np.nan)
+
+    # Almacenamiento temporal
+    obs_storage = {var: [] for var in obs_var_names}
+
+    if r_cov == "dynamic_error":
+        error_storage = {
+            err_var: [] for err_var in cfg.obs_error_var_names
+        }
+
+    # Leer cada fichero una sola vez
+    for ncfile in files:
+
+        with nc.Dataset(ncfile) as ds:
+
+            # Observaciones
+            for var in obs_var_names:
+
+                values = ds.variables[var][:, lat_idx, lon_idx]
+
+                if np.ma.is_masked(values):
+                    values = values.filled(np.nan)
+                else:
+                    values = np.ma.getdata(values)
+
+                obs_storage[var].append(np.asarray(values))
+
+            # Errores dinámicos
+            if r_cov == "dynamic_error":
+
+                for err_var in cfg.obs_error_var_names:
+
+                    values = ds.variables[err_var][:,
+                                                   lat_idx,
+                                                   lon_idx]
+
+                    if np.ma.is_masked(values):
+                        values = values.filled(np.nan)
+                    else:
+                        values = np.ma.getdata(values)
+
+                    error_storage[err_var].append(np.asarray(values))
+
+    # Construcción de matrices finales
     for cont, obs_var in enumerate(obs_var_names):
 
-        array_obs = np.empty(len(del_t))
-        array_obs[:] = np.nan
+        obs_values = np.concatenate(obs_storage[obs_var])
 
-        array_error = np.empty(len(del_t))
-        array_error[:] = np.nan
+        obs_vector = np.full(n_times, np.nan)
+        obs_vector[obs_idx] = obs_values
 
-        tmp_obs_storage = []
-        tmp_error_storage = []
+        obs_matrix[:, cont] = obs_vector
 
-        for i, ncfile in enumerate(files):
+        if r_cov == "dynamic_error":
 
-            data_tmp = nc.Dataset(ncfile)
+            err_var = cfg.obs_error_var_names[cont]
 
-            nc_value = data_tmp.variables[obs_var][:, lat_idx, lon_idx]
-            # Check if masked
-            # TODO: Check if there is a better way to do this
-            if np.ma.is_masked(nc_value):
-                nc_value = nc_value.filled(np.nan)
-            else:
-                nc_value = np.ma.getdata(nc_value)
+            err_values = np.concatenate(error_storage[err_var])
 
-            tmp_obs_storage.extend(nc_value)
+            err_vector = np.full(n_times, np.nan)
+            err_vector[obs_idx] = err_values
 
-            # do the same conditionally for errors
+        else:
 
-            if r_cov == 'dynamic_error':
+            err_vector = np.full(n_times, np.nan)
+            err_vector[obs_idx] = r_cov[cont]
 
-                nc_value = data_tmp.variables[cfg.obs_error_var_names[cont]
-                                              ][:, lat_idx, lon_idx]
-                # Check if masked
-                # TODO: Check if there is a better way to do this
-                if np.ma.is_masked(nc_value):
-                    nc_value = nc_value.filled(np.nan)
-                else:
-                    nc_value = np.ma.getdata(nc_value)
+        error_matrix[:, cont] = err_vector
 
-                tmp_error_storage.extend(nc_value)
-            else:
-
-                tmp_error_storage = [r_cov[cont]] * len(tmp_obs_storage)
-
-            data_tmp.close()
-
-        array_obs[obs_idx] = tmp_obs_storage
-        array_error[obs_idx] = tmp_error_storage
-
-        obs_matrix[:, cont] = array_obs
-        error_matrix[:, cont] = array_error
-
-    # Remove extra dimension when len(obs_var_names) == 1
+    # Eliminar dimensión extra si sólo existe una variable observada
     obs_matrix = np.squeeze(obs_matrix)
     error_matrix = np.squeeze(error_matrix)
-    # check if num of dates == num of observations
-    #    if obs_matrix.shape[0] != len(dates_obs):
-    #       raise Exception("Number of dates different of number of obs files")
 
-    # add lowest value possible to avoid numerical issues if for some reason
-    # r_cov == 0
-    error_matrix = error_matrix + np.finfo(type(error_matrix[0])).eps
+    # Evitar problemas numéricos cuando R = 0
+    error_matrix = error_matrix + np.finfo(error_matrix.dtype).eps
+
     return obs_matrix, error_matrix
 
 

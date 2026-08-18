@@ -8,7 +8,7 @@ In its current version, it also offers support for the Snow17 model and a simple
 <em> Figure 1: Comparison between open loop and updated simulation after assimilating UAV snow depth retrievals at 5m resolution </em>
 ### Inputs  
   
-The inputs of MuSA are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be provided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
+The inputs of MuSA (using FSM2) are composed by meteorological forcing and  observations to be assimilated. Both the forcing and observations must  share the **same geometry**, with the same resolution and number of  cells in the latitudinal and longitudinal axes, and should be provided in the [netCDF](https://www.unidata.ucar.edu/software/netcdf/) format. Optionally it is  possible to provide a mask with the same geometry of the mandatory input  files to avoid to run MuSA over certain cells of your domain. The  meteorological forcing needed for running MuSA is composed by: 
 - Incident shortwave radiation (W m<sup>-2</sup>)
 - Incident longwave radiation ( W m<sup>-2</sup>)
 - Precipitation  (Kg<sup>-2</sup> m<sup>-2</sup> s<sup>-1</sup>) 
@@ -26,7 +26,7 @@ In its current version MuSA provides support for assimilating different  variabl
 - Sensible heat flux to the atmosphere (W m<sup>-2</sup>)
 - Latent heat flux to the atmosphere (W m<sup>-2</sup>)
 
-The support of other variables like liquid water content, density, ice content etc.  could be relatively easily implemented on demand. 
+The support of other variables like liquid water content, density, ice content etc. is easy to implement.
   
 ### Data assimilation algorithms
 There are different data assimilation and resampling algorithms implemented in MuSA.  Some testing should be done when developing data assimilation experiments, as the performance may be different depending on the problem to solve, and regarding the literature there is not a clear winner. Also, the computational cost will be different, and may be a strong conditioner in some situations.
@@ -37,10 +37,11 @@ Filters:
 -   Iterative ensemble Kalman filter (IEnKF)
 
 Smoothers:
--   Particle batch smoother (PBS)
--   Ensemble smoother (ES)
--   Iterative ensemble smoother (IES)
--   Particle-adjusted iterative ensemble smoother (PIES)
+-   Particle Batch Smoother (PBS)
+-   Adaptive Particle Batch Smoother (AdaPBS)
+-   Ensemble Smoother (ES)
+-   Iterative Ensemble Smoother (IES)
+-   Particle-adjusted Iterative Ensemble Smoother (PIES)
 -   Robust Adaptive Metropolis initialised by IES (IES-MCMC)
     
 Resampling (for particle filters only):
@@ -62,7 +63,7 @@ The outputs of MuSA are pickles compressed with blosc (the latid_lonid.pkl.bl fo
 You can open these files by your own means, or by using the following function:
 
 ```
-from modules.internal_fns.py import  io_read
+from modules.internal_fns.py import io_read
 
 my_cell = io_read(./RESULTS/latid_lonid.pkl.blp)
 ```
@@ -73,7 +74,7 @@ Additionally it is possible to store the ensembles generated for each cell. This
 
 ### Usage
 
-MuSA works on GNU/Linux (and therefore Mac) based platforms. MuSA has been tested also in Windows using the Windows Subsystem for Linux (WSL). MuSA relies on python3 with the usual scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. You will also need to have gfortran in the path. The easiest way to do this is to generate a dedicated conda environment. You can use the [MuSAenv.yml](https://github.com/ealonsogzl/MuSA/blob/master/MuSAenv.yml) file of the repository to create the conda environment:
+MuSA works on GNU/Linux (and therefore Mac with minimal modifications of the environment) based platforms. MuSA has been tested also in Windows using the Windows Subsystem for Linux (WSL). MuSA relies on python3 with the usual scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. You will also need to have gfortran in the path. The easiest way to do this is to generate a dedicated conda environment. You can use the [MuSAenv.yml](https://github.com/ealonsogzl/MuSA/blob/master/MuSAenv.yml) file of the repository to create the conda environment:
 
 ```
 conda env create --name MuSAenv --file=MuSAenv.yml
@@ -86,7 +87,7 @@ Then for running MuSA simply:
 conda activate MuSAenv
 python main.py
 ```
-Or if MPI is activated in the [config.py](https://github.com/RichardEssery/FSM2) file:
+Or if MPI is activated in the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file:
 ```
 conda activate MuSAenv
 mpiexec -n nprocess python -m mpi4py.futures main.py

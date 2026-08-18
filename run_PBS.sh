@@ -5,9 +5,6 @@
 njobs=$1
 nprocs=$2
 
-# clean dirs
-python clean.py
-
 cat << end_jobarray > pbsScript.sh
 #!/bin/bash
 #PBS -N Musa
@@ -16,8 +13,6 @@ cat << end_jobarray > pbsScript.sh
 #PBS -l walltime=24:00:00
 
 # Load software
-module load gcc
-module load conda
 conda activate MuSA
 
 # cd to directory from which qsub whas run 
