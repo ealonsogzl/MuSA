@@ -8,7 +8,7 @@ Note that not all the options will be used in all the experimental setups.
 
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = "PBS"  # model to use from FSM2, SNOWPACK, dIm or snow17
+numerical_model = "FSM2"  # model to use from FSM2, SNOWPACK, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -108,7 +108,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "point_scale"
+implementation = "distributed"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
