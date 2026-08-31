@@ -5,9 +5,10 @@ This is the MuSA configuration file.
 Note that not all the options will be used in all the experimental setups.
 
 """
+
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = 'FSM2'  # model to use from FSM2, dIm or snow17
+numerical_model = "FSM2"  # model to use from FSM2, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -56,19 +57,19 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = 'PBS'
+da_algorithm = "PBS"
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
 ensemble_members = 100
-Neffthrs = 0.1           # Low Neff threshold
+Neffthrs = 0.1  # Low Neff threshold
 # MCMC parameters
-chain_len = 20000   # Length of the mcmc
-adaptive = True    # Update proposal covariance for next step.
-histcov = True     # Use posterior IES covariance as proposal covariance
-burn_in = 0.1      # discard the first x proportion of samples
+chain_len = 20000  # Length of the mcmc
+adaptive = True  # Update proposal covariance for next step.
+histcov = True  # Use posterior IES covariance as proposal covariance
+burn_in = 0.1  # discard the first x proportion of samples
 
 # r_cov can be a list of scalars of length equal to var_to_assim or the string
 # 'dynamic_error'. If 'dynamic_error' is selected, errors may change in space
@@ -121,7 +122,7 @@ MPI = False
 # Note: if nprocess = None, the number of processors will be
 # estimated (max(n)-1). In HPC.array nprocess is an argument
 # (see e.g. run_slurm.sh), and this variable is ignored
-nprocess = 8
+nprocess = 4
 # number of threads used by numpy, configure carefully jointlly with nprocess
 # to avoid processor concurrency. numpy_threads = 1 is fine if you're not sure
 # what you're doing.
@@ -133,13 +134,13 @@ cells_per_process = 20  # None is 1
 timeout = None  # None is inf
 
 aws_lat = 4735225.54  # Latitude in case of point_scale
-aws_lon = 710701.28   # Longitude in case of point_scale
+aws_lon = 710701.28  # Longitude in case of point_scale
 
 date_ini = "2018-09-01 00:00"
 date_end = "2020-08-30 23:00"
 
 season_ini_month = 9  # In smoothers, beginning of DA window (month)
-season_ini_day = 1    # In smoothers, beginning of DA window (day)
+season_ini_day = 1  # In smoothers, beginning of DA window (day)
 
 # -----------------------------------
 # Spatial propagation configuration
@@ -154,13 +155,13 @@ c = [5, 5]
 # Calculate the distances internally (topo_dict_external = None) or read an
 # external file with the dimensions
 topo_dict_external = None
-dist_algo = 'euclidean'
+dist_algo = "euclidean"
 # distance_mat_calc Enables calculating the distance matrix, iterativelly
 # as an sparse distance matrix, using KDtree or in the regular way
 # (memory consuming).
-distance_mat_calc = 'Regular'  # Regular, Sparse, KDtree
+distance_mat_calc = "Regular"  # Regular, Sparse, KDtree
 # Optionally perform dimension reduction to try to avoid nonPD
-dimension_reduction = 'None'  # LMDS, PCA or None
+dimension_reduction = "None"  # LMDS, PCA or None
 dim_num = 3  # Number of dimensions if dimension_reduction
 # jitter regularizes the covariance matrix by adding a value to the diagonal
 # elements to make it PD. Typical value 1e-6, but it is possible
@@ -171,20 +172,22 @@ jitter = 1e-6
 closePDmethod = None  # 'clipped' (the faster but less accurate) or 'nearest'
 
 # Topographical dimensions to compute the distances
-topographic_features = {'Ys': True,     # Latitude
-                        'Xs': True,     # Longitude
-                        'Zs': False,    # Elevation
-                        'slope': False,  # Slope
-                        'DAH': False,   # Diurnal Anisotropic Heat
-                        'TPI': False,   # Topographic Position Index
-                        'Sx': False}    # Upwind Slope index (Winstral)
+topographic_features = {
+    "Ys": True,  # Latitude
+    "Xs": True,  # Longitude
+    "Zs": False,  # Elevation
+    "slope": False,  # Slope
+    "DAH": False,  # Diurnal Anisotropic Heat
+    "TPI": False,  # Topographic Position Index
+    "Sx": False,
+}  # Upwind Slope index (Winstral)
 
 # Topographical hyperparameters
-DEM_res = 5              # DEM resolution
-TPI_size = 25            # TPI window size
-Sx_dmax = 15             # Sx search distance
-Sx_angle = 315           # Sx main wind direction angle
-nc_dem_varname = "DEM"     # Name of the elevation variable in the DEM
+DEM_res = 5  # DEM resolution
+TPI_size = 25  # TPI window size
+Sx_dmax = 15  # Sx search distance
+Sx_angle = 315  # Sx main wind direction angle
+nc_dem_varname = "DEM"  # Name of the elevation variable in the DEM
 
 # -----------------------------------
 # Observations
@@ -211,27 +214,29 @@ nc_dem_varname = "DEM"     # Name of the elevation variable in the DEM
 # dates_obs = '/path/to/file/dates.csv'
 
 
-dates_obs = ["2019-02-21 12:00",
-             "2019-03-26 12:00",
-             "2019-05-05 12:00",
-             "2019-05-09 12:00",
-             "2019-05-23 12:00",
-             "2019-05-30 12:00",
-             "2020-01-14 12:00",
-             "2020-02-03 12:00",
-             "2020-02-24 12:00",
-             "2020-03-11 12:00",
-             "2020-04-29 12:00",
-             "2020-05-03 12:00",
-             "2020-05-12 12:00",
-             "2020-05-19 12:00",
-             "2020-05-26 12:00",
-             "2020-06-02 12:00",
-             "2020-06-10 12:00",
-             "2020-06-21 12:00"]
+dates_obs = [
+    "2019-02-21 12:00",
+    "2019-03-26 12:00",
+    "2019-05-05 12:00",
+    "2019-05-09 12:00",
+    "2019-05-23 12:00",
+    "2019-05-30 12:00",
+    "2020-01-14 12:00",
+    "2020-02-03 12:00",
+    "2020-02-24 12:00",
+    "2020-03-11 12:00",
+    "2020-04-29 12:00",
+    "2020-05-03 12:00",
+    "2020-05-12 12:00",
+    "2020-05-19 12:00",
+    "2020-05-26 12:00",
+    "2020-06-02 12:00",
+    "2020-06-10 12:00",
+    "2020-06-21 12:00",
+]
 
 obs_var_names = ["HS"]
-obs_error_var_names = ['sdError']  # In case of r_cov = 'dynamic_error'
+obs_error_var_names = ["sdError"]  # In case of r_cov = 'dynamic_error'
 lat_obs_var_name = "northing"
 lon_obs_var_name = "easting"
 
@@ -248,21 +253,27 @@ lon_obs_var_name = "easting"
 # Press_var_name can be "Press_var_name": "from_DEM". With this option, a
 # stationary pressure value is estimated from the DEM (if provided)
 # assuming standard atmosphere.
-forcing_var_names = {"SW_var_name": "SW",
-                     "LW_var_name": "LW",
-                     "Precip_var_name": "PRECC",
-                     "Press_var_name": "PRESS",
-                     "RH_var_name": "RH",
-                     "Temp_var_name": "TEMP",
-                     "Wind_var_name": "UA"}
+forcing_var_names = {
+    "SW_var_name": "SW",
+    "LW_var_name": "LW",
+    "Precip_var_name": "PRECC",
+    "Press_var_name": "PRESS",
+    "RH_var_name": "RH",
+    "Temp_var_name": "TEMP",
+    "Wind_var_name": "UA",
+}
 
-forcing_dim_names = {"lat_forz_var_name": "northing",
-                     "lon_forz_var_name": "easting",
-                     "time_forz_var_name": "time"}
+forcing_dim_names = {
+    "lat_forz_var_name": "northing",
+    "lon_forz_var_name": "easting",
+    "time_forz_var_name": "time",
+}
 
-param_var_names = {"vegh_var_name": "vegh",
-                   "VAI_var_name": "VAI",
-                   "hbas_var_name": "hbas"}
+param_var_names = {
+    "vegh_var_name": "vegh",
+    "VAI_var_name": "VAI",
+    "hbas_var_name": "hbas",
+}
 
 # -----------------------------------
 # FSM configuration (Namelist)
@@ -280,20 +291,20 @@ Dzsnow = [0.1, 0.2, 0.4]
 # numerical accuracy is lower.
 # Note II: Can be used to pass any other flag(s) to gfortran if you know
 # what you are doing
-OPTIMIZATION = '-O3'
+OPTIMIZATION = "-O3"
 
 # Parameterizations, see FSM2 documentation
-ALBEDO = 2   # snow albedo                   : 1, 2
-CANINT = 2   # canopy interception of snow   : 1, 2
-CANMOD = 2   # forest canopy layers          : 1, 2
-CANRAD = 2   # canopy radiative properties   : 1, 2
-CANUNL = 2   # unloading of canopy           : 1, 2
-CONDCT = 1   # snow thermal conductivity     : 0, 1
-DENSTY = 2   # snow density                  : 0, 1, 2
-EXCHNG = 1   # turbulent exchange            : 0, 1
-HYDROL = 2   # snow hydraulics               : 0, 1, 2
-SGRAIN = 2   # snow grain growth             : 1, 2
-SNFRAC = 3   # snow cover fraction           : 1, 2, 3
+ALBEDO = 2  # snow albedo                   : 1, 2
+CANINT = 2  # canopy interception of snow   : 1, 2
+CANMOD = 2  # forest canopy layers          : 1, 2
+CANRAD = 2  # canopy radiative properties   : 1, 2
+CANUNL = 2  # unloading of canopy           : 1, 2
+CONDCT = 1  # snow thermal conductivity     : 0, 1
+DENSTY = 2  # snow density                  : 0, 1, 2
+EXCHNG = 1  # turbulent exchange            : 0, 1
+HYDROL = 2  # snow hydraulics               : 0, 1, 2
+SGRAIN = 2  # snow grain growth             : 1, 2
+SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 
 # -----------------------------------
 # Export option

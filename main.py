@@ -7,19 +7,24 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 import modules.internal_fns as ifn
 import modules.spatialMuSA as spM
 import config as cfg
-if cfg.numerical_model == 'FSM2':
+
+if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
-elif cfg.numerical_model == 'dIm':
+elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
-elif cfg.numerical_model == 'snow17':
+elif cfg.numerical_model == "snow17":
     import modules.snow17_tools as model
+elif cfg.numerical_model == "SNOWPACK":
+    import modules.snowpack_tools as model
 else:
-    raise Exception('Model not implemented')
+    raise Exception("Model not implemented")
 import numpy as np
 import sys
 
-if (cfg.parallelization == "multiprocessing" or
-   cfg.implementation == "open_loop"):
+if (
+    cfg.parallelization == "multiprocessing"
+    or cfg.implementation == "open_loop"
+):
     import multiprocessing as mp
 elif cfg.parallelization == "HPC.array":
     import multiprocessing as mp
@@ -37,8 +42,11 @@ def MuSA():
     else:
         model.model_compile()
 
-    if cfg.implementation in ["distributed", "Spatial_propagation",
-                              "open_loop"]:
+    if cfg.implementation in [
+        "distributed",
+        "Spatial_propagation",
+        "open_loop",
+    ]:
         grid = ifn.expand_grid()
 
     """
@@ -94,8 +102,13 @@ def MuSA():
                 else:
                     nprocess = mp.cpu_count() - 1
 
-            print("Launching " + str(nprocess) + " processes in "
-                  + str(mp.cpu_count()) + " processors")
+            print(
+                "Launching "
+                + str(nprocess)
+                + " processes in "
+                + str(mp.cpu_count())
+                + " processors"
+            )
 
             inputs = [grid[:, 0], grid[:, 1]]
             ifn.safe_pool(cell_assimilation, inputs, nprocess)
@@ -104,13 +117,18 @@ def MuSA():
 
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
-            HPC_task_id = int(sys.argv[3])-1
+            HPC_task_id = int(sys.argv[3]) - 1
 
             ids = np.arange(0, grid.shape[0])
             ids = ids % HPC_task_number == HPC_task_id
 
-            print("Running MuSA: Distributed (HPC.array) from job: " +
-                  str(HPC_task_id) + " in " + str(nprocess) + " cores")
+            print(
+                "Running MuSA: Distributed (HPC.array) from job: "
+                + str(HPC_task_id)
+                + " in "
+                + str(nprocess)
+                + " cores"
+            )
 
             # compile FSM
             model.model_compile_HPC(HPC_task_id)
@@ -122,7 +140,7 @@ def MuSA():
 
             raise Exception("Choose an available paralelization scheme")
 
-    elif cfg.implementation == 'Spatial_propagation':
+    elif cfg.implementation == "Spatial_propagation":
 
         ids = np.arange(0, grid.shape[0])
 
@@ -130,23 +148,30 @@ def MuSA():
 
             # Restart run
             if cfg.restart_run:
-                prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+                prev_step, prev_j = ifn.return_step_j("spatiallogfile.txt")
             else:
                 prev_step, prev_j = 0, 0
 
             # Log file for restart
-            logging.basicConfig(filename='spatiallogfile.txt',
-                                level=logging.INFO,
-                                format='%(asctime)s - %(message)s')
+            logging.basicConfig(
+                filename="spatiallogfile.txt",
+                level=logging.INFO,
+                format="%(asctime)s - %(message)s",
+            )
 
             HPC_task_number = int(sys.argv[1])
             nprocess = int(sys.argv[2])
-            HPC_task_id = int(sys.argv[3])-1
+            HPC_task_id = int(sys.argv[3]) - 1
 
             ids = ids % HPC_task_number == HPC_task_id
 
-            print("Running MuSA: Distributed (HPC.array) from job: " +
-                  str(HPC_task_id) + " in " + str(nprocess) + " cores")
+            print(
+                "Running MuSA: Distributed (HPC.array) from job: "
+                + str(HPC_task_id)
+                + " in "
+                + str(nprocess)
+                + " cores"
+            )
 
             # compile FSM
             model.model_compile_HPC(HPC_task_id)
@@ -163,10 +188,13 @@ def MuSA():
                     continue
 
                 # create prior Ensembles
-                inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
-                          [ini_DA_window] * len(ids),
-                          [step] * len(ids),
-                          [gsc_count] * len(ids)]
+                inputs = [
+                    list(grid[ids, 0]),
+                    list(grid[ids, 1]),
+                    [ini_DA_window] * len(ids),
+                    [step] * len(ids),
+                    [gsc_count] * len(ids),
+                ]
 
                 ifn.safe_pool(spM.create_ensemble_cell, inputs, nprocess)
 
@@ -178,10 +206,14 @@ def MuSA():
                     if cfg.restart_run and j < prev_j:
                         continue
                     # add info to log
-                    logging.info(f'step: {step} - j: {j}')
+                    logging.info(f"step: {step} - j: {j}")
 
-                    inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
-                              [step] * len(ids), [j]*len(ids)]
+                    inputs = [
+                        list(grid[ids, 0]),
+                        list(grid[ids, 1]),
+                        [step] * len(ids),
+                        [j] * len(ids),
+                    ]
 
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
 
@@ -199,14 +231,16 @@ def MuSA():
 
             # Restart run
             if cfg.restart_run:
-                prev_step, prev_j = ifn.return_step_j('spatiallogfile.txt')
+                prev_step, prev_j = ifn.return_step_j("spatiallogfile.txt")
             else:
                 prev_step, prev_j = 0, 0
 
             # Log file for restart
-            logging.basicConfig(filename='spatiallogfile.txt',
-                                level=logging.INFO,
-                                format='%(asctime)s - %(message)s')
+            logging.basicConfig(
+                filename="spatiallogfile.txt",
+                level=logging.INFO,
+                format="%(asctime)s - %(message)s",
+            )
 
             if cfg.MPI:
                 comm = MPI.COMM_WORLD
@@ -229,17 +263,24 @@ def MuSA():
                     continue
 
                 # create prior Ensembles
-                inputs = [list(grid[ids, 0]), list(grid[ids, 1]),
-                          [ini_DA_window] * len(ids),
-                          [step] * len(ids),
-                          [gsc_count] * len(ids),
-                          [iteration_sims[-1] if iteration_sims else None] *
-                          len(ids)]
+                inputs = [
+                    list(grid[ids, 0]),
+                    list(grid[ids, 1]),
+                    [ini_DA_window] * len(ids),
+                    [step] * len(ids),
+                    [gsc_count] * len(ids),
+                    [iteration_sims[-1] if iteration_sims else None]
+                    * len(ids),
+                ]
 
-                iteration_sims.append(ifn.safe_pool(spM.create_ensemble_cell,
-                                                    inputs,
-                                                    nprocess,
-                                                    in_mem=cfg.spatial_in_mem))
+                iteration_sims.append(
+                    ifn.safe_pool(
+                        spM.create_ensemble_cell,
+                        inputs,
+                        nprocess,
+                        in_mem=cfg.spatial_in_mem,
+                    )
+                )
 
                 # Wait untill all ensembles are created
                 if not cfg.spatial_in_mem:
@@ -250,18 +291,25 @@ def MuSA():
                     if cfg.restart_run and j < prev_j:
                         continue
                     # add info to log
-                    logging.info(f'step: {step} - j: {j}')
+                    logging.info(f"step: {step} - j: {j}")
 
-                    inputs = [list(grid[:, 0]), list(grid[:, 1]),
-                              [step] * grid.shape[0],
-                              [j] * grid.shape[0],
-                              [iteration_sims[-1] if iteration_sims else None]
-                              * len(ids)]
+                    inputs = [
+                        list(grid[:, 0]),
+                        list(grid[:, 1]),
+                        [step] * grid.shape[0],
+                        [j] * grid.shape[0],
+                        [iteration_sims[-1] if iteration_sims else None]
+                        * len(ids),
+                    ]
 
-                    iteration_sims.append(ifn.safe_pool(spM.spatial_assim,
-                                                        inputs,
-                                                        nprocess,
-                                                        in_mem=cfg.spatial_in_mem))
+                    iteration_sims.append(
+                        ifn.safe_pool(
+                            spM.spatial_assim,
+                            inputs,
+                            nprocess,
+                            in_mem=cfg.spatial_in_mem,
+                        )
+                    )
 
                     # Wait untill all ensembles are updated and remove prior
                     if cfg.spatial_in_mem:
@@ -276,8 +324,7 @@ def MuSA():
 
             iteration_sims = [x for x in iteration_sims if x is not None]
 
-            inputs = [grid[:, 0], grid[:, 1], [iteration_sims] *
-                      len(ids)]
+            inputs = [grid[:, 0], grid[:, 1], [iteration_sims] * len(ids)]
 
             ifn.safe_pool(spM.collect_results, inputs, nprocess)
 
@@ -290,8 +337,13 @@ def MuSA():
         else:
             nprocess = mp.cpu_count() - 1
 
-        print("Launching " + str(nprocess) + " processes in " +
-              str(mp.cpu_count()) + " processors")
+        print(
+            "Launching "
+            + str(nprocess)
+            + " processes in "
+            + str(mp.cpu_count())
+            + " processors"
+        )
 
         inputs = [grid[:, 0], grid[:, 1]]
 
@@ -305,14 +357,14 @@ def check_platform():
 
     # TODO: provide full suport for wind32
 
-    if (sys.platform not in ("linux", "darwin")):
+    if sys.platform not in ("linux", "darwin"):
         raise Exception(sys.platform + " is not supported by MuSA yet")
 
 
 if __name__ == "__main__":
 
     if cfg.parallelization in ["multiprocessing", "HPC.array"]:
-        mp.set_start_method('spawn', force=True)
+        mp.set_start_method("spawn", force=True)
 
     check_platform()
     ifn.pre_cheks()

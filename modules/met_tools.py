@@ -16,7 +16,7 @@ from statsmodels.stats.weightstats import DescrStatsW
 import modules.spatialMuSA as spM
 
 
-def pp_psychrometric(ta2, rh2, precc):
+def pp_psychrometric(ta2, rh2, precc, ret_fr = False):
 
     ta2_c = ta2 - cnt.KELVING_CONVER             # temp in [ºC]
 
@@ -60,7 +60,10 @@ def pp_psychrometric(ta2, rh2, precc):
     solid_prec[solid_prec < 0.1/3600] = 0
     liquid_prec[liquid_prec < 0.1/3600] = 0
 
-    return liquid_prec, solid_prec
+    if ret_fr:
+        return liquid_prec, solid_prec, rain_fr
+    else:
+        return liquid_prec, solid_prec
 
 
 def pp_temp_thld_log(ta2, precc):

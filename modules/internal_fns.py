@@ -23,6 +23,8 @@ elif cfg.numerical_model == 'dIm':
     import modules.dIm_tools as model
 elif cfg.numerical_model == 'snow17':
     import modules.snow17_tools as model
+elif cfg.numerical_model == 'SNOWPACK':
+    import modules.snowpack_tools as model
 else:
     raise Exception('Model not implemented')
 import pickle

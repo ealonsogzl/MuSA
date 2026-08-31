@@ -19,6 +19,7 @@ import pdcast as pdc
 import warnings
 import modules.internal_fns as ifn
 from statsmodels.stats.weightstats import DescrStatsW
+
 if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
 
@@ -31,12 +32,13 @@ else:
 
 def prepare_forz(forcing_sbst):
 
-    Temp = forcing_sbst['Ta'].values
+    Temp = forcing_sbst["Ta"].values
 
-    _, Sf = met.linear_liston(forcing_sbst["Ta"].values,
-                              forcing_sbst["Prec"].values)
+    _, Sf = met.linear_liston(
+        forcing_sbst["Ta"].values, forcing_sbst["Prec"].values
+    )
 
-    return Temp-cnt.KELVING_CONVER, Sf*cfg.dt, forcing_sbst["DMF"].values
+    return Temp - cnt.KELVING_CONVER, Sf * cfg.dt, forcing_sbst["DMF"].values
 
 
 @nb.njit(fastmath=True, cache=True)
@@ -58,8 +60,8 @@ def dIm(Temp, Sf, DMF, cSWE):
     snd = SWE / cnt.FIX_density / 1000
     fsca = snd / (snd + 0.1)
 
-    snd = snd.astype('float32')
-    fsca = fsca.astype('float32')
+    snd = snd.astype("float32")
+    fsca = fsca.astype("float32")
     return SWE, snd, fsca
 
 
@@ -68,16 +70,14 @@ def model_run(forcing_sbst, init=None):
     Temp, Sf, DMF = prepare_forz(forcing_sbst)
 
     if init is None:
-        cSWE = 0.
+        cSWE = 0.0
     else:
         cSWE = init
 
     SWE, HS, fSCA = dIm(Temp, Sf, DMF, cSWE)
     init = SWE[-1]
 
-    Results = pd.DataFrame({'SWE': SWE,
-                            'snd': HS,
-                            'fSCA': fSCA})
+    Results = pd.DataFrame({"SWE": SWE, "snd": HS, "fSCA": fSCA})
 
     # add optional variables
     if cfg.DAsord:
@@ -102,7 +102,7 @@ def model_compile_HPC(HPC_task_id):
     return None
 
 
-def model_read_output(fsm_path, read_dump=True):
+def model_read_output(fsm_path, step, read_dump=True):
     return None
 
 
@@ -149,15 +149,19 @@ def get_var_state_position(var):
     return state_columns.index(var)
 
 
-def storeDA(Result_df, step_results, observations_sbst, error_sbst,
-            time_dict, step):
+def storeDA(
+    Result_df, step_results, observations_sbst, error_sbst, time_dict, step
+):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     var_to_assim = cfg.var_to_assim
     error_names = cfg.obs_error_var_names
 
-    rowIndex = Result_df.index[time_dict["Assimilation_steps"][step]:
-                               time_dict["Assimilation_steps"][step + 1]]
+    rowIndex = Result_df.index[
+        time_dict["Assimilation_steps"][step] : time_dict[
+            "Assimilation_steps"
+        ][step + 1]
+    ]
 
     if len(var_to_assim) > 1:
         for i, var in enumerate(var_to_assim):
@@ -170,10 +174,12 @@ def storeDA(Result_df, step_results, observations_sbst, error_sbst,
 
     # Add perturbation parameters to Results
     for var_p in vars_to_perturbate:
-        Result_df.loc[rowIndex, var_p +
-                      "_noise_mean"] = step_results[var_p + "_noise_mean"]
-        Result_df.loc[rowIndex, var_p +
-                      "_noise_sd"] = step_results[var_p + "_noise_sd"]
+        Result_df.loc[rowIndex, var_p + "_noise_mean"] = step_results[
+            var_p + "_noise_mean"
+        ]
+        Result_df.loc[rowIndex, var_p + "_noise_sd"] = step_results[
+            var_p + "_noise_sd"
+        ]
 
 
 def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
@@ -185,16 +191,20 @@ def storeOL(OL_FSM, Ensemble, observations_sbst, time_dict, step):
         OL_FSM[name_col] = ol_data.iloc[:, [n]].to_numpy()
 
 
-def store_sim(sim_stat, Ensemble, time_dict,
-              step, MCMC=False, save_prior=False):
+def store_sim(
+    sim_stat, Ensemble, time_dict, step, MCMC=False, save_prior=False
+):
 
     if MCMC:
         list_state = copy.deepcopy(Ensemble.state_members_mcmc)
     else:
         list_state = copy.deepcopy(Ensemble.state_membres)
 
-    rowIndex = sim_stat['mean'].index[time_dict["Assimilation_steps"][step]:
-                                      time_dict["Assimilation_steps"][step + 1]]
+    rowIndex = sim_stat["mean"].index[
+        time_dict["Assimilation_steps"][step] : time_dict[
+            "Assimilation_steps"
+        ][step + 1]
+    ]
 
     # Get updated columns
     if save_prior:
@@ -205,24 +215,25 @@ def store_sim(sim_stat, Ensemble, time_dict,
     for n, name_col in enumerate(list(list_state[0].columns)):
 
         # create matrix of colums
-        col_arr = [list_state[x].iloc[:, n].to_numpy()
-                   for x in range(len(list_state))]
+        col_arr = [
+            list_state[x].iloc[:, n].to_numpy() for x in range(len(list_state))
+        ]
         col_arr = np.vstack(col_arr)
 
         d1 = DescrStatsW(col_arr, weights=pesos)
 
         if len(sim_stat.keys()) == 2:  # Mean, Std
-            sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
-            sim_stat['std'].loc[rowIndex, name_col] = d1.std
+            sim_stat["mean"].loc[rowIndex, name_col] = d1.mean
+            sim_stat["std"].loc[rowIndex, name_col] = d1.std
         else:
             perc = d1.quantile([0, 0.25, 0.5, 0.75, 1]).values
-            sim_stat['min'].loc[rowIndex, name_col] = perc[0, :]
-            sim_stat['Q1'].loc[rowIndex, name_col] = perc[1, :]
-            sim_stat['median'].loc[rowIndex, name_col] = perc[2, :]
-            sim_stat['Q3'].loc[rowIndex, name_col] = perc[3, :]
-            sim_stat['max'].loc[rowIndex, name_col] = perc[4, :]
-            sim_stat['mean'].loc[rowIndex, name_col] = d1.mean
-            sim_stat['std'].loc[rowIndex, name_col] = d1.std
+            sim_stat["min"].loc[rowIndex, name_col] = perc[0, :]
+            sim_stat["Q1"].loc[rowIndex, name_col] = perc[1, :]
+            sim_stat["median"].loc[rowIndex, name_col] = perc[2, :]
+            sim_stat["Q3"].loc[rowIndex, name_col] = perc[3, :]
+            sim_stat["max"].loc[rowIndex, name_col] = perc[4, :]
+            sim_stat["mean"].loc[rowIndex, name_col] = d1.mean
+            sim_stat["std"].loc[rowIndex, name_col] = d1.std
     return sim_stat
 
 
@@ -233,28 +244,37 @@ def init_result(del_t, DA=False, OL=False):
         col_names = ["Date"]
 
         # Create results dataframe
-        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=col_names)
+        Results = pd.DataFrame(
+            np.nan, index=range(len(del_t)), columns=col_names
+        )
 
-        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%S") for x in del_t]
         return Results
 
     else:
 
         # Create results dataframe
-        Results = pd.DataFrame(np.nan, index=range(len(del_t)),
-                               columns=model_columns)
+        Results = pd.DataFrame(
+            np.nan, index=range(len(del_t)), columns=model_columns
+        )
 
-        Results["Date"] = [x.strftime('%d/%m/%Y-%H:%S') for x in del_t]
+        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%S") for x in del_t]
         # Reordenar las columnas para que 'Date' sea la primera
-        cols = ['Date'] + [col for col in Results if col != 'Date']
+        cols = ["Date"] + [col for col in Results if col != "Date"]
         Results = Results[cols]
 
         if cfg.write_stat_full:
-            stat_name_list = ['min', 'max', 'Q1',
-                              'Q3', 'median', 'mean', 'std']
+            stat_name_list = [
+                "min",
+                "max",
+                "Q1",
+                "Q3",
+                "median",
+                "mean",
+                "std",
+            ]
         else:
-            stat_name_list = ['mean', 'std']
+            stat_name_list = ["mean", "std"]
 
         sim_stat = {key: Results.copy() for key in stat_name_list}
 
@@ -274,32 +294,47 @@ def forcing_table(lat_idx, lon_idx, step=0):
     intermediate_path = cfg.intermediate_path
 
     # Path to intermediate file
-    final_directory = os.path.join(intermediate_path,
-                                   (str(lat_idx) + "_" +
-                                    str(lon_idx) + ".pkl"))
+    final_directory = os.path.join(
+        intermediate_path, (str(lat_idx) + "_" + str(lon_idx) + ".pkl")
+    )
 
     # try to read the forcing from a dumped file
-    if os.path.exists(final_directory) and (cfg.restart_forcing or
-                                            (cfg.implementation ==
-                                             "Spatial_propagation" and
-                                             step != 0)):
+    if os.path.exists(final_directory) and (
+        cfg.restart_forcing
+        or (cfg.implementation == "Spatial_propagation" and step != 0)
+    ):
 
         forcing_df = ifn.io_read(final_directory)
 
     else:
 
-        prec = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    forcing_var_names["Precip_var_name"],
-                                    date_ini, date_end)
+        prec = ifn.nc_array_forcing(
+            nc_forcing_path,
+            lat_idx,
+            lon_idx,
+            forcing_var_names["Precip_var_name"],
+            date_ini,
+            date_end,
+        )
 
-        temp = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                    forcing_var_names["Temp_var_name"],
-                                    date_ini, date_end)
+        temp = ifn.nc_array_forcing(
+            nc_forcing_path,
+            lat_idx,
+            lon_idx,
+            forcing_var_names["Temp_var_name"],
+            date_ini,
+            date_end,
+        )
 
         try:
-            DMF = ifn.nc_array_forcing(nc_forcing_path, lat_idx, lon_idx,
-                                       param_var_names["DMF_var_name"],
-                                       date_ini, date_end)
+            DMF = ifn.nc_array_forcing(
+                nc_forcing_path,
+                lat_idx,
+                lon_idx,
+                param_var_names["DMF_var_name"],
+                date_ini,
+                date_end,
+            )
         except KeyError:
             DMF = np.repeat(cnt.DMF, len(prec))
 
@@ -307,13 +342,17 @@ def forcing_table(lat_idx, lon_idx, step=0):
         date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
         del_t = ifn.generate_dates(date_ini, date_end)
 
-        forcing_df = pd.DataFrame({"year": del_t,
-                                  "month": del_t,
-                                   "day": del_t,
-                                   "hours": del_t,
-                                   "Prec": prec,
-                                   "Ta": temp,
-                                   "DMF": DMF})
+        forcing_df = pd.DataFrame(
+            {
+                "year": del_t,
+                "month": del_t,
+                "day": del_t,
+                "hours": del_t,
+                "Prec": prec,
+                "Ta": temp,
+                "DMF": DMF,
+            }
+        )
 
         forcing_df["year"] = forcing_df["year"].dt.year
         forcing_df["month"] = forcing_df["month"].dt.month
@@ -345,14 +384,13 @@ def unit_conversion(forcing_df):
 
     # Save some space
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
 
-        forcing_df = pdc.downcast(forcing_df,
-                                  numpy_dtypes_only=True)
+        forcing_df = pdc.downcast(forcing_df, numpy_dtypes_only=True)
 
     # HACK: Do not allow float16 in DMF, otherwise numba crash. This is a
     # temporalhack while numba developers implement half precission floats
     # in CPU
-    forcing_df["DMF"] = forcing_df["DMF"].astype('float32')
+    forcing_df["DMF"] = forcing_df["DMF"].astype("float32")
 
-    return (forcing_df)
+    return forcing_df

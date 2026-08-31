@@ -13,14 +13,17 @@ from scipy import special
 from scipy.linalg import sqrtm
 import config as cfg
 import constants as cnt
-if cfg.numerical_model == 'FSM2':
+
+if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
-elif cfg.numerical_model == 'dIm':
+elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
-elif cfg.numerical_model == 'snow17':
+elif cfg.numerical_model == "snow17":
     import modules.snow17_tools as model
+elif cfg.numerical_model == "SNOWPACK":
+    import modules.snowpack_tools as model
 else:
-    raise Exception('Model not implemented')
+    raise Exception("Model not implemented")
 import modules.met_tools as met
 from sklearn.gaussian_process import GaussianProcessRegressor
 import sklearn.gaussian_process.kernels as krn
@@ -30,8 +33,9 @@ import statsmodels.stats.correlation_tools as ct
 from statsmodels.stats.weightstats import DescrStatsW
 
 
-def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
-            stochastic=True, dosvd=True):
+def ens_klm(
+    prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1, stochastic=True, dosvd=True
+):
     """
     EnKA: Implmentation of the Ensemble Kalman Analysis
     """
@@ -68,13 +72,13 @@ def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
             Rsqrt = sqrtm(R)
 
         else:
-            raise Exception('r_cov bad dimensions')
+            raise Exception("r_cov bad dimensions")
 
     else:
         if np.size(R) == 1:
             Rsqrt = np.sqrt(R)
-            R = R*np.identity(m)
-            Rsqrt = Rsqrt*np.identity(m)
+            R = R * np.identity(m)
+            Rsqrt = Rsqrt * np.identity(m)
         elif np.size(R) == m:
             # print('diag')
             # Square root of a diag matrix is the square root of its elements.
@@ -83,70 +87,70 @@ def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
             Rsqrt = np.diag(Rsqrt)
             # Convert to matrix if specified as a vector.
         else:
-            raise Exception('R must be a scalar, m x 1 vector,\
-                            or m x m matrix.')
+            raise Exception("R must be a scalar, m x 1 vector,\
+                            or m x m matrix.")
 
     # pdb.set_trace()
     # Anomaly calculations.
     mprior = np.mean(prior, -1)  # Prior ensemble mean
     if n == 1:
-        A = prior-mprior
+        A = prior - mprior
     else:
-        A = prior-mprior[:, None]
+        A = prior - mprior[:, None]
     mpred = np.mean(pred, -1)  # Prior predicted obs ensemble mean
     if m == 1:
-        B = pred-mpred
+        B = pred - mpred
     else:
-        B = pred-mpred[:, None]
+        B = pred - mpred[:, None]
 
     Bt = B.T  # Tranposed -"-
 
     # Covariance matrices
-    C_AB = A@Bt  # Prior-predic obs covariance matrix multiplied by N (n x m)
-    C_BB = B@Bt  # Predicted obs covariance matrix multiplied by N (m x m)
+    C_AB = A @ Bt  # Prior-predic obs covariance matrix multiplied by N (n x m)
+    C_BB = B @ Bt  # Predicted obs covariance matrix multiplied by N (m x m)
     # Ap=np.linalg.pinv(A)
     # C_BB=(B@(Ap@A))@((B@(Ap@A)).T)
     # Localize covariance matrices
     C_AB = rho_AB * C_AB
     C_BB = rho_BB * C_BB
-    aR = (N*alpha)*R  # Scaled observation error covariance matrix (m x m)
+    aR = (N * alpha) * R  # Scaled observation error covariance matrix (m x m)
 
     if dosvd:
         L = np.linalg.cholesky(aR)
         Linv = np.linalg.inv(L)
-        Ctilde = Linv@C_BB@(Linv.T)+np.eye(m)
+        Ctilde = Linv @ C_BB @ (Linv.T) + np.eye(m)
         # This is a shortcut, but then you don't set the SVD ratio explicitly
         # Cinv=np.linalg.pinv(Ctilde,rcond=1e-2)
         [U, S, _] = np.linalg.svd(Ctilde)
         # Note, in np S is already a vector.
         # Since Ctilde is pos def, then U=V hence why V output is supressed
-        Svr = np.cumsum(S)/np.sum(S)
+        Svr = np.cumsum(S) / np.sum(S)
         minds = np.arange(m)
         # Singular value ratio threshold (typically between 0.9-0.99=90%-99%)
         thresh = 0.9
         keep = min(minds[Svr > thresh])  # Number of singular values to keep
-        St = S[:(keep+1)]  # Exclusive indexing (yay python!)
-        Ut = U[:, :(keep+1)]
-        Sti = 1/St  # Vector (representing a diagonal matrix)
-        Ctildei = (Ut*Sti)@Ut.T  # Same as Ut@np.diag(Sti)@Ut.T
-        Cinv = Linv.T@Ctildei@Linv
+        St = S[: (keep + 1)]  # Exclusive indexing (yay python!)
+        Ut = U[:, : (keep + 1)]
+        Sti = 1 / St  # Vector (representing a diagonal matrix)
+        Ctildei = (Ut * Sti) @ Ut.T  # Same as Ut@np.diag(Sti)@Ut.T
+        Cinv = Linv.T @ Ctildei @ Linv
         # U,S=np.linalg.svd(Ctilde)
     else:
-        Cinv = np.linalg.inv(C_BB+aR)
+        Cinv = np.linalg.inv(C_BB + aR)
 
     if stochastic:
         # Perturbed observations.
         pert = np.random.randn(m, N)
-        Y = np.outer(obs, np.ones(N))+np.sqrt(alpha)*(Rsqrt@pert)
+        Y = np.outer(obs, np.ones(N)) + np.sqrt(alpha) * (Rsqrt @ pert)
         # Analysis step
         if n == 1 and m == 1:  # Scalar case
-            K = C_AB*Cinv
-            inno = Y-pred
-            post = prior+K*inno
+            K = C_AB * Cinv
+            inno = Y - pred
+            post = prior + K * inno
         else:
-            K = C_AB@Cinv  # Kalman gain (n x m)
-            inno = Y-pred  # Innovation (m x N)
-            post = prior+K@inno  # Posterior (n x N)
+            K = C_AB @ Cinv  # Kalman gain (n x m)
+            inno = Y - pred  # Innovation (m x N)
+            post = prior + K @ inno  # Posterior (n x N)
     else:
         Y = np.squeeze(obs)
         # Analysis step
@@ -154,14 +158,14 @@ def ens_klm(prior, obs, pred, alpha, R, rho_AB=1, rho_BB=1,
             K = C_AB * Cinv
             inno = Y - mpred
             mpost = mprior + K * inno  # Posterior (n x N)
-            A = A - 0.5*K*B
-            post = mpost+A
+            A = A - 0.5 * K * B
+            post = mpost + A
         else:
-            K = C_AB@Cinv  # Kalman gain (n x m)
+            K = C_AB @ Cinv  # Kalman gain (n x m)
             inno = Y - mpred  # Innovation (m x N)
             mpost = mprior + K @ inno  # Posterior (n x N)
-            A = A - 0.5*K@B
-            post = (mpost+A.T).T
+            A = A - 0.5 * K @ B
+            post = (mpost + A.T).T
 
     return post
 
@@ -214,15 +218,15 @@ def pbs(obs, pred, R):
     elif np.size(R) == n_obs:
         pass
     else:
-        raise Exception('r_cov must be a scalar, m x 1 vector.')
+        raise Exception("r_cov must be a scalar, m x 1 vector.")
 
     # Residual and log-likelihood
     if n_obs == 1:
         residual = obs - pred
-        llh = -0.5 * ((residual**2) * (1/R))
+        llh = -0.5 * ((residual**2) * (1 / R))
     else:
         residual = obs - pred
-        llh = -0.5 * ((1/R)@(residual**2))
+        llh = -0.5 * ((1 / R) @ (residual**2))
 
     # Log of normalizing constant
     # A properly scaled version of this could be output for model comparison.
@@ -235,11 +239,11 @@ def pbs(obs, pred, R):
     if np.size(weights) == ens_mem and np.round(np.sum(weights), 10) == 1:
         pass
     else:
-        raise Exception('Something wrong with the PBS')
+        raise Exception("Something wrong with the PBS")
 
     weights = np.squeeze(weights)  # Remove axes of length one
 
-    Neff = 1/np.sum(weights**2)
+    Neff = 1 / np.sum(weights**2)
     Neff = np.round(Neff)
 
     return weights, Neff
@@ -279,46 +283,46 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
 
     # Checks on the observation error covariance matrix.
     if np.size(R) == 1:
-        R = R*np.ones(m)
+        R = R * np.ones(m)
     elif np.size(R) == m:
         pass
     else:
-        raise Exception('R must be a scalar, m x 1 vector.')
+        raise Exception("R must be a scalar, m x 1 vector.")
 
     if m == 1:
-        residual = obs-pred
-        Phid = -0.5 * ((residual**2) * (1/R))
+        residual = obs - pred
+        Phid = -0.5 * ((residual**2) * (1 / R))
     else:
         residual = obs.flatten() - pred.T
         residual = residual.T
-        Phid = -0.5*((1/R)@(residual**2))  # (1 x m) x (m x N) == 1 x N
+        Phid = -0.5 * ((1 / R) @ (residual**2))  # (1 x m) x (m x N) == 1 x N
 
     # Transpose for broadcasting (N x n) - (n) = (N x n) [row major logic]
     # TODO: Substitute np.linalg.inv by SVD invesion
     # use scipy.linalg.pinvh ? (rtol parameter instead of numpy rcond)
-    A0 = proposal.T-priormean
+    A0 = proposal.T - priormean
     A0 = A0.T  # n x N
-    B=np.linalg.solve(priorcov,A0)
-    Phi0 = -0.5*np.sum((A0.T)*B.T,1)
+    B = np.linalg.solve(priorcov, A0)
+    Phi0 = -0.5 * np.sum((A0.T) * B.T, 1)
 
     proposalmean = proposal.mean(-1)
-    A = (proposal.T-proposalmean)
+    A = proposal.T - proposalmean
     A = A.T  # n x N
-    C = (1/N)*(A@A.T)
-    B = np.linalg.solve(C,A)
-    Phip = -0.5*np.sum((A.T)*B.T,1)
+    C = (1 / N) * (A @ A.T)
+    B = np.linalg.solve(C, A)
+    Phip = -0.5 * np.sum((A.T) * B.T, 1)
 
-    print('propbsing')
-    Phi = Phid+Phi0-Phip
+    print("propbsing")
+    Phi = Phid + Phi0 - Phip
     Phimax = Phi.max()
-    Phis = Phi-Phimax  # Scaled to avoid numerical overflow
+    Phis = Phi - Phimax  # Scaled to avoid numerical overflow
     # See e.g. Chopin and Papaspiliopoulos (2020) book on SMC
 
     w = np.exp(Phis)
-    w = w/sum(w)
+    w = w / sum(w)
 
     # Neff = 0 if degenerate and 1 if equal weights
-    Neff = 1/np.sum(w**2)
+    Neff = 1 / np.sum(w**2)
     Neff = np.round(Neff)
 
     return w, Neff
@@ -360,60 +364,59 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
 
     # Checks on the observation error covariance matrix.
     if np.size(R) == 1:
-        R = R*np.ones(No)
+        R = R * np.ones(No)
     elif np.size(R) == No:
         pass
     else:
-        raise Exception('R must be a scalar, m x 1 vector.')
-        
-    cy=np.linalg.det(2*np.pi*np.diag(R))**(-0.5)
-    c0=np.linalg.det(2*np.pi*pric)**(-0.5)
-    b=cy*c0
+        raise Exception("R must be a scalar, m x 1 vector.")
+
+    cy = np.linalg.det(2 * np.pi * np.diag(R)) ** (-0.5)
+    c0 = np.linalg.det(2 * np.pi * pric) ** (-0.5)
+    b = cy * c0
 
     phi = np.zeros([Ne, Nl])  # negative log of target
     lsepsi = np.zeros([Ne, Nl])  # logsumexp of the DM proposal
     for ell in range(Nl):
         # Terms related to the target
         propell = props[:, :, ell]  # Np x Ne
-        A0ell = (propell.T-prim).T
-        B=np.linalg.solve(pric,A0ell)
-        phi0ell = 0.5*np.sum((A0ell.T)*B.T,1)
+        A0ell = (propell.T - prim).T
+        B = np.linalg.solve(pric, A0ell)
+        phi0ell = 0.5 * np.sum((A0ell.T) * B.T, 1)
         predell = pred[:, :, ell]  # No x Ne
-        residuell = (obs-predell.T).T  # No x Ne
-        phidell = 0.5*(1/R)@(residuell**2)  # Ne
-        phi[:, ell] = phi0ell+phidell
+        residuell = (obs - predell.T).T  # No x Ne
+        phidell = 0.5 * (1 / R) @ (residuell**2)  # Ne
+        phi[:, ell] = phi0ell + phidell
 
         psij = np.zeros([Ne, Nl])
         for j in range(Nl):
             mj = propm[:, j]
             Cj = propc[:, :, j]
-            cj = np.linalg.det(2*np.pi*Cj)**(-0.5)
+            cj = np.linalg.det(2 * np.pi * Cj) ** (-0.5)
             lcj = np.log(cj)
-            Aj = (propell.T-mj).T
-            B=np.linalg.solve(Cj,Aj)
-            psi = 0.5*np.sum((Aj.T)*B.T,1)
-            psi = psi-lcj
+            Aj = (propell.T - mj).T
+            B = np.linalg.solve(Cj, Aj)
+            psi = 0.5 * np.sum((Aj.T) * B.T, 1)
+            psi = psi - lcj
             psij[:, j] = psi
         psijx = np.max(psij, 1)  # Ne
-        psijs = (psij.T-psijx).T  # Ne x Nl
-        lsepsiell = psijx+np.log(np.sum(np.exp(psijs), 1))
+        psijs = (psij.T - psijx).T  # Ne x Nl
+        lsepsiell = psijx + np.log(np.sum(np.exp(psijs), 1))
         lsepsi[:, ell] = lsepsiell
 
-    logwt = np.log(b)-phi-lsepsi
-    logwt = logwt.flatten('F')  # Purposely flattening column major order
+    logwt = np.log(b) - phi - lsepsi
+    logwt = logwt.flatten("F")  # Purposely flattening column major order
     lwtx = np.max(logwt)
-    lselwt = lwtx+np.log(np.sum(np.exp(logwt-lwtx)))
-    logNlNe = np.log(Nl*Ne)
-    logZ = -logNlNe+lselwt # Log model evidence
-    logw = logwt-logNlNe-logZ
+    lselwt = lwtx + np.log(np.sum(np.exp(logwt - lwtx)))
+    logNlNe = np.log(Nl * Ne)
+    logZ = -logNlNe + lselwt  # Log model evidence
+    logw = logwt - logNlNe - logZ
     w = np.exp(logw)
-    Neff = 1/np.sum(w**2)
+    Neff = 1 / np.sum(w**2)
 
     return w, Neff
 
 
-def mcmc(Ensemble, observations_sbst_masked, R,
-         chain_len, adaptive, histcov):
+def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
 
     vars_to_perturbate = cfg.vars_to_perturbate
     SD0 = np.asarray([cnt.sd_errors[x] for x in vars_to_perturbate])
@@ -421,7 +424,7 @@ def mcmc(Ensemble, observations_sbst_masked, R,
 
     # starting ensemble
     starting_parameters = Ensemble.train_parameters[-2]
-    starting_parameters = transform_space(starting_parameters, 'to_normal')
+    starting_parameters = transform_space(starting_parameters, "to_normal")
     predicted = Ensemble.train_pred[-2][:, 0]
 
     # NOTE:
@@ -434,8 +437,9 @@ def mcmc(Ensemble, observations_sbst_masked, R,
     temp_dest = model.model_copy(Ensemble.lat_idx, Ensemble.lon_idx)
 
     # Init chain
-    phic = np.reshape(starting_parameters.T[0, :],
-                      (1, starting_parameters.shape[0]))
+    phic = np.reshape(
+        starting_parameters.T[0, :], (1, starting_parameters.shape[0])
+    )
     nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
 
     Uc = neglogpost(nll, phic, SD0, m0)
@@ -449,12 +453,12 @@ def mcmc(Ensemble, observations_sbst_masked, R,
         Ne = starting_parameters.shape[0]
         # Anom is based on IES posterior mean, not prior mean
         mpo = np.mean(starting_parameters, 1)
-        anom = (starting_parameters.T-mpo).T
+        anom = (starting_parameters.T - mpo).T
         # Posterior covariance of IES (in transformed space)
-        C0 = (anom@anom.T)/Ne
-        C0 = 0.01*C0  # Scale this to not be too large
+        C0 = (anom @ anom.T) / Ne
+        C0 = 0.01 * C0  # Scale this to not be too large
     else:  # Isotropic covariance as proposal covariance
-        C0 = (sigp**2)*np.eye(Np)
+        C0 = (sigp**2) * np.eye(Np)
 
     while True:
         try:
@@ -469,49 +473,47 @@ def mcmc(Ensemble, observations_sbst_masked, R,
     accepted = 0
     for nsteps in range(chain_len):
         r = np.random.randn(Np)
-        prop = Sc@r
-        phip = phic+prop
-        phip = transform_space(phip.T, 'from_normal').T
+        prop = Sc @ r
+        phip = phic + prop
+        phip = transform_space(phip.T, "from_normal").T
 
         # run the model
         # create forcing candidate
-        forcing_mcmcstep, noise_mcmc = met.perturb_parameters(Ensemble.forcing,
-                                                              noise=phip.T,
-                                                              update=True)
-        phip = transform_space(phip.T, 'to_normal').T
+        forcing_mcmcstep, noise_mcmc = met.perturb_parameters(
+            Ensemble.forcing, noise=phip.T, update=True
+        )
+        phip = transform_space(phip.T, "to_normal").T
 
         # write perturbed forcing
         model.model_forcing_wrt(forcing_mcmcstep, temp_dest, Ensemble.step)
         # Write init conditions or dump file from previous run if step != 0
-        if cfg.numerical_model in ['FSM2']:
+        if cfg.numerical_model in ["FSM2"]:
             if Ensemble.step != 0:
                 model.write_dump(init_conditions, temp_dest)
             # create open loop simulation
             model.model_run(temp_dest)
             # read model outputs
-            state_tmp, dump_tmp =\
-                model.model_read_output(temp_dest)
+            state_tmp, dump_tmp = model.model_read_output(temp_dest)
 
-        elif cfg.numerical_model in ['dIm', 'snow17']:
+        elif cfg.numerical_model in ["dIm", "snow17"]:
             if Ensemble.step != 0:
-                state_tmp, dump_tmp =\
-                    model.model_run(forcing_mcmcstep, temp_dest)
+                state_tmp, dump_tmp = model.model_run(
+                    forcing_mcmcstep, temp_dest
+                )
             else:
-                state_tmp, dump_tmp =\
-                    model.model_run(forcing_mcmcstep)
+                state_tmp, dump_tmp = model.model_run(forcing_mcmcstep)
 
         mcmc_step_simulations = get_predictions([state_tmp], cfg.var_to_assim)
-        _, predicted, _ = \
-            tidy_obs_pred_rcov(mcmc_step_simulations,
-                               Ensemble.observations,
-                               Ensemble.errors)
+        _, predicted, _ = tidy_obs_pred_rcov(
+            mcmc_step_simulations, Ensemble.observations, Ensemble.errors
+        )
 
         nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
         Up = neglogpost(nll, phip, SD0, m0)
 
-        mh = np.float64(min(1, np.exp(np.float128(-Up+Uc))))
+        mh = np.float64(min(1, np.exp(np.float128(-Up + Uc))))
         u = np.random.rand(1)
-        accept = (mh > u)
+        accept = mh > u
         if accept:
             phic = phip
             Uc = Up
@@ -522,13 +524,13 @@ def mcmc(Ensemble, observations_sbst_masked, R,
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
         if adaptive:
             mhopt = 0.234  # Hard coded hyper-parameters for RAM
-            gam = 2.0/3.0
-            stepc = nsteps+1  # Step counter with 1-based indexing.
-            eta = min(1, Np*stepc**(-gam))
-            rinner = r@r
+            gam = 2.0 / 3.0
+            stepc = nsteps + 1  # Step counter with 1-based indexing.
+            eta = min(1, Np * stepc ** (-gam))
+            rinner = r @ r
             router = np.outer(r, r)
-            roi = router/rinner
-            Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
+            roi = router / rinner
+            Cp = Sc @ (Id + eta * (mh - mhopt) * roi) @ (Sc.T)
 
             while True:
                 try:
@@ -541,14 +543,22 @@ def mcmc(Ensemble, observations_sbst_masked, R,
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
-    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (
-        adaptive, (1.0*accepted)/nsteps)
+    printstr = "mcmc done, adaptive=%s, acceptance rate=%4.2f" % (
+        adaptive,
+        (1.0 * accepted) / nsteps,
+    )
     print(printstr)
     return accepted, mcmc_storage
 
 
-def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
-            chain_len, adaptive):
+def AI_mcmc(
+    starting_parameters,
+    predicted,
+    observations_sbst_masked,
+    R,
+    chain_len,
+    adaptive,
+):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
@@ -561,7 +571,7 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
     # Rinv = None
     sigp = 0.1
     Np = len(vars_to_perturbate)
-    C0 = (sigp**2)*np.eye(Np)
+    C0 = (sigp**2) * np.eye(Np)
     while True:
         try:
             Sc = np.linalg.cholesky(C0)
@@ -577,8 +587,9 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
     mcmc_storage[:] = np.nan
 
     # Init chain
-    phic = np.reshape(starting_parameters.T[0, :],
-                      (1, starting_parameters.shape[0]))
+    phic = np.reshape(
+        starting_parameters.T[0, :], (1, starting_parameters.shape[0])
+    )
     nll, sd = gp_emul.predict(phic, return_std=True)
 
     Uc = neglogpost(nll, phic, SD0, m0)
@@ -589,15 +600,15 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
 
         r = np.random.randn(len(vars_to_perturbate))
 
-        prop = Sc@r
-        phip = phic+prop
+        prop = Sc @ r
+        phip = phic + prop
 
         nll, sd = gp_emul.predict(phip, return_std=True)
 
         Up = neglogpost(nll, phip, SD0, m0)
-        mh = min(1, np.exp(-Up+Uc))
+        mh = min(1, np.exp(-Up + Uc))
         u = np.random.rand(1)
-        accept = (mh > u)
+        accept = mh > u
         if accept:
             phic = phip
             Uc = Up
@@ -609,13 +620,13 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
         if adaptive:
             mhopt = 0.234  # Hard coded hyper-parameters for RAM
-            gam = 2.0/3.0
-            stepc = nsteps+1  # Step counter with 1-based indexing.
-            eta = min(1, Np*stepc**(-gam))
-            rinner = r@r
+            gam = 2.0 / 3.0
+            stepc = nsteps + 1  # Step counter with 1-based indexing.
+            eta = min(1, Np * stepc ** (-gam))
+            rinner = r @ r
             router = np.outer(r, r)
-            roi = router/rinner
-            Cp = Sc@(Id+eta*(mh-mhopt)*roi)@(Sc.T)
+            roi = router / rinner
+            Cp = Sc @ (Id + eta * (mh - mhopt) * roi) @ (Sc.T)
             while True:
                 try:
                     Sc = np.linalg.cholesky(Cp)
@@ -623,8 +634,10 @@ def AI_mcmc(starting_parameters, predicted, observations_sbst_masked, R,
                 except np.linalg.LinAlgError:
                     Cp = ct.cov_nearest(Cp, method="clipped")
 
-    printstr = 'mcmc done, adaptive=%s, acceptance rate=%4.2f' % (
-        adaptive, (1.0*accepted)/nsteps)
+    printstr = "mcmc done, adaptive=%s, acceptance rate=%4.2f" % (
+        adaptive,
+        (1.0 * accepted) / nsteps,
+    )
     print(printstr)
     return accepted, mcmc_storage
 
@@ -634,7 +647,7 @@ def negloglik(predicted, observations_sbst_masked, R):
     if len(R.shape) == 1:
         R = R[:, np.newaxis]
 
-    nres = (observations_sbst_masked - predicted)/np.sqrt(R)
+    nres = (observations_sbst_masked - predicted) / np.sqrt(R)
 
     nll = 0.5 * np.sum(nres**2, axis=0)
 
@@ -643,7 +656,7 @@ def negloglik(predicted, observations_sbst_masked, R):
 
 def neglogpost(nll, chain_par, SD0, m0):
 
-    ndev = (chain_par - m0)/SD0
+    ndev = (chain_par - m0) / SD0
 
     nlpri = 0.5 * np.sum(ndev**2, axis=1)
 
@@ -656,8 +669,12 @@ def gp_emulator(X_train, y_train):
 
     # kernel = 1 * krn.RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
     kernel = 1.0 * krn.Matern(length_scale=1.0, nu=1.5)
-    gp = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b',
-                                  n_restarts_optimizer=9, normalize_y=True)
+    gp = GaussianProcessRegressor(
+        kernel=kernel,
+        optimizer="fmin_l_bfgs_b",
+        n_restarts_optimizer=9,
+        normalize_y=True,
+    )
     gp.fit(X_train, y_train)
     return gp
 
@@ -712,11 +729,11 @@ def residual_resample(weights):
     """
 
     N = len(weights)
-    indexes = np.zeros(N, 'i')
+    indexes = np.zeros(N, "i")
 
     # take int(N*w) copies of each weight, which ensures particles with the
     # same weight are drawn uniformly
-    num_copies = (np.floor(N*np.asarray(weights))).astype(int)
+    num_copies = (np.floor(N * np.asarray(weights))).astype(int)
     k = 0
     for i in range(N):
         for _ in range(num_copies[i]):  # make n copies
@@ -725,11 +742,11 @@ def residual_resample(weights):
 
     # use multinormal resample on the residual to fill up the rest. This
     # maximizes the variance of the samples
-    residual = weights - num_copies     # get fractional part
-    residual /= sum(residual)           # normalize
+    residual = weights - num_copies  # get fractional part
+    residual /= sum(residual)  # normalize
     cumulative_sum = np.cumsum(residual)
-    cumulative_sum[-1] = 1.  # avoid round-off errors: ensures sum is one
-    indexes[k:N] = np.searchsorted(cumulative_sum, random(N-k))
+    cumulative_sum[-1] = 1.0  # avoid round-off errors: ensures sum is one
+    indexes[k:N] = np.searchsorted(cumulative_sum, random(N - k))
 
     return indexes
 
@@ -756,7 +773,7 @@ def stratified_resample(weights):
     # make N subdivisions, and chose a random position within each one
     positions = (random(N) + range(N)) / N
 
-    indexes = np.zeros(N, 'i')
+    indexes = np.zeros(N, "i")
     cumulative_sum = np.cumsum(weights)
     i, j = 0, 0
     while i < N:
@@ -789,7 +806,7 @@ def systematic_resample(weights):
     # make N subdivisions, and choose positions with a consistent random offset
     positions = (random() + np.arange(N)) / N
 
-    indexes = np.zeros(N, 'i')
+    indexes = np.zeros(N, "i")
     cumulative_sum = np.cumsum(weights)
     i, j = 0, 0
     while i < N:
@@ -837,8 +854,10 @@ def get_predictions(list_state, var_to_assim):
     for var in var_to_assim:
         assim_idx = model.get_var_state_position(var)
 
-        predicted_tmp = [list_state[x].iloc[:, assim_idx].to_numpy()
-                         for x in range(len(list_state))]
+        predicted_tmp = [
+            list_state[x].iloc[:, assim_idx].to_numpy()
+            for x in range(len(list_state))
+        ]
         predicted_tmp = np.asarray(predicted_tmp)
         # predicted_tmp = np.squeeze(predicted_tmp)
 
@@ -847,15 +866,16 @@ def get_predictions(list_state, var_to_assim):
     return predicted
 
 
-def tidy_obs_pred_rcov(predicted, observations_sbst, errors_sbst,
-                       ret_mask=False):
+def tidy_obs_pred_rcov(
+    predicted, observations_sbst, errors_sbst, ret_mask=False
+):
 
     # tidy list of predictions
     predicted = np.concatenate(predicted.copy(), axis=1)
 
     # flaten obs and errors
-    r_cov_f = errors_sbst.flatten(order='F')
-    observations_sbst_f = observations_sbst.flatten(order='F')
+    r_cov_f = errors_sbst.flatten(order="F")
+    observations_sbst_f = observations_sbst.flatten(order="F")
 
     # create mask of nan
     mask = np.argwhere(~np.isnan(observations_sbst_f))
@@ -926,7 +946,7 @@ def transform_space(parameters, trans_direction, pert_stra=False, vari=False):
         perturbation_strategy = [pert_stra]
         vars_to_perturbate = [vari]
 
-    if trans_direction == 'to_normal':
+    if trans_direction == "to_normal":
         # translate lognormal variables to normal distribution
         for cont, var in enumerate(perturbation_strategy):
 
@@ -935,16 +955,17 @@ def transform_space(parameters, trans_direction, pert_stra=False, vari=False):
             if var == "lognormal":
                 safe_pars[cont, :] = np.log(safe_pars[cont, :])
 
-            elif var in ["logitnormal_mult",
-                         "logitnormal_adi"]:
+            elif var in ["logitnormal_mult", "logitnormal_adi"]:
 
-                safe_pars[cont, :] = met.glogit(safe_pars[cont, :],
-                                                lower_bounds[var_tmp],
-                                                upper_bounds[var_tmp])
+                safe_pars[cont, :] = met.glogit(
+                    safe_pars[cont, :],
+                    lower_bounds[var_tmp],
+                    upper_bounds[var_tmp],
+                )
             else:
                 pass
 
-    elif trans_direction == 'from_normal':
+    elif trans_direction == "from_normal":
 
         for cont, var in enumerate(perturbation_strategy):
             var_tmp = vars_to_perturbate[cont]
@@ -952,12 +973,13 @@ def transform_space(parameters, trans_direction, pert_stra=False, vari=False):
             if var == "lognormal":
                 safe_pars[cont, :] = np.exp(safe_pars[cont, :])
 
-            elif var in ["logitnormal_mult",
-                         "logitnormal_adi"]:
+            elif var in ["logitnormal_mult", "logitnormal_adi"]:
 
-                safe_pars[cont, :] = met.gexpit(safe_pars[cont, :],
-                                                lower_bounds[var_tmp],
-                                                upper_bounds[var_tmp])
+                safe_pars[cont, :] = met.gexpit(
+                    safe_pars[cont, :],
+                    lower_bounds[var_tmp],
+                    upper_bounds[var_tmp],
+                )
             else:
                 pass
 
@@ -973,11 +995,11 @@ def get_parameters(Ensemble, j):
 
     for cont, var in enumerate(cfg.vars_to_perturbate):
         if j == 0:
-            var_tmp = [Ensemble.noise[x][var]
-                       for x in range(Ensemble.members)]
+            var_tmp = [Ensemble.noise[x][var] for x in range(Ensemble.members)]
         else:
-            var_tmp = [Ensemble.noise_iter[x][var]
-                       for x in range(Ensemble.members)]
+            var_tmp = [
+                Ensemble.noise_iter[x][var] for x in range(Ensemble.members)
+            ]
         var_tmp = np.asarray(var_tmp)
         var_tmp = np.squeeze(var_tmp)
         # HACK: next lines have to be modified with if time varying
@@ -1024,16 +1046,20 @@ def implement_assimilation(Ensemble, step):
 
             predicted = get_predictions(list_state, var_to_assim)
 
-            observations_sbst_masked, predicted, r_cov = \
-                tidy_obs_pred_rcov(predicted, observations, errors)
+            observations_sbst_masked, predicted, r_cov = tidy_obs_pred_rcov(
+                predicted, observations, errors
+            )
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if Neff/Ensemble.members < cfg.Neffthrs:
-                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
-                      format(lat=Ensemble.lat_idx,
-                             lon=Ensemble.lon_idx,
-                             Neff=int(Neff)))
+            if Neff / Ensemble.members < cfg.Neffthrs:
+                print(
+                    "Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}".format(
+                        lat=Ensemble.lat_idx,
+                        lon=Ensemble.lon_idx,
+                        Neff=int(Neff),
+                    )
+                )
                 Ensemble.lowNeff = True
 
             else:
@@ -1053,16 +1079,20 @@ def implement_assimilation(Ensemble, step):
 
             predicted = get_predictions(list_state, var_to_assim)
 
-            observations_sbst_masked, predicted, r_cov = \
-                tidy_obs_pred_rcov(predicted, observations, errors)
+            observations_sbst_masked, predicted, r_cov = tidy_obs_pred_rcov(
+                predicted, observations, errors
+            )
 
             wgth, Neff = pbs(observations_sbst_masked, predicted, r_cov)
 
-            if Neff/Ensemble.members < cfg.Neffthrs:
-                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
-                      format(lat=Ensemble.lat_idx,
-                             lon=Ensemble.lon_idx,
-                             Neff=int(Neff)))
+            if Neff / Ensemble.members < cfg.Neffthrs:
+                print(
+                    "Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}".format(
+                        lat=Ensemble.lat_idx,
+                        lon=Ensemble.lon_idx,
+                        Neff=int(Neff),
+                    )
+                )
                 Ensemble.lowNeff = True
 
             else:
@@ -1074,7 +1104,7 @@ def implement_assimilation(Ensemble, step):
 
             Result["resampled_particles"] = resampled_particles
 
-    elif da_algorithm == 'ProPBS':
+    elif da_algorithm == "ProPBS":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
@@ -1094,21 +1124,28 @@ def implement_assimilation(Ensemble, step):
             for j in range(max_iterations):
 
                 predicted = get_predictions(
-                    Ensemble.state_membres, var_to_assim)
+                    Ensemble.state_membres, var_to_assim
+                )
 
-                observations_sbst_masked, predicted, r_cov = \
+                observations_sbst_masked, predicted, r_cov = (
                     tidy_obs_pred_rcov(predicted, observations, errors)
+                )
 
                 proposal = get_parameters(Ensemble, j)
-                proposal = transform_space(proposal, 'to_normal')
+                proposal = transform_space(proposal, "to_normal")
 
-                wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
-                                    priormean, priorcov, proposal)
-                print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
-                                                     j=j))
+                wgth, Neff = ProPBS(
+                    observations_sbst_masked,
+                    predicted,
+                    r_cov,
+                    priormean,
+                    priorcov,
+                    proposal,
+                )
+                print("Neff: {Neff} in j:{j}".format(Neff=int(Neff), j=j))
 
                 # exit if not collapsed
-                if (Neff/Ensemble.members > cfg.Neffthrs):
+                if Neff / Ensemble.members > cfg.Neffthrs:
                     Ensemble.wgth = wgth
                     break
 
@@ -1118,16 +1155,18 @@ def implement_assimilation(Ensemble, step):
                 # get resampled parameters
                 thetaprop = get_parameters(Ensemble, j)
                 # transform to normal space
-                thetaprop = transform_space(thetaprop, 'to_normal')
-                diversity = Neff/Ensemble.members
+                thetaprop = transform_space(thetaprop, "to_normal")
+                diversity = Neff / Ensemble.members
                 # Calculate the mean vector of the proposed parameter ensemble
                 thetapropm = np.mean(thetaprop, axis=1)
                 # Calculate the covariance matrix of the proposed parameters
                 thetapropA = (thetaprop.T - thetapropm).T
-                thetapropc = (thetapropA@thetapropA.T) / Ensemble.members
+                thetapropc = (thetapropA @ thetapropA.T) / Ensemble.members
                 # Inflate the covariance slightly in case of degeneracy
                 # thetapropc = thetapropc+0.1*(1-diversity)*priorcov
-                thetapropc = thetapropc+(0.5**(8*j))*(1-diversity)*priorcov
+                thetapropc = (
+                    thetapropc + (0.5 ** (8 * j)) * (1 - diversity) * priorcov
+                )
 
                 while True:
                     try:
@@ -1135,17 +1174,19 @@ def implement_assimilation(Ensemble, step):
                         break
                     except np.linalg.LinAlgError:
                         thetapropc = ct.cov_nearest(
-                            thetapropc, method="clipped")
+                            thetapropc, method="clipped"
+                        )
 
                 # Draw from this Gaussian for the next iteration.
-                thetaprop = thetapropm[:, np.newaxis] +\
-                    L@np.random.standard_normal(size=(len(vars_to_perturbate),
-                                                      Ensemble.members))
-                thetaprop = transform_space(thetaprop, 'from_normal')
-                Ensemble.iter_update(step, thetaprop,
-                                     create=True, iteration=j)
-
-    elif da_algorithm == 'AdaPBS':
+                thetaprop = thetapropm[
+                    :, np.newaxis
+                ] + L @ np.random.standard_normal(
+                    size=(len(vars_to_perturbate), Ensemble.members)
+                )
+                thetaprop = transform_space(thetaprop, "from_normal")
+                Ensemble.iter_update(step, thetaprop, create=True, iteration=j)
+            Ensemble.update_iter_restarts()
+    elif da_algorithm == "AdaPBS":
         # Check if there are observations to assim, or all weitgs = 1
         if np.isnan(Ensemble.observations).all():
 
@@ -1165,13 +1206,15 @@ def implement_assimilation(Ensemble, step):
             for j in range(max_iterations):
 
                 predicted = get_predictions(
-                    Ensemble.state_membres, var_to_assim)
+                    Ensemble.state_membres, var_to_assim
+                )
 
-                observations_sbst_masked, predicted, r_cov = \
+                observations_sbst_masked, predicted, r_cov = (
                     tidy_obs_pred_rcov(predicted, observations, errors)
+                )
 
                 proposal = get_parameters(Ensemble, j)
-                proposal = transform_space(proposal, 'to_normal')
+                proposal = transform_space(proposal, "to_normal")
 
                 if j == 0:
                     No = np.size(observations_sbst_masked)
@@ -1192,32 +1235,37 @@ def implement_assimilation(Ensemble, step):
 
                 propsall[:, :, j] = proposal
                 predall[:, :, j] = predicted
-                ells = np.arange(j+1)
+                ells = np.arange(j + 1)
                 obs = observations_sbst_masked.flatten()
-                wgth, Neff = AMIS(obs, predall[:, :, ells],
-                                  r_cov, priormean, priorcov,
-                                  propmall[:, ells], propcall[:, :, ells],
-                                  propsall[:, :, ells])
+                wgth, Neff = AMIS(
+                    obs,
+                    predall[:, :, ells],
+                    r_cov,
+                    priormean,
+                    priorcov,
+                    propmall[:, ells],
+                    propcall[:, :, ells],
+                    propsall[:, :, ells],
+                )
 
-                print('Neff: {Neff} in j:{j}'.format(Neff=int(Neff),
-                                                     j=j))
+                print("Neff: {Neff} in j:{j}".format(Neff=int(Neff), j=j))
 
-                diversity = Neff/Ne
+                diversity = Neff / Ne
                 doadapt = diversity < adapt_thresh
-                notlast = (j+1) < max_iterations
-                w = wgth.flatten('F')
+                notlast = (j + 1) < max_iterations
+                w = wgth.flatten("F")
 
                 # Can instead always set clip to 1 if you don't want to clip
                 doclip = doadapt and notlast
                 if doclip:
-                    clip = int(np.round(adapt_thresh*Ne))
+                    clip = int(np.round(adapt_thresh * Ne))
                     ws = -np.sort(-w)
-                    wc = ws[clip-1]
+                    wc = ws[clip - 1]
                     nonzero = wc > 0
                     if nonzero:
                         toclip = w > wc
                         w[toclip] = wc
-                        w = w/np.sum(w)
+                        w = w / np.sum(w)
                     else:
                         doclip = False
 
@@ -1225,14 +1273,14 @@ def implement_assimilation(Ensemble, step):
                 pinds = np.arange(Nw)
                 reinds = np.random.choice(pinds, Ne, p=w)
                 thetap = propsall[:, :, ells]
-                thetap = np.reshape(thetap, [Np, Nw], order='F')
+                thetap = np.reshape(thetap, [Np, Nw], order="F")
                 thetap = thetap[:, reinds]
                 pm = np.mean(thetap, axis=1)
                 if doclip:
-                    A = (thetap.T-pm).T
-                    pc = (A@A.T)/Ne
+                    A = (thetap.T - pm).T
+                    pc = (A @ A.T) / Ne
                 else:
-                    pc = np.copy(priorcov)*(0.5**j)
+                    pc = np.copy(priorcov) * (0.5**j)
 
                 # Draw from this Gaussian for the next adaptive iteration
                 # if there will be one
@@ -1247,21 +1295,22 @@ def implement_assimilation(Ensemble, step):
                             pc = ct.cov_nearest(pc, method="clipped")
 
                     Z = np.random.randn(Np, Ne)
-                    thetap = (pm+(L@Z).T).T
-                    propcall[:, :, j+1] = pc
-                    propmall[:, j+1] = pm
+                    thetap = (pm + (L @ Z).T).T
+                    propcall[:, :, j + 1] = pc
+                    propmall[:, j + 1] = pm
 
                 # Update parameters for next iteration (it is just
                 # resampling if not adapt and/or last)
 
-                thetap = transform_space(thetap, 'from_normal')
+                thetap = transform_space(thetap, "from_normal")
+
                 Ensemble.iter_update(step, thetap, create=True, iteration=j)
 
                 # exit if not collapsed
                 if not doadapt:
                     break
-
-    elif da_algorithm in ["EnKF", 'IEnKF']:
+            Ensemble.update_iter_restarts()
+    elif da_algorithm in ["EnKF", "IEnKF"]:
         if da_algorithm == "EnKF":
 
             max_iterations = 1
@@ -1280,9 +1329,11 @@ def implement_assimilation(Ensemble, step):
                 predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
-                    observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations,
-                                           errors, ret_mask=True)
+                    observations_sbst_masked, predicted, r_cov, mask = (
+                        tidy_obs_pred_rcov(
+                            predicted, observations, errors, ret_mask=True
+                        )
+                    )
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1290,18 +1341,24 @@ def implement_assimilation(Ensemble, step):
                 param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                param_array = transform_space(param_array, 'to_normal')
+                param_array = transform_space(param_array, "to_normal")
 
                 alpha = max_iterations
-                updated_pars = ens_klm(param_array, observations_sbst_masked,
-                                       predicted, alpha, r_cov)
+                updated_pars = ens_klm(
+                    param_array,
+                    observations_sbst_masked,
+                    predicted,
+                    alpha,
+                    r_cov,
+                )
 
-                updated_pars = transform_space(updated_pars, 'from_normal')
+                updated_pars = transform_space(updated_pars, "from_normal")
 
-                Ensemble.iter_update(step, updated_pars,
-                                     create=True, iteration=j)
-
-    elif da_algorithm in ['ES', 'IES']:
+                Ensemble.iter_update(
+                    step, updated_pars, create=True, iteration=j
+                )
+            Ensemble.update_iter_restarts()
+    elif da_algorithm in ["ES", "IES"]:
 
         if da_algorithm == "ES":
 
@@ -1322,9 +1379,11 @@ def implement_assimilation(Ensemble, step):
                 predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
-                    observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations,
-                                           errors, ret_mask=True)
+                    observations_sbst_masked, predicted, r_cov, mask = (
+                        tidy_obs_pred_rcov(
+                            predicted, observations, errors, ret_mask=True
+                        )
+                    )
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1332,18 +1391,24 @@ def implement_assimilation(Ensemble, step):
                 param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                param_array = transform_space(param_array, 'to_normal')
+                param_array = transform_space(param_array, "to_normal")
 
                 alpha = max_iterations
-                updated_pars = ens_klm(param_array, observations_sbst_masked,
-                                       predicted, alpha, r_cov)
+                updated_pars = ens_klm(
+                    param_array,
+                    observations_sbst_masked,
+                    predicted,
+                    alpha,
+                    r_cov,
+                )
 
-                updated_pars = transform_space(updated_pars, 'from_normal')
+                updated_pars = transform_space(updated_pars, "from_normal")
 
-                Ensemble.iter_update(step, updated_pars,
-                                     create=True, iteration=j)
-
-    elif da_algorithm == 'PIES':
+                Ensemble.iter_update(
+                    step, updated_pars, create=True, iteration=j
+                )
+            Ensemble.update_iter_restarts()
+    elif da_algorithm == "PIES":
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
@@ -1359,9 +1424,11 @@ def implement_assimilation(Ensemble, step):
                 predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
-                    observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations,
-                                           errors, ret_mask=True)
+                    observations_sbst_masked, predicted, r_cov, mask = (
+                        tidy_obs_pred_rcov(
+                            predicted, observations, errors, ret_mask=True
+                        )
+                    )
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1369,17 +1436,23 @@ def implement_assimilation(Ensemble, step):
                 param_array = get_parameters(Ensemble, j)
 
                 # translate lognormal variables to normal distribution
-                param_array = transform_space(param_array, 'to_normal')
+                param_array = transform_space(param_array, "to_normal")
 
                 alpha = max_iterations
-                updated_pars = ens_klm(param_array, observations_sbst_masked,
-                                       predicted, alpha, r_cov)
+                updated_pars = ens_klm(
+                    param_array,
+                    observations_sbst_masked,
+                    predicted,
+                    alpha,
+                    r_cov,
+                )
 
-                updated_pars = transform_space(updated_pars, 'from_normal')
+                updated_pars = transform_space(updated_pars, "from_normal")
 
-                Ensemble.iter_update(step, updated_pars,
-                                     create=True, iteration=j)
-
+                Ensemble.iter_update(
+                    step, updated_pars, create=True, iteration=j
+                )
+            Ensemble.update_iter_restarts()
             list_state = Ensemble.state_membres
             predicted = get_predictions(list_state, var_to_assim)
             predicted = tidy_predictions(predicted, mask)
@@ -1392,16 +1465,25 @@ def implement_assimilation(Ensemble, step):
                 priorsd[count] = sd_errors[var]
 
             priorcov = np.diag(priorsd**2)
-            proposal = transform_space(updated_pars, 'to_normal')
+            proposal = transform_space(updated_pars, "to_normal")
 
-            wgth, Neff = ProPBS(observations_sbst_masked, predicted, r_cov,
-                                priormean, priorcov, proposal)
+            wgth, Neff = ProPBS(
+                observations_sbst_masked,
+                predicted,
+                r_cov,
+                priormean,
+                priorcov,
+                proposal,
+            )
 
-            if Neff/Ensemble.members < cfg.Neffthrs:
-                print('Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}'.
-                      format(lat=Ensemble.lat_idx,
-                             lon=Ensemble.lon_idx,
-                             Neff=int(Neff)))
+            if Neff / Ensemble.members < cfg.Neffthrs:
+                print(
+                    "Low Neff ({Neff}) found at cell: Lat:{lat}, Lon:{lon}".format(
+                        lat=Ensemble.lat_idx,
+                        lon=Ensemble.lon_idx,
+                        Neff=int(Neff),
+                    )
+                )
                 Ensemble.lowNeff = True
 
             else:
@@ -1412,7 +1494,7 @@ def implement_assimilation(Ensemble, step):
             resampled_particles = resampled_indexes(wgth)
             Result["resampled_particles"] = resampled_particles
 
-    elif da_algorithm in ['IES-MCMC']:
+    elif da_algorithm in ["IES-MCMC"]:
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
@@ -1427,9 +1509,11 @@ def implement_assimilation(Ensemble, step):
                 predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
-                    observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations,
-                                           errors, ret_mask=True)
+                    observations_sbst_masked, predicted, r_cov, mask = (
+                        tidy_obs_pred_rcov(
+                            predicted, observations, errors, ret_mask=True
+                        )
+                    )
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1441,22 +1525,32 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.store_train_data(param_array, predicted, j)
 
                 # translate lognormal variables to normal distribution
-                param_array = transform_space(param_array, 'to_normal')
+                param_array = transform_space(param_array, "to_normal")
 
                 alpha = max_iterations
-                updated_pars = ens_klm(param_array, observations_sbst_masked,
-                                       predicted, alpha, r_cov)
+                updated_pars = ens_klm(
+                    param_array,
+                    observations_sbst_masked,
+                    predicted,
+                    alpha,
+                    r_cov,
+                )
 
-                updated_pars = transform_space(updated_pars, 'from_normal')
+                updated_pars = transform_space(updated_pars, "from_normal")
 
-                Ensemble.iter_update(step, updated_pars,
-                                     create=True, iteration=j)
-
+                Ensemble.iter_update(
+                    step, updated_pars, create=True, iteration=j
+                )
+            Ensemble.update_iter_restarts()
             # Run the MCMC
-            accepted, mcmc_storage = mcmc(Ensemble, observations_sbst_masked,
-                                          r_cov, chain_len=cfg.chain_len,
-                                          adaptive=cfg.adaptive,
-                                          histcov=cfg.histcov)
+            accepted, mcmc_storage = mcmc(
+                Ensemble,
+                observations_sbst_masked,
+                r_cov,
+                chain_len=cfg.chain_len,
+                adaptive=cfg.adaptive,
+                histcov=cfg.histcov,
+            )
 
             # Burn in:  discard the first samples
             ini = int(mcmc_storage.shape[0] * cfg.burn_in)
@@ -1464,17 +1558,18 @@ def implement_assimilation(Ensemble, step):
             mcmc_storage = mcmc_storage[ini:end, :]
 
             # Sample n number of members
-            idx = np.random.randint(mcmc_storage.shape[0],
-                                    size=Ensemble.members)
+            idx = np.random.randint(
+                mcmc_storage.shape[0], size=Ensemble.members
+            )
             post_sample = mcmc_storage[idx, :].T
 
             # Create Ensemble from mcmc
             # translate to log space
-            post_sample = transform_space(post_sample, 'from_normal')
+            post_sample = transform_space(post_sample, "from_normal")
 
             Ensemble.create_MCMC(post_sample, step)
 
-    elif da_algorithm in ['IES-MCMC_AI']:
+    elif da_algorithm in ["IES-MCMC_AI"]:
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
@@ -1489,9 +1584,11 @@ def implement_assimilation(Ensemble, step):
                 predicted = get_predictions(list_state, var_to_assim)
 
                 if j == 0:
-                    observations_sbst_masked, predicted, r_cov, mask = \
-                        tidy_obs_pred_rcov(predicted, observations,
-                                           errors, ret_mask=True)
+                    observations_sbst_masked, predicted, r_cov, mask = (
+                        tidy_obs_pred_rcov(
+                            predicted, observations, errors, ret_mask=True
+                        )
+                    )
                 else:
                     predicted = tidy_predictions(predicted, mask)
 
@@ -1503,17 +1600,23 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.store_train_data(param_array, predicted, j)
 
                 # translate lognormal variables to normal distribution
-                param_array = transform_space(param_array, 'to_normal')
+                param_array = transform_space(param_array, "to_normal")
 
                 alpha = max_iterations
-                updated_pars = ens_klm(param_array, observations_sbst_masked,
-                                       predicted, alpha, r_cov)
+                updated_pars = ens_klm(
+                    param_array,
+                    observations_sbst_masked,
+                    predicted,
+                    alpha,
+                    r_cov,
+                )
 
-                updated_pars = transform_space(updated_pars, 'from_normal')
+                updated_pars = transform_space(updated_pars, "from_normal")
 
-                Ensemble.iter_update(step, updated_pars,
-                                     create=True, iteration=j)
-
+                Ensemble.iter_update(
+                    step, updated_pars, create=True, iteration=j
+                )
+            Ensemble.update_iter_restarts()
             # MCMC starting point
             list_state = Ensemble.state_membres
 
@@ -1524,22 +1627,28 @@ def implement_assimilation(Ensemble, step):
             # get prior
             param_array = get_parameters(Ensemble, j)
 
-            Ensemble.store_train_data(param_array, predicted, j+1)
+            Ensemble.store_train_data(param_array, predicted, j + 1)
 
             # Start MCMC
-            starting_parameters = np.concatenate(Ensemble.train_parameters,
-                                                 axis=1)
+            starting_parameters = np.concatenate(
+                Ensemble.train_parameters, axis=1
+            )
             predicted = np.concatenate(Ensemble.train_pred, axis=1)
 
             # translate to gaussian space
-            starting_parameters = transform_space(starting_parameters,
-                                                  'to_normal')
+            starting_parameters = transform_space(
+                starting_parameters, "to_normal"
+            )
 
             # Run MCMC with gaussian emulator
-            accepted, mcmc_storage = AI_mcmc(starting_parameters, predicted,
-                                             observations_sbst_masked, r_cov,
-                                             chain_len=cfg.chain_len,
-                                             adaptive=cfg.adaptive)
+            accepted, mcmc_storage = AI_mcmc(
+                starting_parameters,
+                predicted,
+                observations_sbst_masked,
+                r_cov,
+                chain_len=cfg.chain_len,
+                adaptive=cfg.adaptive,
+            )
 
             # Burn in:  discard the first samples
 
@@ -1548,13 +1657,14 @@ def implement_assimilation(Ensemble, step):
             mcmc_storage = mcmc_storage[ini:end, :]
 
             # Sample n number of members
-            idx = np.random.randint(mcmc_storage.shape[0],
-                                    size=Ensemble.members)
+            idx = np.random.randint(
+                mcmc_storage.shape[0], size=Ensemble.members
+            )
             post_sample = mcmc_storage[idx, :].T
 
             # Create Ensemble from mcmc
             # translate to log space
-            post_sample = transform_space(post_sample, 'from_normal')
+            post_sample = transform_space(post_sample, "from_normal")
 
             Ensemble.create_MCMC(post_sample, step)
 
@@ -1569,26 +1679,42 @@ def implement_assimilation(Ensemble, step):
 
         if cfg.da_algorithm in ["PF", "PBS"]:
 
-            noise_ens_temp = [Ensemble.noise[x][var_p]
-                              for x in range(len(Ensemble.noise))]
+            noise_ens_temp = [
+                Ensemble.noise[x][var_p] for x in range(len(Ensemble.noise))
+            ]
             noise_ens_temp = np.vstack(noise_ens_temp)
 
-            noise_ens_temp = transform_space(noise_ens_temp[:, 1][np.newaxis, :], 'to_normal',
-                                             pert_stra=cfg.perturbation_strategy[cont],
-                                             vari=var_p)
+            noise_ens_temp = transform_space(
+                noise_ens_temp[:, 1][np.newaxis, :],
+                "to_normal",
+                pert_stra=cfg.perturbation_strategy[cont],
+                vari=var_p,
+            )
 
             d1 = DescrStatsW(np.squeeze(noise_ens_temp), weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
             noise_tmp_sd = d1.std
-        elif cfg.da_algorithm in ["EnKF", "IEnKF", "ProPBS", "AdaPBS", "ES",
-                                  "IES", "PIES"]:
-            noise_ens_temp = [Ensemble.noise_iter[x][var_p]
-                              for x in range(len(Ensemble.noise_iter))]
+        elif cfg.da_algorithm in [
+            "EnKF",
+            "IEnKF",
+            "ProPBS",
+            "AdaPBS",
+            "ES",
+            "IES",
+            "PIES",
+        ]:
+            noise_ens_temp = [
+                Ensemble.noise_iter[x][var_p]
+                for x in range(len(Ensemble.noise_iter))
+            ]
             noise_ens_temp = np.vstack(noise_ens_temp)
 
-            noise_ens_temp = transform_space(noise_ens_temp[:, 1][np.newaxis, :], 'to_normal',
-                                             pert_stra=cfg.perturbation_strategy[cont],
-                                             vari=var_p)
+            noise_ens_temp = transform_space(
+                noise_ens_temp[:, 1][np.newaxis, :],
+                "to_normal",
+                pert_stra=cfg.perturbation_strategy[cont],
+                vari=var_p,
+            )
 
             d1 = DescrStatsW(np.squeeze(noise_ens_temp), weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
@@ -1596,7 +1722,7 @@ def implement_assimilation(Ensemble, step):
 
         elif cfg.da_algorithm in ["IES-MCMC_AI", "IES-MCMC"]:
 
-            noise_ens_temp = transform_space(post_sample, 'to_normal')[cont, :]
+            noise_ens_temp = transform_space(post_sample, "to_normal")[cont, :]
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
             noise_tmp_avg = d1.std_mean
             noise_tmp_sd = d1.std
