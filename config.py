@@ -63,7 +63,7 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 10
+ensemble_members = 100
 Neffthrs = 0.1  # Low Neff threshold
 # MCMC parameters
 chain_len = 20000  # Length of the mcmc

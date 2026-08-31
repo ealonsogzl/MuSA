@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Aug 31 10:07:46 2026
-
-@author: wuesteban
+Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import warnings

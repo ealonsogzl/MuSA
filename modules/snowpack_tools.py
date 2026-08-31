@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Some functions to interact with FSM.
-
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
