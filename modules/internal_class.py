@@ -23,6 +23,9 @@ elif cfg.numerical_model == "snow17":
     import modules.snow17_tools as model
 elif cfg.numerical_model == "SNOWPACK":
     import modules.snowpack_tools as model
+
+    if cfg.run_smrt:
+        import modules.SNOWPACK2SMRT as smrt
 else:
     raise Exception("Model not implemented")
 import modules.met_tools as met

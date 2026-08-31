@@ -31,6 +31,7 @@ import shutil
 import os
 import statsmodels.stats.correlation_tools as ct
 from statsmodels.stats.weightstats import DescrStatsW
+from threadpoolctl import threadpool_limits
 
 
 def ens_klm(
@@ -66,106 +67,115 @@ def ens_klm(
     if pred.ndim == 1:
         pred = pred[np.newaxis, :]
 
-    # Checks on the observation error covariance matrix.
-    if R.ndim == 2:
-        if np.shape(R)[0] == m and np.shape(R)[1] == m:
-            Rsqrt = sqrtm(R)
+    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+        # Checks on the observation error covariance matrix.
+        if R.ndim == 2:
+            if np.shape(R)[0] == m and np.shape(R)[1] == m:
+                Rsqrt = sqrtm(R)
+
+            else:
+                raise Exception("r_cov bad dimensions")
 
         else:
-            raise Exception("r_cov bad dimensions")
+            if np.size(R) == 1:
+                Rsqrt = np.sqrt(R)
+                R = R * np.identity(m)
+                Rsqrt = Rsqrt * np.identity(m)
+            elif np.size(R) == m:
+                # print('diag')
+                # Square root of a diag matrix is the square root of its elements.
+                Rsqrt = np.sqrt(R)
+                R = np.diag(R)
+                Rsqrt = np.diag(Rsqrt)
+                # Convert to matrix if specified as a vector.
+            else:
+                raise Exception("R must be a scalar, m x 1 vector,\
+                                or m x m matrix.")
 
-    else:
-        if np.size(R) == 1:
-            Rsqrt = np.sqrt(R)
-            R = R * np.identity(m)
-            Rsqrt = Rsqrt * np.identity(m)
-        elif np.size(R) == m:
-            # print('diag')
-            # Square root of a diag matrix is the square root of its elements.
-            Rsqrt = np.sqrt(R)
-            R = np.diag(R)
-            Rsqrt = np.diag(Rsqrt)
-            # Convert to matrix if specified as a vector.
+        # pdb.set_trace()
+        # Anomaly calculations.
+        mprior = np.mean(prior, -1)  # Prior ensemble mean
+        if n == 1:
+            A = prior - mprior
         else:
-            raise Exception("R must be a scalar, m x 1 vector,\
-                            or m x m matrix.")
-
-    # pdb.set_trace()
-    # Anomaly calculations.
-    mprior = np.mean(prior, -1)  # Prior ensemble mean
-    if n == 1:
-        A = prior - mprior
-    else:
-        A = prior - mprior[:, None]
-    mpred = np.mean(pred, -1)  # Prior predicted obs ensemble mean
-    if m == 1:
-        B = pred - mpred
-    else:
-        B = pred - mpred[:, None]
-
-    Bt = B.T  # Tranposed -"-
-
-    # Covariance matrices
-    C_AB = A @ Bt  # Prior-predic obs covariance matrix multiplied by N (n x m)
-    C_BB = B @ Bt  # Predicted obs covariance matrix multiplied by N (m x m)
-    # Ap=np.linalg.pinv(A)
-    # C_BB=(B@(Ap@A))@((B@(Ap@A)).T)
-    # Localize covariance matrices
-    C_AB = rho_AB * C_AB
-    C_BB = rho_BB * C_BB
-    aR = (N * alpha) * R  # Scaled observation error covariance matrix (m x m)
-
-    if dosvd:
-        L = np.linalg.cholesky(aR)
-        Linv = np.linalg.inv(L)
-        Ctilde = Linv @ C_BB @ (Linv.T) + np.eye(m)
-        # This is a shortcut, but then you don't set the SVD ratio explicitly
-        # Cinv=np.linalg.pinv(Ctilde,rcond=1e-2)
-        [U, S, _] = np.linalg.svd(Ctilde)
-        # Note, in np S is already a vector.
-        # Since Ctilde is pos def, then U=V hence why V output is supressed
-        Svr = np.cumsum(S) / np.sum(S)
-        minds = np.arange(m)
-        # Singular value ratio threshold (typically between 0.9-0.99=90%-99%)
-        thresh = 0.9
-        keep = min(minds[Svr > thresh])  # Number of singular values to keep
-        St = S[: (keep + 1)]  # Exclusive indexing (yay python!)
-        Ut = U[:, : (keep + 1)]
-        Sti = 1 / St  # Vector (representing a diagonal matrix)
-        Ctildei = (Ut * Sti) @ Ut.T  # Same as Ut@np.diag(Sti)@Ut.T
-        Cinv = Linv.T @ Ctildei @ Linv
-        # U,S=np.linalg.svd(Ctilde)
-    else:
-        Cinv = np.linalg.inv(C_BB + aR)
-
-    if stochastic:
-        # Perturbed observations.
-        pert = np.random.randn(m, N)
-        Y = np.outer(obs, np.ones(N)) + np.sqrt(alpha) * (Rsqrt @ pert)
-        # Analysis step
-        if n == 1 and m == 1:  # Scalar case
-            K = C_AB * Cinv
-            inno = Y - pred
-            post = prior + K * inno
+            A = prior - mprior[:, None]
+        mpred = np.mean(pred, -1)  # Prior predicted obs ensemble mean
+        if m == 1:
+            B = pred - mpred
         else:
-            K = C_AB @ Cinv  # Kalman gain (n x m)
-            inno = Y - pred  # Innovation (m x N)
-            post = prior + K @ inno  # Posterior (n x N)
-    else:
-        Y = np.squeeze(obs)
-        # Analysis step
-        if n == 1 and m == 1:  # Scalar case
-            K = C_AB * Cinv
-            inno = Y - mpred
-            mpost = mprior + K * inno  # Posterior (n x N)
-            A = A - 0.5 * K * B
-            post = mpost + A
+            B = pred - mpred[:, None]
+
+        Bt = B.T  # Tranposed -"-
+
+        # Covariance matrices
+        C_AB = (
+            A @ Bt
+        )  # Prior-predic obs covariance matrix multiplied by N (n x m)
+        C_BB = (
+            B @ Bt
+        )  # Predicted obs covariance matrix multiplied by N (m x m)
+        # Ap=np.linalg.pinv(A)
+        # C_BB=(B@(Ap@A))@((B@(Ap@A)).T)
+        # Localize covariance matrices
+        C_AB = rho_AB * C_AB
+        C_BB = rho_BB * C_BB
+        aR = (
+            N * alpha
+        ) * R  # Scaled observation error covariance matrix (m x m)
+
+        if dosvd:
+            L = np.linalg.cholesky(aR)
+            Linv = np.linalg.inv(L)
+            Ctilde = Linv @ C_BB @ (Linv.T) + np.eye(m)
+            # This is a shortcut, but then you don't set the SVD ratio explicitly
+            # Cinv=np.linalg.pinv(Ctilde,rcond=1e-2)
+            [U, S, _] = np.linalg.svd(Ctilde)
+            # Note, in np S is already a vector.
+            # Since Ctilde is pos def, then U=V hence why V output is supressed
+            Svr = np.cumsum(S) / np.sum(S)
+            minds = np.arange(m)
+            # Singular value ratio threshold (typically between 0.9-0.99=90%-99%)
+            thresh = 0.9
+            keep = min(
+                minds[Svr > thresh]
+            )  # Number of singular values to keep
+            St = S[: (keep + 1)]  # Exclusive indexing (yay python!)
+            Ut = U[:, : (keep + 1)]
+            Sti = 1 / St  # Vector (representing a diagonal matrix)
+            Ctildei = (Ut * Sti) @ Ut.T  # Same as Ut@np.diag(Sti)@Ut.T
+            Cinv = Linv.T @ Ctildei @ Linv
+            # U,S=np.linalg.svd(Ctilde)
         else:
-            K = C_AB @ Cinv  # Kalman gain (n x m)
-            inno = Y - mpred  # Innovation (m x N)
-            mpost = mprior + K @ inno  # Posterior (n x N)
-            A = A - 0.5 * K @ B
-            post = (mpost + A.T).T
+            Cinv = np.linalg.inv(C_BB + aR)
+
+        if stochastic:
+            # Perturbed observations.
+            pert = np.random.randn(m, N)
+            Y = np.outer(obs, np.ones(N)) + np.sqrt(alpha) * (Rsqrt @ pert)
+            # Analysis step
+            if n == 1 and m == 1:  # Scalar case
+                K = C_AB * Cinv
+                inno = Y - pred
+                post = prior + K * inno
+            else:
+                K = C_AB @ Cinv  # Kalman gain (n x m)
+                inno = Y - pred  # Innovation (m x N)
+                post = prior + K @ inno  # Posterior (n x N)
+        else:
+            Y = np.squeeze(obs)
+            # Analysis step
+            if n == 1 and m == 1:  # Scalar case
+                K = C_AB * Cinv
+                inno = Y - mpred
+                mpost = mprior + K * inno  # Posterior (n x N)
+                A = A - 0.5 * K * B
+                post = mpost + A
+            else:
+                K = C_AB @ Cinv  # Kalman gain (n x m)
+                inno = Y - mpred  # Innovation (m x N)
+                mpost = mprior + K @ inno  # Posterior (n x N)
+                A = A - 0.5 * K @ B
+                post = (mpost + A.T).T
 
     return post
 
@@ -289,41 +299,44 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     else:
         raise Exception("R must be a scalar, m x 1 vector.")
 
-    if m == 1:
-        residual = obs - pred
-        Phid = -0.5 * ((residual**2) * (1 / R))
-    else:
-        residual = obs.flatten() - pred.T
-        residual = residual.T
-        Phid = -0.5 * ((1 / R) @ (residual**2))  # (1 x m) x (m x N) == 1 x N
+    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+        if m == 1:
+            residual = obs - pred
+            Phid = -0.5 * ((residual**2) * (1 / R))
+        else:
+            residual = obs.flatten() - pred.T
+            residual = residual.T
+            Phid = -0.5 * (
+                (1 / R) @ (residual**2)
+            )  # (1 x m) x (m x N) == 1 x N
 
-    # Transpose for broadcasting (N x n) - (n) = (N x n) [row major logic]
-    # TODO: Substitute np.linalg.inv by SVD invesion
-    # use scipy.linalg.pinvh ? (rtol parameter instead of numpy rcond)
-    A0 = proposal.T - priormean
-    A0 = A0.T  # n x N
-    B = np.linalg.solve(priorcov, A0)
-    Phi0 = -0.5 * np.sum((A0.T) * B.T, 1)
+        # Transpose for broadcasting (N x n) - (n) = (N x n) [row major logic]
+        # TODO: Substitute np.linalg.inv by SVD invesion
+        # use scipy.linalg.pinvh ? (rtol parameter instead of numpy rcond)
+        A0 = proposal.T - priormean
+        A0 = A0.T  # n x N
+        B = np.linalg.solve(priorcov, A0)
+        Phi0 = -0.5 * np.sum((A0.T) * B.T, 1)
 
-    proposalmean = proposal.mean(-1)
-    A = proposal.T - proposalmean
-    A = A.T  # n x N
-    C = (1 / N) * (A @ A.T)
-    B = np.linalg.solve(C, A)
-    Phip = -0.5 * np.sum((A.T) * B.T, 1)
+        proposalmean = proposal.mean(-1)
+        A = proposal.T - proposalmean
+        A = A.T  # n x N
+        C = (1 / N) * (A @ A.T)
+        B = np.linalg.solve(C, A)
+        Phip = -0.5 * np.sum((A.T) * B.T, 1)
 
-    print("propbsing")
-    Phi = Phid + Phi0 - Phip
-    Phimax = Phi.max()
-    Phis = Phi - Phimax  # Scaled to avoid numerical overflow
-    # See e.g. Chopin and Papaspiliopoulos (2020) book on SMC
+        print("propbsing")
+        Phi = Phid + Phi0 - Phip
+        Phimax = Phi.max()
+        Phis = Phi - Phimax  # Scaled to avoid numerical overflow
+        # See e.g. Chopin and Papaspiliopoulos (2020) book on SMC
 
-    w = np.exp(Phis)
-    w = w / sum(w)
+        w = np.exp(Phis)
+        w = w / sum(w)
 
-    # Neff = 0 if degenerate and 1 if equal weights
-    Neff = 1 / np.sum(w**2)
-    Neff = np.round(Neff)
+        # Neff = 0 if degenerate and 1 if equal weights
+        Neff = 1 / np.sum(w**2)
+        Neff = np.round(Neff)
 
     return w, Neff
 
@@ -369,49 +382,49 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         pass
     else:
         raise Exception("R must be a scalar, m x 1 vector.")
+    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+        cy = np.linalg.det(2 * np.pi * np.diag(R)) ** (-0.5)
+        c0 = np.linalg.det(2 * np.pi * pric) ** (-0.5)
+        b = cy * c0
 
-    cy = np.linalg.det(2 * np.pi * np.diag(R)) ** (-0.5)
-    c0 = np.linalg.det(2 * np.pi * pric) ** (-0.5)
-    b = cy * c0
+        phi = np.zeros([Ne, Nl])  # negative log of target
+        lsepsi = np.zeros([Ne, Nl])  # logsumexp of the DM proposal
+        for ell in range(Nl):
+            # Terms related to the target
+            propell = props[:, :, ell]  # Np x Ne
+            A0ell = (propell.T - prim).T
+            B = np.linalg.solve(pric, A0ell)
+            phi0ell = 0.5 * np.sum((A0ell.T) * B.T, 1)
+            predell = pred[:, :, ell]  # No x Ne
+            residuell = (obs - predell.T).T  # No x Ne
+            phidell = 0.5 * (1 / R) @ (residuell**2)  # Ne
+            phi[:, ell] = phi0ell + phidell
 
-    phi = np.zeros([Ne, Nl])  # negative log of target
-    lsepsi = np.zeros([Ne, Nl])  # logsumexp of the DM proposal
-    for ell in range(Nl):
-        # Terms related to the target
-        propell = props[:, :, ell]  # Np x Ne
-        A0ell = (propell.T - prim).T
-        B = np.linalg.solve(pric, A0ell)
-        phi0ell = 0.5 * np.sum((A0ell.T) * B.T, 1)
-        predell = pred[:, :, ell]  # No x Ne
-        residuell = (obs - predell.T).T  # No x Ne
-        phidell = 0.5 * (1 / R) @ (residuell**2)  # Ne
-        phi[:, ell] = phi0ell + phidell
+            psij = np.zeros([Ne, Nl])
+            for j in range(Nl):
+                mj = propm[:, j]
+                Cj = propc[:, :, j]
+                cj = np.linalg.det(2 * np.pi * Cj) ** (-0.5)
+                lcj = np.log(cj)
+                Aj = (propell.T - mj).T
+                B = np.linalg.solve(Cj, Aj)
+                psi = 0.5 * np.sum((Aj.T) * B.T, 1)
+                psi = psi - lcj
+                psij[:, j] = psi
+            psijx = np.max(psij, 1)  # Ne
+            psijs = (psij.T - psijx).T  # Ne x Nl
+            lsepsiell = psijx + np.log(np.sum(np.exp(psijs), 1))
+            lsepsi[:, ell] = lsepsiell
 
-        psij = np.zeros([Ne, Nl])
-        for j in range(Nl):
-            mj = propm[:, j]
-            Cj = propc[:, :, j]
-            cj = np.linalg.det(2 * np.pi * Cj) ** (-0.5)
-            lcj = np.log(cj)
-            Aj = (propell.T - mj).T
-            B = np.linalg.solve(Cj, Aj)
-            psi = 0.5 * np.sum((Aj.T) * B.T, 1)
-            psi = psi - lcj
-            psij[:, j] = psi
-        psijx = np.max(psij, 1)  # Ne
-        psijs = (psij.T - psijx).T  # Ne x Nl
-        lsepsiell = psijx + np.log(np.sum(np.exp(psijs), 1))
-        lsepsi[:, ell] = lsepsiell
-
-    logwt = np.log(b) - phi - lsepsi
-    logwt = logwt.flatten("F")  # Purposely flattening column major order
-    lwtx = np.max(logwt)
-    lselwt = lwtx + np.log(np.sum(np.exp(logwt - lwtx)))
-    logNlNe = np.log(Nl * Ne)
-    logZ = -logNlNe + lselwt  # Log model evidence
-    logw = logwt - logNlNe - logZ
-    w = np.exp(logw)
-    Neff = 1 / np.sum(w**2)
+        logwt = np.log(b) - phi - lsepsi
+        logwt = logwt.flatten("F")  # Purposely flattening column major order
+        lwtx = np.max(logwt)
+        lselwt = lwtx + np.log(np.sum(np.exp(logwt - lwtx)))
+        logNlNe = np.log(Nl * Ne)
+        logZ = -logNlNe + lselwt  # Log model evidence
+        logw = logwt - logNlNe - logZ
+        w = np.exp(logw)
+        Neff = 1 / np.sum(w**2)
 
     return w, Neff
 

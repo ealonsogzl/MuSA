@@ -19,56 +19,40 @@ def run_SMRT(rows, statedataframe, k):
     for row in rows:
 
         # Snowpack
-        Rgrn = statedataframe[["Rgrn1", "Rgrn2", "Rgrn3"]].values[
-            row
-        ]  # now layer grain radius
-        Dsnw = statedataframe[["Dsnw1", "Dsnw2", "Dsnw3"]].values[
-            row
-        ]  # snow thikness
-        lWE = statedataframe[["Sliq1", "Sliq2", "Sliq3"]].values[
-            row
-        ]  # liq water
+        cols = statedataframe.filter(like="Rgrn").columns
+        Rgrn = statedataframe[cols].values[row]  # now layer grain radius
 
-        sWE = statedataframe[["Sice1", "Sice2", "Sice3"]].values[row]  # ice
-        SWE = lWE + sWE
+        cols = statedataframe.filter(like="Dsnw").columns
+        Dsnw = statedataframe[cols].values[row]  # snow thikness
 
-        with warnings.catch_warnings():  # This warning is necesary
-            warnings.simplefilter("ignore")
-            rhosnw = SWE / Dsnw  # density
-        tsnow = statedataframe[["Tsnow1", "Tsnow2", "Tsnow3"]].values[
-            row
-        ]  # snot temperature
+        cols = statedataframe.filter(like="lWE").columns
+        lWE = statedataframe[cols].values[row]  # liq water
+
+        cols = statedataframe.filter(like="rhosnw").columns
+        rhosnw = statedataframe[cols].values[row]  # density
+
+        cols = statedataframe.filter(like="Tsnow").columns
+        tsnow = statedataframe[cols].values[row]  # snow temperature
 
         # Remove empty layers y any
         Rgrn = Rgrn[~np.isnan(rhosnw)]
         Dsnw = Dsnw[~np.isnan(rhosnw)]
         lWE = lWE[~np.isnan(rhosnw)]
-        sWE = sWE[~np.isnan(rhosnw)]
-        SWE = SWE[~np.isnan(rhosnw)]
         tsnow = tsnow[~np.isnan(rhosnw)]
         rhosnw = rhosnw[~np.isnan(rhosnw)]
 
-        # Soil
-        Tsoil = statedataframe[
-            ["Tsoil1", "Tsoil2", "Tsoil3", "Tsoil4"]
-        ].values[
-            row
-        ]  # soil temperature
-        Vsmc = statedataframe[["Vsmc1", "Vsmc2", "Vsmc3", "Vsmc4"]].values[
-            row
-        ]  # QUIARESTO DE LA SALIDA
-
         # prepare inputs
-        breakpoint()
-        thickness = list(Dsnw)
+
+        thickness = Dsnw
         corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrn
         temperature = tsnow
         density = rhosnw
+        # Soil
 
         substrate = make_soil(
             "soil_wegmuller",
             "soil_permittivity_dobson85_peplinski95",
-            temperature=Tsoil[0],
+            temperature=273.15,
             moisture=0.20435,
             sand=0.6,
             clay=0.3,
@@ -76,12 +60,6 @@ def run_SMRT(rows, statedataframe, k):
             roughness_rms=5e-3,
         )
 
-        # SMRT requires the temperature of snow layer to be 273.15
-        # or higher if there is liquid water in the snowpack. Since we are in
-        # float 32 (FORTRAN) and python is float64 by default, this may cause
-        # issues because of the tolerance of >
-
-        temperature = temperature.astype("float64")
         temperature[lWE > 0.0] = 273.15
         temperature[temperature > 273.15] = 273.15
         # create the snowpack
@@ -130,8 +108,25 @@ def run_SMRT(rows, statedataframe, k):
     for i, row in enumerate(rows):
         results_df.iloc[row] = results_list[i]
 
-    # remove some columns from the state?
     statedataframe = statedataframe.join(results_df)
+
+    smrt_names = return_col_names()
+    if cfg.DAsord:
+        model_columns = (
+            "snd",
+            "SWE",
+            *smrt_names,
+            *cfg.DAord_names,
+        )
+
+    else:
+        model_columns = (
+            "snd",
+            "SWE",
+            *smrt_names,
+        )
+
+    statedataframe = statedataframe[list(model_columns)]  # remove some columns
 
     return statedataframe
 

@@ -25,16 +25,37 @@ from statsmodels.stats.weightstats import DescrStatsW
 
 if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
+if cfg.run_smrt:
+    import modules.SNOWPACK2SMRT as smrt
 # TODO: homogenize documentation format
 
-if cfg.DAsord:
-    model_columns = ("snd", "SWE", tuple(cfg.DAord_names))
-    # , "Tsnow1", "Tsnow2", "Tsnow3",
+if cfg.run_smrt:
 
+    smrt_names = smrt.return_col_names()
+    if cfg.DAsord:
+        model_columns = (
+            "snd",
+            "SWE",
+            *smrt_names,
+            *cfg.DAord_names,
+        )
+
+    else:
+        model_columns = (
+            "snd",
+            "SWE",
+            *smrt_names,
+        )
 else:
-    model_columns = ("snd", "SWE")
-    # , "Tsnow1", "Tsnow2", "Tsnow3",)# TODO: create a smarter function that changes the compilation of FSM and
-# pd colum names dynamically to reduce/increase the model outputs.
+    if cfg.DAsord:
+        model_columns = (
+            "snd",
+            "SWE",
+            tuple(cfg.DAord_names),
+        )
+
+    else:
+        model_columns = ("snd", "SWE")
 
 
 def model_copy(y_id, x_id):
@@ -105,6 +126,7 @@ def forcing_table(lat_idx, lon_idx, step=0):
 
     nc_forcing_path = cfg.nc_forcing_path
     forcing_var_names = cfg.forcing_var_names
+    param_var_names = cfg.param_var_names
     date_ini = cfg.date_ini
     date_end = cfg.date_end
     intermediate_path = cfg.intermediate_path
@@ -230,6 +252,21 @@ def forcing_table(lat_idx, lon_idx, step=0):
         forcing_df["month"] = forcing_df["month"].dt.month
         forcing_df["day"] = forcing_df["day"].dt.day
         forcing_df["hours"] = forcing_df["hours"].dt.hour
+
+        if cfg.run_smrt:
+            try:
+                k = ifn.nc_array_forcing(
+                    nc_forcing_path,
+                    lat_idx,
+                    lon_idx,
+                    param_var_names["k_var_name"],
+                    date_ini,
+                    date_end,
+                )
+            except KeyError:
+                k = np.repeat(cnt.k, len(prec))
+
+            forcing_df["k"] = k
 
         forcing_df = unit_conversion(forcing_df)
         if len(del_t) != len(forcing_df.index):
@@ -608,7 +645,8 @@ fields           = timestamp Layer_Thick  T  Vol_Frac_I  Vol_Frac_W  Vol_Frac_V 
 
 
 def write_nlst(wd_path, params=None, step=None):
-    content = """[General]
+
+    content = f"""[General]
     BUFFER_SIZE = 370
     BUFF_BEFORE = 1.5
     BUFF_GRIDS = 10
@@ -636,7 +674,8 @@ def write_nlst(wd_path, params=None, step=None):
     SNOWPATH = RESTARTDATA
     SNOW_DAYS_BETWEEN = 9999.000000
     FIRST_BACKUP = 9999.000000
-    PROF_WRITE = FALSE
+    PROF_WRITE = {cfg.run_smrt}
+    PROF_DAYS_BETWEEN = 4.1666e-2
     TS_WRITE = TRUE
     TS_FORMAT = SMET
     ACDD_WRITE = FALSE
@@ -682,6 +721,183 @@ def write_nlst(wd_path, params=None, step=None):
         f.write(content)
 
 
+def read_snowpack_profile(filename, variables, rename=None):
+    """
+    Lee un perfil .pro de SNOWPACK y devuelve un DataFrame.
+
+    Parameters
+    ----------
+    filename : str
+        Ruta al fichero .pro.
+
+    variables : list
+        Variables a extraer. Puede contener códigos ('0502')
+        o nombres ('element density').
+
+    rename : dict, optional
+        Diccionario para renombrar variables.
+        Ejemplo:
+        {
+            "0502": "density",
+            "0503": "temperature"
+        }
+
+    Returns
+    -------
+    pd.DataFrame
+        Índice temporal y columnas variable_capa.
+    """
+
+    if rename is None:
+        rename = {}
+
+    # ------------------------------------------------------------------
+    # Leer cabecera y construir mapa código -> descripción
+    # ------------------------------------------------------------------
+    code_to_name = {}
+
+    with open(filename, "r") as f:
+
+        in_header = False
+
+        for line in f:
+
+            line = line.strip()
+
+            if line == "[HEADER]":
+                in_header = True
+                continue
+
+            if line == "[DATA]":
+                break
+
+            if not in_header:
+                continue
+
+            parts = line.split(",", 2)
+
+            if len(parts) < 3:
+                continue
+
+            code = parts[0]
+            description = parts[2]
+
+            code_to_name[code] = description
+
+    # ------------------------------------------------------------------
+    # Resolver las variables pedidas
+    # ------------------------------------------------------------------
+    variable_codes = []
+
+    for var in variables:
+
+        if var in code_to_name:
+            variable_codes.append(var)
+            continue
+
+        matches = [
+            code
+            for code, desc in code_to_name.items()
+            if var.lower() in desc.lower()
+        ]
+
+        if len(matches) == 0:
+            raise ValueError(f"No encuentro variable '{var}'")
+
+        variable_codes.append(matches[0])
+
+    variable_codes = list(dict.fromkeys(variable_codes))
+
+    # ------------------------------------------------------------------
+    # Crear nombres finales
+    # ------------------------------------------------------------------
+    code_to_output_name = {}
+
+    for code in variable_codes:
+
+        if code in rename:
+            code_to_output_name[code] = rename[code]
+        else:
+            code_to_output_name[code] = code
+
+    # ------------------------------------------------------------------
+    # Leer datos
+    # ------------------------------------------------------------------
+    rows = []
+
+    current_time = None
+    current_data = {}
+
+    with open(filename, "r") as f:
+
+        in_data = False
+
+        for line in f:
+
+            line = line.strip()
+
+            if line == "[DATA]":
+                in_data = True
+                continue
+
+            if not in_data:
+                continue
+
+            parts = line.split(",")
+
+            code = parts[0]
+
+            # Nuevo timestep
+            if code == "0500":
+
+                if current_time is not None:
+                    row = {"timestamp": current_time}
+                    row.update(current_data)
+                    rows.append(row)
+
+                current_time = pd.to_datetime(
+                    parts[1],
+                    format="%d.%m.%Y %H:%M:%S",
+                )
+
+                current_data = {}
+                continue
+
+            if code not in variable_codes:
+                continue
+
+            if len(parts) < 3:
+                continue
+
+            n_elems = int(parts[1])
+            values = parts[2:]
+
+            base_name = code_to_output_name[code]
+
+            for i in range(min(n_elems, len(values))):
+
+                colname = f"{base_name}_layer{i + 1}"
+
+                try:
+                    value = float(values[i])
+                except ValueError:
+                    value = values[i]
+
+                current_data[colname] = value
+
+    # último timestep
+    if current_time is not None:
+
+        row = {"timestamp": current_time}
+        row.update(current_data)
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    df = df.set_index("timestamp")
+
+    return df
+
+
 def model_read_output(wd_path, step, read_dump=True):
     """
     Read snowpack outputs and return it in a dataframe
@@ -701,9 +917,46 @@ def model_read_output(wd_path, step, read_dump=True):
         raise Exception("Too many .smet files in output")
 
     state = read_smet(files[0], variables=["HS_mod", "SWE"])
-
     # Traslate into MuSA (vars and units)
     state.columns = ["snd", "SWE"]
+
+    if cfg.run_smrt:
+
+        file_pro = list(directory.glob("*.pro"))
+        df = read_snowpack_profile(
+            file_pro[0],
+            variables=[
+                "0501",  # height (cm)
+                "0502",  # density (kg m-3)
+                "0503",  # Temp (C)
+                "0506",  # liquid water content by volume (%)
+                "0535",  # optical equivalent grain size (mm)
+            ],
+            rename={
+                "0501": "Dsnw",
+                "0502": "rhosnw",
+                "0503": "Tsnow",
+                "0506": "lWE",
+                "0535": "Rgrnm",
+            },
+        )
+        # Convertir unodades
+
+        cols = df.filter(like="Dsnw").columns
+        df[cols] = df[cols] / 100
+
+        cols = df.filter(like="Tsnow").columns
+        df[cols] = df[cols] + 273.15
+
+        cols = df.filter(like="Rgrn").columns
+        df[cols] = (df[cols] / 2) / 1000
+
+        cols = df.filter(like="lWE").columns
+        df[cols] = df[cols] / 100
+
+        state = pd.concat(
+            [state.reset_index(drop=True), df.reset_index(drop=True)], axis=1
+        )
 
     # Hay que  quitar la fila de solape en las siguientes simulaciones
     if step > 0:

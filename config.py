@@ -8,7 +8,7 @@ Note that not all the options will be used in all the experimental setups.
 
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = "FSM2"  # model to use from FSM2, dIm or snow17
+numerical_model = "PBS"  # model to use from FSM2, SNOWPACK, dIm or snow17
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -108,7 +108,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "point_scale"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -309,7 +309,7 @@ SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 # SMRT config
 run_smrt = False
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
-smrt_cores = 1  # Number of cores to use in smrt
+
 
 # -----------------------------------
 # Export option
