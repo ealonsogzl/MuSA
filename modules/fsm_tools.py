@@ -29,23 +29,98 @@ from statsmodels.stats.weightstats import DescrStatsW
 
 if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
+if cfg.run_smrt:
+    import modules.FSM2SMRT as smrt
 # TODO: homogenize documentation format
 
-if cfg.DAsord:
-    model_columns = (
-        "snd",
-        "SWE",
-        "Tsrf",
-        "fSCA",
-        "alb",
-        "H",
-        "LE",
-        tuple(cfg.DAord_names),
-    )
-    # , "Tsnow1", "Tsnow2", "Tsnow3",
+if cfg.run_smrt:
 
+    smrt_names = smrt.return_col_names()
+    if cfg.DAsord:
+        model_columns = (
+            "snd",
+            "SWE",
+            "Tsrf",
+            "fSCA",
+            "alb",
+            "H",
+            "LE",
+            "Rgrn1",
+            "Rgrn2",
+            "Rgrn3",
+            "Tsoil1",
+            "Tsoil2",
+            "Tsoil3",
+            "Tsoil4",
+            "Tsnow1",
+            "Tsnow2",
+            "Tsnow3",
+            "Vsmc1",
+            "Vsmc2",
+            "Vsmc3",
+            "Vsmc4",
+            "Dsnw1",
+            "Dsnw2",
+            "Dsnw3",
+            "Sice1",
+            "Sice2",
+            "Sice3",
+            "Sliq1",
+            "Sliq2",
+            "Sliq3",
+            *smrt_names,
+            *cfg.DAord_names,
+        )
+
+    else:
+        model_columns = (
+            "snd",
+            "SWE",
+            "Tsrf",
+            "fSCA",
+            "alb",
+            "H",
+            "LE",
+            "Rgrn1",
+            "Rgrn2",
+            "Rgrn3",
+            "Tsoil1",
+            "Tsoil2",
+            "Tsoil3",
+            "Tsoil4",
+            "Tsnow1",
+            "Tsnow2",
+            "Tsnow3",
+            "Vsmc1",
+            "Vsmc2",
+            "Vsmc3",
+            "Vsmc4",
+            "Dsnw1",
+            "Dsnw2",
+            "Dsnw3",
+            "Sice1",
+            "Sice2",
+            "Sice3",
+            "Sliq1",
+            "Sliq2",
+            "Sliq3",
+            *smrt_names,
+        )
 else:
-    model_columns = ("snd", "SWE", "Tsrf", "fSCA", "alb", "H", "LE")
+    if cfg.DAsord:
+        model_columns = (
+            "snd",
+            "SWE",
+            "Tsrf",
+            "fSCA",
+            "alb",
+            "H",
+            "LE",
+            tuple(cfg.DAord_names),
+        )
+
+    else:
+        model_columns = ("snd", "SWE", "Tsrf", "fSCA", "alb", "H", "LE")
     # , "Tsnow1", "Tsnow2", "Tsnow3",)
 # TODO: create a smarter function that changes the compilation of FSM and
 # pd colum names dynamically to reduce/increase the model outputs.
@@ -199,6 +274,11 @@ def model_compile():
     filedata = filedata.replace("pyHYDROL", str(cfg.HYDROL))
     filedata = filedata.replace("pySGRAIN", str(cfg.SGRAIN))
     filedata = filedata.replace("pySNFRAC", str(cfg.SNFRAC))
+    # SMRToutput
+    if cfg.run_smrt:
+        filedata = filedata.replace("pySMRT", "1")
+    else:
+        filedata = filedata.replace("pySMRT", "0")
 
     compile_path = os.path.join(fsm_path, "compil.sh")
 
@@ -279,19 +359,53 @@ def model_read_output(fsm_path, step, read_dump=True):
     #  engine="pyarrow", do not waork with spaces, come back to this.
     state_dir = os.path.join(fsm_path, "out_stat.dat")
 
-    dt = np.dtype(
-        [
-            ("snd", "float32"),
-            ("SWE", "float32"),
-            ("Tsrf", "float32"),
-            ("fSCA", "float32"),
-            ("alb", "float32"),
-            ("H", "float32"),
-            ("LE", "float32"),
-        ]
-    )
-    # ('Tsnow1', 'float32'), ('Tsnow2', 'float32'),
-    # ('Tsnow3', 'float32')
+    if cfg.run_smrt:
+        dt = np.dtype(
+            [
+                ("snd", "float32"),
+                ("SWE", "float32"),
+                ("Tsrf", "float32"),
+                ("fSCA", "float32"),
+                ("alb", "float32"),
+                ("H", "float32"),
+                ("LE", "float32"),
+                ("Rgrn1", "float32"),
+                ("Rgrn2", "float32"),
+                ("Rgrn3", "float32"),
+                ("Tsoil1", "float32"),
+                ("Tsoil2", "float32"),
+                ("Tsoil3", "float32"),
+                ("Tsoil4", "float32"),
+                ("Tsnow1", "float32"),
+                ("Tsnow2", "float32"),
+                ("Tsnow3", "float32"),
+                ("Vsmc1", "float32"),
+                ("Vsmc2", "float32"),
+                ("Vsmc3", "float32"),
+                ("Vsmc4", "float32"),
+                ("Dsnw1", "float32"),
+                ("Dsnw2", "float32"),
+                ("Dsnw3", "float32"),
+                ("Sice1", "float32"),
+                ("Sice2", "float32"),
+                ("Sice3", "float32"),
+                ("Sliq1", "float32"),
+                ("Sliq2", "float32"),
+                ("Sliq3", "float32"),
+            ]
+        )
+    else:
+        dt = np.dtype(
+            [
+                ("snd", "float32"),
+                ("SWE", "float32"),
+                ("Tsrf", "float32"),
+                ("fSCA", "float32"),
+                ("alb", "float32"),
+                ("H", "float32"),
+                ("LE", "float32"),
+            ]
+        )
 
     data = np.fromfile(state_dir, dtype=dt)
     state = pd.DataFrame(data)
@@ -1290,7 +1404,23 @@ def forcing_table(lat_idx, lon_idx, step=0):
         forcing_df["day"] = forcing_df["day"].dt.day
         forcing_df["hours"] = forcing_df["hours"].dt.hour
 
+        if cfg.run_smrt:
+            try:
+                k = ifn.nc_array_forcing(
+                    nc_forcing_path,
+                    lat_idx,
+                    lon_idx,
+                    param_var_names["k_var_name"],
+                    date_ini,
+                    date_end,
+                )
+            except KeyError:
+                k = np.repeat(cnt.k, len(prec))
+
+            forcing_df["k"] = k
+
         forcing_df = unit_conversion(forcing_df)
+
         if len(del_t) != len(forcing_df.index):
             raise Exception("date_end - date_ini longuer than forcing")
 

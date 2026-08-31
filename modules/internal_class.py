@@ -14,6 +14,9 @@ import shutil
 
 if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
+
+    if cfg.run_smrt:
+        import modules.FSM2SMRT as smrt
 elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
 elif cfg.numerical_model == "snow17":
@@ -143,6 +146,11 @@ class SnowEnsemble:
                 self.temp_dest, self.step
             )
 
+            if cfg.run_smrt:
+                k = forcing_sbst["k"].values[0]
+                idx_smrt = np.where(~np.isnan(self.observations))[0]
+                origin_state_tmp = smrt.run_SMRT(idx_smrt, origin_state_tmp, k)
+
         elif cfg.numerical_model in ["dIm", "snow17"]:
             if step == 0 and self.real_time_restart:
                 origin_state_tmp, origin_dump_tmp = model.model_run(
@@ -232,7 +240,7 @@ class SnowEnsemble:
                         forcing_sbst, noise=noise_tmp, update=True
                     )
 
-            # writte perturbed forcing
+            # write perturbed forcing
             if self.real_time_restart:
                 model.model_forcing_wrt(member_forcing, self.temp_dest, 1)
             else:
@@ -254,6 +262,11 @@ class SnowEnsemble:
                 state_tmp, dump_tmp = model.model_read_output(
                     self.temp_dest, self.step
                 )
+
+                if cfg.run_smrt:
+                    k = member_forcing["k"].values[0]
+                    idx_smrt = np.where(~np.isnan(self.observations))[0]
+                    state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
 
             elif cfg.numerical_model in ["dIm", "snow17"]:
                 if step != 0 or self.real_time_restart:
@@ -328,8 +341,12 @@ class SnowEnsemble:
                     state_tmp, dump_tmp = model.model_read_output(
                         self.temp_dest, self.step
                     )
-                    if state_tmp.empty:
-                        breakpoint()
+
+                    if cfg.run_smrt:
+                        k = member_forcing["k"].values[0]
+                        idx_smrt = np.where(~np.isnan(self.observations))[0]
+                        state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
+
                 elif cfg.numerical_model in ["dIm", "snow17"]:
 
                     if step != 0 or self.real_time_restart:
@@ -423,6 +440,11 @@ class SnowEnsemble:
                 state_tmp, dump_tmp = model.model_read_output(
                     self.temp_dest, self.step
                 )
+
+                if cfg.run_smrt:
+                    k = member_forcing["k"].values[0]
+                    idx_smrt = np.where(~np.isnan(self.observations))[0]
+                    state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
 
             elif cfg.numerical_model in ["dIm", "snow17"]:
                 if step != 0 or self.real_time_restart:

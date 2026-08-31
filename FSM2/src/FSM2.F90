@@ -1,5 +1,5 @@
 !----------------------------------------------------------------------!
-! Flexible Snow Model (FSM version 2.1.0)                              !
+! Flexible Snow Model (FSM version 2.1.1)                              !
 !                                                                      !
 ! Richard Essery                                                       !
 ! School of GeoSciences                                                !
@@ -19,7 +19,9 @@ use CONSTANTS, only: &
   hcon_sand           ! Thermal conductivity of sand (W/m/K)
 
 use IOUNITS, only: &
+  ucan,              &! Subcanopy diagnostics file unit number
   udmp,              &! Start / dump file unit number
+  uflx,              &! Flux output file unit number
   umet,              &! Meteorological driving file unit number
   usta                ! State output file unit number
 
@@ -297,7 +299,7 @@ allocate(Tsub(Npnts))
 allocate(Usub(Npnts))
 allocate(Wflx(Nsmax,Npnts))
 
-! Output files
+! Output fiDsnwles
 dump_file = 'dump'
 runid = 'none'
 read(5,outputs)
@@ -339,7 +341,8 @@ do
 #else
   call FSM2_OUTPUT(Npnts,year,month,day,hour,                          &
                    H,LE,LWout,LWsub,Melt,Roff,snd,snw,subl,svg,SWout,  &
-                   SWsub,Tsoil,Tsrf,Tsub,Tveg,Usub,fsnow,albs)
+                   SWsub,Tsoil,Tsrf,Tsub,Tveg,Usub,Rgrn,fsnow,albs,    &
+                   Tsnow, Vsmc, Dsnw, Sice, Sliq)
 #endif
 end do
 1 continue

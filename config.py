@@ -63,7 +63,7 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 100
+ensemble_members = 10
 Neffthrs = 0.1  # Low Neff threshold
 # MCMC parameters
 chain_len = 20000  # Length of the mcmc
@@ -305,6 +305,11 @@ EXCHNG = 1  # turbulent exchange            : 0, 1
 HYDROL = 2  # snow hydraulics               : 0, 1, 2
 SGRAIN = 2  # snow grain growth             : 1, 2
 SNFRAC = 3  # snow cover fraction           : 1, 2, 3
+
+# SMRT config
+run_smrt = False
+SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
+smrt_cores = 1  # Number of cores to use in smrt
 
 # -----------------------------------
 # Export option

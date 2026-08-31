@@ -9,19 +9,20 @@ cat > OPTS.h << EOF
 #define CANINT pyCANINT   /* canopy interception of snow   : 1, 2            */
 #define CANMOD pyCANMOD   /* forest canopy layers          : 1, 2            */
 #define CANRAD pyCANRAD   /* canopy radiative properties   : 1, 2            */
-#define CANUNL pyCANUL    /* unloading of canopy           : 1, 2            */
+#define CANUNL pyCANUNL   /* unloading of canopy           : 1, 2            */
 #define CONDCT pyCONDCT   /* snow thermal conductivity     : 0, 1            */
-#define DENSTY pyDENSTY  /* snow density                  : 0, 1, 2         */
+#define DENSTY pyDENSTY   /* snow density                  : 0, 1, 2         */
 #define EXCHNG pyEXCHNG   /* turbulent exchange            : 0, 1            */
 #define HYDROL pyHYDROL   /* snow hydraulics               : 0, 1, 2         */
 #define SGRAIN pySGRAIN   /* snow grain growth             : 1, 2            */
 #define SNFRAC pySNFRAC   /* snow cover fraction           : 1, 2            */
 /* Driving data options                             : Possible values */
-#define DRIV1D 1   /* 1D driving data format        : 1, 2            */
-#define SWPART 0   /* SW radiation partition        : 0, 1            */
-#define ZOFFST 1   /* measurement height offset     : 0, 1            */
+#define DRIV1D 1          /* 1D driving data format        : 1, 2            */
+#define SWPART 0          /* SW radiation partition        : 0, 1            */
+#define ZOFFST 1          /* measurement height offset     : 0, 1            */
 /* Output options                                   : Possible values */
-#define PROFNC 0   /* netCDF output                 : 0, 1            */
+#define PROFNC 0          /* netCDF output                 : 0, 1            */
+#define SMRT pySMRT       /* smrt output                   : 0, 1            */
 EOF
 
 $FC -cpp -o FSM2 pyOPT FSM2_MODULES.F90 FSM2_PARAMS.F90 FSM2.F90         \
