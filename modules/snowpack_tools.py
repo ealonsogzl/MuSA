@@ -5,6 +5,7 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -646,6 +647,11 @@ fields           = timestamp Layer_Thick  T  Vol_Frac_I  Vol_Frac_W  Vol_Frac_V 
 
 def write_nlst(wd_path, params=None, step=None):
 
+    if cfg.post_profile or cfg.run_smrt:
+        write_profile = True
+    else:
+        write_profile = False
+
     content = f"""[General]
     BUFFER_SIZE = 370
     BUFF_BEFORE = 1.5
@@ -674,7 +680,7 @@ def write_nlst(wd_path, params=None, step=None):
     SNOWPATH = RESTARTDATA
     SNOW_DAYS_BETWEEN = 9999.000000
     FIRST_BACKUP = 9999.000000
-    PROF_WRITE = {cfg.run_smrt}
+    PROF_WRITE = {write_profile}
     PROF_DAYS_BETWEEN = 4.1666e-2
     TS_WRITE = TRUE
     TS_FORMAT = SMET
@@ -898,6 +904,137 @@ def read_snowpack_profile(filename, variables, rename=None):
     return df
 
 
+def profile_to_subdomains(
+    df,
+    n_subdomains=3,
+    thickness_prefix="Dsnw",
+    stats=("mean", "min", "max"),
+):
+    """
+    Convierte perfiles SNOWPACK en un conjunto fijo de features.
+
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame generado a partir del perfil.
+    n_subdomains : int
+        Número de subdominios verticales.
+    thickness_prefix : str
+        Variable que contiene el espesor de capa.
+    stats : iterable
+
+    Returns
+    -------
+    DataFrame
+    """
+
+    # ------------------------
+    # identificar variables
+    # ------------------------
+
+    layer_pattern = re.compile(r"(.+)_layer(\d+)")
+
+    variables = set()
+
+    for col in df.columns:
+        m = layer_pattern.match(col)
+        if m:
+            variables.add(m.group(1))
+
+    # variables.discard(thickness_prefix)
+
+    outputs = []
+
+    for timestamp, row in df.iterrows():
+
+        out = {}
+
+        thickness_cols = sorted(
+            [c for c in df.columns if c.startswith(thickness_prefix)],
+            key=lambda x: int(x.split("layer")[-1]),
+        )
+
+        thickness = row[thickness_cols].values.astype(float)
+
+        thickness = thickness[np.isfinite(thickness)]
+
+        if len(thickness) == 0:
+            outputs.append(out)
+            continue
+
+        hs = np.sum(thickness)
+
+        if hs <= 0:
+            outputs.append(out)
+            continue
+
+        bottom = np.concatenate(([0], np.cumsum(thickness[:-1])))
+        top = np.cumsum(thickness)
+
+        bounds = np.linspace(0, hs, n_subdomains + 1)
+
+        # ----------------------------------
+        # recorrer variables
+        # ----------------------------------
+
+        for var in variables:
+
+            cols = sorted(
+                [c for c in df.columns if c.startswith(var + "_layer")],
+                key=lambda x: int(x.split("layer")[-1]),
+            )
+
+            vals = row[cols].values.astype(float)
+
+            for j in range(n_subdomains):
+
+                z0 = bounds[j]
+                z1 = bounds[j + 1]
+
+                overlap_vals = []
+                overlap_weights = []
+
+                for v, b, t in zip(vals, bottom, top):
+
+                    if np.isnan(v):
+                        continue
+
+                    overlap = max(0, min(t, z1) - max(b, z0))
+
+                    if overlap > 0:
+                        overlap_vals.append(v)
+                        overlap_weights.append(overlap)
+
+                if len(overlap_vals) == 0:
+
+                    mean_v = np.nan
+                    min_v = np.nan
+                    max_v = np.nan
+
+                else:
+
+                    overlap_vals = np.asarray(overlap_vals)
+                    overlap_weights = np.asarray(overlap_weights)
+
+                    mean_v = np.average(overlap_vals, weights=overlap_weights)
+
+                    min_v = np.min(overlap_vals)
+                    max_v = np.max(overlap_vals)
+
+                if "mean" in stats:
+                    out[f"{var}_sub{j+1}_mean"] = mean_v
+
+                if "min" in stats:
+                    out[f"{var}_sub{j+1}_min"] = min_v
+
+                if "max" in stats:
+                    out[f"{var}_sub{j+1}_max"] = max_v
+
+        outputs.append(out)
+
+    return pd.DataFrame(outputs, index=df.index)
+
+
 def model_read_output(wd_path, step, read_dump=True):
     """
     Read snowpack outputs and return it in a dataframe
@@ -942,20 +1079,46 @@ def model_read_output(wd_path, step, read_dump=True):
         )
         # Convertir unodades
 
-        cols = df.filter(like="Dsnw").columns
+        cols = df.filter(like="Dsnw_layer").columns
         df[cols] = df[cols] / 100
 
-        cols = df.filter(like="Tsnow").columns
+        cols = df.filter(like="Tsnow_layer").columns
         df[cols] = df[cols] + 273.15
 
-        cols = df.filter(like="Rgrn").columns
+        cols = df.filter(like="Rgrnm_layer").columns
         df[cols] = (df[cols] / 2) / 1000
 
-        cols = df.filter(like="lWE").columns
+        cols = df.filter(like="lWE_layer").columns
         df[cols] = df[cols] / 100
 
         state = pd.concat(
             [state.reset_index(drop=True), df.reset_index(drop=True)], axis=1
+        )
+
+    if cfg.post_profile:
+
+        file_pro = list(directory.glob("*.pro"))
+        df = read_snowpack_profile(
+            file_pro[0],
+            variables=[
+                "0501",  # height (cm)
+                "0502",  # density (kg m-3)
+            ],
+            rename={
+                "0501": "Dsnw",
+                "0502": "rhosnw",
+            },
+        )
+
+        domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
+
+        # Arreglar NaN, por ejemplo Dsnw = NaN ->0
+        cols = domains.filter(like="Dsnw_sub").columns
+        domains[cols] = domains[cols].fillna(0)
+
+        state = pd.concat(
+            [state.reset_index(drop=True), domains.reset_index(drop=True)],
+            axis=1,
         )
 
     # Hay que  quitar la fila de solape en las siguientes simulaciones

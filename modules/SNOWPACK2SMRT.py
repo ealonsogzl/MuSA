@@ -4,7 +4,7 @@
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
-import warnings
+# import warnings
 import pandas as pd
 import numpy as np
 import config as cfg
@@ -19,23 +19,23 @@ def run_SMRT(rows, statedataframe, k):
     for row in rows:
 
         # Snowpack
-        cols = statedataframe.filter(like="Rgrn").columns
+        cols = statedataframe.filter(like="Rgrnm_layer").columns
         Rgrn = statedataframe[cols].values[row]  # now layer grain radius
 
-        cols = statedataframe.filter(like="Dsnw").columns
+        cols = statedataframe.filter(like="Dsnw_layer").columns
         Dsnw = statedataframe[cols].values[row]  # snow thikness
 
-        cols = statedataframe.filter(like="lWE").columns
+        cols = statedataframe.filter(like="lWE_layer").columns
         lWE = statedataframe[cols].values[row]  # liq water
 
-        cols = statedataframe.filter(like="rhosnw").columns
+        cols = statedataframe.filter(like="rhosnw_layer").columns
         rhosnw = statedataframe[cols].values[row]  # density
 
-        cols = statedataframe.filter(like="Tsnow").columns
+        cols = statedataframe.filter(like="Tsnow_layer").columns
         tsnow = statedataframe[cols].values[row]  # snow temperature
 
         # Remove empty layers y any
-        Rgrn = Rgrn[~np.isnan(rhosnw)]
+        Rgrnm = Rgrn[~np.isnan(rhosnw)]
         Dsnw = Dsnw[~np.isnan(rhosnw)]
         lWE = lWE[~np.isnan(rhosnw)]
         tsnow = tsnow[~np.isnan(rhosnw)]
@@ -44,7 +44,7 @@ def run_SMRT(rows, statedataframe, k):
         # prepare inputs
 
         thickness = Dsnw
-        corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrn
+        corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrnm
         temperature = tsnow
         density = rhosnw
         # Soil
@@ -110,23 +110,8 @@ def run_SMRT(rows, statedataframe, k):
 
     statedataframe = statedataframe.join(results_df)
 
-    smrt_names = return_col_names()
-    if cfg.DAsord:
-        model_columns = (
-            "snd",
-            "SWE",
-            *smrt_names,
-            *cfg.DAord_names,
-        )
-
-    else:
-        model_columns = (
-            "snd",
-            "SWE",
-            *smrt_names,
-        )
-
-    statedataframe = statedataframe[list(model_columns)]  # remove some columns
+    cols = statedataframe.filter(like="layer").columns
+    statedataframe = statedataframe.drop(columns=cols)
 
     return statedataframe
 

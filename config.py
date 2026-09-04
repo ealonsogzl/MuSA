@@ -122,7 +122,7 @@ MPI = False
 # Note: if nprocess = None, the number of processors will be
 # estimated (max(n)-1). In HPC.array nprocess is an argument
 # (see e.g. run_slurm.sh), and this variable is ignored
-nprocess = 4
+nprocess = 6
 # number of threads used by numpy, configure carefully jointlly with nprocess
 # to avoid processor concurrency. numpy_threads = 1 is fine if you're not sure
 # what you're doing.
@@ -306,10 +306,19 @@ HYDROL = 2  # snow hydraulics               : 0, 1, 2
 SGRAIN = 2  # snow grain growth             : 1, 2
 SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 
-# SMRT config
+# -----------------------------------
+# SNOWPACK configuration
+# -----------------------------------
+
+post_profile = False
+pro_domains = 10
+
+# -----------------------------------
+# SMRT configuration
+# -----------------------------------
+
 run_smrt = False
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
-
 
 # -----------------------------------
 # Export option
