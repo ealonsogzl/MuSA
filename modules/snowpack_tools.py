@@ -1014,8 +1014,8 @@ def profile_to_subdomains(
                 else:
 
                     overlap_vals = np.asarray(overlap_vals)
-                    overlap_weights = np.asarray(overlap_weights)
-
+                    overlap_weights = np.asarray(overlap_weights) / np.sum(overlap_weights)
+  
                     mean_v = np.average(overlap_vals, weights=overlap_weights)
 
                     min_v = np.min(overlap_vals)
