@@ -5,7 +5,6 @@ dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=20_gnu
   - _python_abi3_support=1.0=hd8ed1ab_2
-  - _x86_64-microarch-level=3=3_x86_64_v3
   - aiohappyeyeballs=2.6.1=pyhd8ed1ab_0
   - aiohttp=3.13.3=py312h5d8c7f2_0
   - aiosignal=1.4.0=pyhd8ed1ab_0
