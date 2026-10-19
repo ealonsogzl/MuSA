@@ -409,7 +409,7 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
                 Aj = (propell.T - mj).T
                 B = np.linalg.solve(Cj, Aj)
                 psi = 0.5 * np.sum((Aj.T) * B.T, 1)
-                psi = psi - lcj
+                psi = lcj - psi
                 psij[:, j] = psi
             psijx = np.max(psij, 1)  # Ne
             psijs = (psij.T - psijx).T  # Ne x Nl
