@@ -58,6 +58,11 @@ load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
 da_algorithm = "PBS"
+# If da_DAW = None, the assimilation window will be the season for the smoothers
+# or 1 observation for the filters. Otherwise, it will be the number
+# of time steps chosen by the user. WARNING: Highly experimental. Results may
+# be unreliable and the implementation may change.
+da_DAW = None
 redraw_prior = False  # PF and PBS only
 max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,

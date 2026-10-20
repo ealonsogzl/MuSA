@@ -17,20 +17,22 @@ import numpy as np
 import multiprocessing as mp
 import pandas as pd
 import config as cfg
-if cfg.numerical_model == 'FSM2':
+
+if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
-elif cfg.numerical_model == 'dIm':
+elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
-elif cfg.numerical_model == 'snow17':
+elif cfg.numerical_model == "snow17":
     import modules.snow17_tools as model
-elif cfg.numerical_model == 'SNOWPACK':
+elif cfg.numerical_model == "SNOWPACK":
     import modules.snowpack_tools as model
 else:
-    raise Exception('Model not implemented')
+    raise Exception("Model not implemented")
 import pickle
 import blosc
 import warnings
 import pdcast as pdc
+
 if cfg.MPI:
     from mpi4py.futures import MPIPoolExecutor
 import re
@@ -44,11 +46,13 @@ def pre_cheks():
     This function is a kind of helper, which tries to find problems in
     the configuration (it will be improved with time).
     """
-    if cfg.load_prev_run and cfg.implementation == 'Spatial_propagation':
-        raise Exception('Disable Spatial_propagation if load_prev_run is '
-                        ' enabled, even considering that load_prev_run '
-                        'supports simulations generated from '
-                        'Spatial_propagation simulation.')
+    if cfg.load_prev_run and cfg.implementation == "Spatial_propagation":
+        raise Exception(
+            "Disable Spatial_propagation if load_prev_run is "
+            " enabled, even considering that load_prev_run "
+            "supports simulations generated from "
+            "Spatial_propagation simulation."
+        )
     if cfg.timeout and cfg.MPI:
         warnings.warn("timeout is ignored with MPI")
 
@@ -58,16 +62,16 @@ def pre_cheks():
             warnings.warn("FSM binary exists, reusing compile options")
 
     if cfg.write_stat_full and cfg.restart_run:
-        raise Exception(
-            "write_stat_full and restart_run cannot be activated \
+        raise Exception("write_stat_full and restart_run cannot be activated \
                 simultaneously. To be implemented.")
 
     if cfg.write_stat_daily and cfg.restart_run:
-        raise Exception(
-            "write_stat_daily and restart_run cannot be activated \
+        raise Exception("write_stat_daily and restart_run cannot be activated \
                 simultaneously. To be implemented.")
-    if cfg.da_algorithm not in ["ES", "IES"] and cfg.implementation ==\
-            'Spatial_propagation':
+    if (
+        cfg.da_algorithm not in ["ES", "IES"]
+        and cfg.implementation == "Spatial_propagation"
+    ):
         raise Exception("Spatial_propagation needs ES/IES methods")
 
     if cfg.spatial_in_mem and cfg.parallelization == "HPC.array":
@@ -75,7 +79,7 @@ def pre_cheks():
 
 
 def last_line(filename):
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         lineas = file.readlines()
         if lineas:
             return lineas[-1]
@@ -91,7 +95,7 @@ def return_step_j(logfile):
         # Si la última línea existe, extraer los valores de step y j
         if ultima_linea:
             # Usar una expresión regular para extraer los valores
-            match = re.search(r'step:\s*(\d+)\s*-\s*j:\s*(\d+)', ultima_linea)
+            match = re.search(r"step:\s*(\d+)\s*-\s*j:\s*(\d+)", ultima_linea)
             if match:
                 step = int(match.group(1))
                 j = int(match.group(2))
@@ -104,23 +108,31 @@ def return_step_j(logfile):
     except Exception:
         step = 0
         j = 0
-        print('Not possible to restart, check spatiallogfile.txt for errors.',
-              'Starting simulation from the beginning')
+        print(
+            "Not possible to restart, check spatiallogfile.txt for errors.",
+            "Starting simulation from the beginning",
+        )
         return step, j
 
 
 def change_chunk_size_nccopy(input_file):
     # Open the input NetCDF file to get dimension sizes
-    with nc.Dataset(input_file, 'r') as dataset:
+    with nc.Dataset(input_file, "r") as dataset:
         # Determine chunk sizes based on dimensions
-        chunk_sizes = {dim: min(50, len(dataset.dimensions[dim]))
-                       for dim in dataset.dimensions}
+        chunk_sizes = {
+            dim: min(50, len(dataset.dimensions[dim]))
+            for dim in dataset.dimensions
+        }
 
     # Build the nccopy command to copy to a temporary file
-    temp_file = input_file + '.temp'
-    command = ["nccopy", "-c", ",".join(f"{dim}/{size}"
-                                        for dim, size in chunk_sizes.items()),
-               input_file, temp_file]
+    temp_file = input_file + ".temp"
+    command = [
+        "nccopy",
+        "-c",
+        ",".join(f"{dim}/{size}" for dim, size in chunk_sizes.items()),
+        input_file,
+        temp_file,
+    ]
 
     # Execute the command
     try:
@@ -133,8 +145,10 @@ def change_chunk_size_nccopy(input_file):
         print("File replaced successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Error: {e}")
-        print(f"Not possible to chunk file: {input_file}."
-              "Manual chunking is recommended")
+        print(
+            f"Not possible to chunk file: {input_file}."
+            "Manual chunking is recommended"
+        )
 
 
 def io_write(filename_or_obj, obj=None, codec="lz4", clevel=3, in_mem=False):
@@ -143,8 +157,9 @@ def io_write(filename_or_obj, obj=None, codec="lz4", clevel=3, in_mem=False):
     Si in_mem=True, devuelve un buffer de bytes.
     Si in_mem=False, escribe a un archivo.
     """
-    pickled = pickle.dumps(filename_or_obj if in_mem else obj,
-                           protocol=pickle.HIGHEST_PROTOCOL)
+    pickled = pickle.dumps(
+        filename_or_obj if in_mem else obj, protocol=pickle.HIGHEST_PROTOCOL
+    )
 
     compressed = blosc.compress(pickled, cname=codec, clevel=clevel)
 
@@ -200,18 +215,17 @@ def reduce_size_state(df_state, observations):
 def downcast_output(output):
     # Save some space
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
 
         for n in output.keys():
 
-            output[n] = pdc.downcast(output[n],
-                                     numpy_dtypes_only=True)
+            output[n] = pdc.downcast(output[n], numpy_dtypes_only=True)
     return output
 
 
 def chunker(seq, size):
     """Split a list into chunks of size `size`."""
-    return [seq[i:i + size] for i in range(0, len(seq), size)]
+    return [seq[i : i + size] for i in range(0, len(seq), size)]
 
 
 def pool_wrap(func, inputs, nprocess, timeout=None):
@@ -279,8 +293,9 @@ def safe_pool(func, inputs, nprocess, in_mem=False):
         while True:
             try:
                 # Ejecuta el pool y recoge resultados
-                results = pool_wrap(func, chunk_input,
-                                    nprocess, timeout=timeout)
+                results = pool_wrap(
+                    func, chunk_input, nprocess, timeout=timeout
+                )
 
                 # Si hay que acumular resultados en memoria
                 if in_mem:
@@ -308,17 +323,25 @@ def get_dates_obs():
     if type(dates_obs) is list:
 
         dates_obs.sort()
-        dates_obs = np.asarray([dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
-                                for date in dates_obs])
+        dates_obs = np.asarray(
+            [
+                dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+                for date in dates_obs
+            ]
+        )
     elif type(dates_obs) is str:
 
         dates_obs = pd.read_csv(dates_obs, header=None)
         dates_obs = dates_obs.iloc[:, 0].tolist()
-        dates_obs = np.asarray([dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
-                                for date in dates_obs])
+        dates_obs = np.asarray(
+            [
+                dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
+                for date in dates_obs
+            ]
+        )
 
     else:
-        raise Exception('Bad obs date format')
+        raise Exception("Bad obs date format")
 
     return dates_obs
 
@@ -363,9 +386,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
     obs_storage = {var: [] for var in obs_var_names}
 
     if r_cov == "dynamic_error":
-        error_storage = {
-            err_var: [] for err_var in cfg.obs_error_var_names
-        }
+        error_storage = {err_var: [] for err_var in cfg.obs_error_var_names}
 
     # Leer cada fichero una sola vez
     for ncfile in files:
@@ -389,9 +410,7 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
                 for err_var in cfg.obs_error_var_names:
 
-                    values = ds.variables[err_var][:,
-                                                   lat_idx,
-                                                   lon_idx]
+                    values = ds.variables[err_var][:, lat_idx, lon_idx]
 
                     if np.ma.is_masked(values):
                         values = values.filled(np.nan)
@@ -471,8 +490,9 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
     return np.asarray(del_t)
 
 
-def nc_array_forcing(nc_forcing_path, lat_idx, lon_idx, nc_var_name,
-                     date_ini, date_end):
+def nc_array_forcing(
+    nc_forcing_path, lat_idx, lon_idx, nc_var_name, date_ini, date_end
+):
     """
     Extract an array of forcing timesteps from an nc
     Parameters
@@ -581,9 +601,9 @@ def expand_grid():
 
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:]
+        mask_value = mask.variables["mask"][:]
         mask.close()
-        mask = mask_value.flatten('F')
+        mask = mask_value.flatten("F")
 
         grid = grid[mask == 1]
         grid = np.squeeze(grid)
@@ -620,20 +640,39 @@ def simulation_steps(observations, dates_obs):
     months = [date.month for date in del_t]
     hours = [date.hour for date in del_t]
 
-    season_ini_cuts = np.argwhere((np.asarray(days) == season_ini_day) &
-                                  (np.asarray(months) == season_ini_month) &
-                                  (np.asarray(hours) == 0))
+    season_ini_cuts = np.argwhere(
+        (np.asarray(days) == season_ini_day)
+        & (np.asarray(months) == season_ini_month)
+        & (np.asarray(hours) == 0)
+    )
 
     if cfg.load_prev_run:
         assimilation_steps = 0
+
+    elif cfg.da_DAW is not None:
+        assimilation_steps = np.arange(
+            cfg.da_DAW - 1,
+            len(del_t),
+            cfg.da_DAW,
+        )[:-1]
+
     else:
-        if da_algorithm in ['PBS', 'ES', 'IES', 'IES-MCMC', 'IES-MCMC_AI',
-                            'PIES', 'ProPBS', 'AdaPBS']:
+
+        if da_algorithm in [
+            "PBS",
+            "ES",
+            "IES",
+            "IES-MCMC",
+            "IES-MCMC_AI",
+            "PIES",
+            "ProPBS",
+            "AdaPBS",
+        ]:
             assimilation_steps = season_ini_cuts[:, 0]
-        elif (da_algorithm in ['PF', 'EnKF', 'IEnKF']):
+        elif da_algorithm in ["PF", "EnKF", "IEnKF"]:
             # HACK: I add one to easy the subset of the forcing
             assimilation_steps = obs_idx + 1
-        elif (da_algorithm == 'deterministic_OL'):
+        elif da_algorithm == "deterministic_OL":
             assimilation_steps = 0
         else:
             raise Exception("Choose between smoothing or filtering")
@@ -643,23 +682,25 @@ def simulation_steps(observations, dates_obs):
     assimilation_steps = np.append(assimilation_steps, lng_del_t)
     assimilation_steps = np.unique(assimilation_steps)
 
-    return {"del_t": del_t,
-            "obs_idx": obs_idx,
-            "Assimilation_steps": assimilation_steps}
+    return {
+        "del_t": del_t,
+        "obs_idx": obs_idx,
+        "Assimilation_steps": assimilation_steps,
+    }
 
 
 def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
 
-    if cfg.da_algorithm != 'deterministic_OL':
+    if cfg.da_algorithm != "deterministic_OL":
         print("No observations in: " + str(lat_idx) + "," + str(lon_idx))
     # create temporal simulation
     temp_dest = model.model_copy(lat_idx, lon_idx)
     real_forcing = main_forcing.copy()
     model.model_forcing_wrt(real_forcing, temp_dest, step=0)
-    if cfg.numerical_model in ['FSM2']:
+    if cfg.numerical_model in ["FSM2"]:
         model.model_run(temp_dest)
         state = model.model_read_output(temp_dest, read_dump=False)
-    elif cfg.numerical_model in ['dIm', 'snow17']:
+    elif cfg.numerical_model in ["dIm", "snow17"]:
         state = model.model_run(real_forcing)[0]
     else:
         Exception("Numerical model not implemented")
