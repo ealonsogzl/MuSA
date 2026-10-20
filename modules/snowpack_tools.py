@@ -919,12 +919,19 @@ def profile_to_subdomains(
 
     layer_pattern = re.compile(r"(.+)_layer(\d+)")
 
-    variables = set()
+    variables = sorted({m.group(1)
+        for col in df.columns
+        if (m := layer_pattern.match(col))
+    })
 
-    for col in df.columns:
-        m = layer_pattern.match(col)
-        if m:
-            variables.add(m.group(1))
+    def layer_num(c):
+        return int(c.split("layer")[-1])
+
+    thickness_cols = sorted(
+        df.filter(regex=rf"^{thickness_prefix}_layer\d+$").columns, key=layer_num)
+    var_cols = {
+        var: sorted(df.filter(regex=rf"^{var}_layer\d+$").columns, key=layer_num)
+        for var in variables}
 
     # variables.discard(thickness_prefix)
 
@@ -934,28 +941,17 @@ def profile_to_subdomains(
 
         out = {}
 
-        thickness_cols = sorted(
-            [c for c in df.columns if c.startswith(thickness_prefix)],
-            key=lambda x: int(x.split("layer")[-1]),
-        )
-
         thickness = row[thickness_cols].values.astype(float)
-
         thickness = thickness[np.isfinite(thickness)]
+        n = len(thickness)
 
-        if len(thickness) == 0:
+        # no layers / no snow -> row of NaNs
+        if n == 0 or thickness[-1] <= 0:
             outputs.append(out)
             continue
 
-        hs = np.sum(thickness)
-
-        if hs <= 0:
-            outputs.append(out)
-            continue
-
-        bottom = np.concatenate(([0], np.cumsum(thickness[:-1])))
-        top = np.cumsum(thickness)
-
+        hs = thickness[-1]
+        bottom = np.concatenate(([0.0], thickness[:-1]))
         bounds = np.linspace(0, hs, n_subdomains + 1)
 
         # ----------------------------------
@@ -964,46 +960,35 @@ def profile_to_subdomains(
 
         for var in variables:
 
-            cols = sorted(
-                [c for c in df.columns if c.startswith(var + "_layer")],
-                key=lambda x: int(x.split("layer")[-1]),
-            )
-
-            vals = row[cols].values.astype(float)
+            vals = row[var_cols[var]].values.astype(float)[:n]
 
             for j in range(n_subdomains):
 
-                z0 = bounds[j]
-                z1 = bounds[j + 1]
+                z0, z1 = bounds[j], bounds[j + 1]
 
-                overlap_vals = []
-                overlap_weights = []
+                overlap_vals, overlap_weights = [], []
 
-                for v, b, t in zip(vals, bottom, top):
+                for v, b, t in zip(vals, bottom, thickness):
 
                     if np.isnan(v):
                         continue
 
                     overlap = max(0, min(t, z1) - max(b, z0))
 
-                    if overlap > 0:
+                    if overlap > 1e-9:
                         overlap_vals.append(v)
                         overlap_weights.append(overlap)
 
                 if len(overlap_vals) == 0:
 
-                    mean_v = np.nan
-                    min_v = np.nan
-                    max_v = np.nan
+                    mean_v = min_v = max_v = np.nan
 
                 else:
 
                     overlap_vals = np.asarray(overlap_vals)
-                    overlap_weights = np.asarray(overlap_weights) / np.sum(
-                        overlap_weights
-                    )
+                    w = np.asarray(overlap_weights)
 
-                    mean_v = np.average(overlap_vals, weights=overlap_weights)
+                    mean_v = np.average(overlap_vals, weights=w)
 
                     min_v = np.min(overlap_vals)
                     max_v = np.max(overlap_vals)
