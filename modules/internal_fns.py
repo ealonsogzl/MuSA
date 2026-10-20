@@ -650,12 +650,21 @@ def simulation_steps(observations, dates_obs):
         assimilation_steps = 0
 
     elif cfg.da_DAW is not None:
+        breakpoint()
         assimilation_steps = np.arange(
             cfg.da_DAW - 1,
             len(del_t),
             cfg.da_DAW,
         )[:-1]
 
+        has_observations = np.array(
+            [
+                np.any((obs_idx > step - cfg.da_DAW) & (obs_idx <= step))
+                for step in assimilation_steps
+            ]
+        )
+
+        assimilation_steps[has_observations]
     else:
 
         if da_algorithm in [
