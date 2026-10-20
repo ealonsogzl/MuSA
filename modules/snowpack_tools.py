@@ -893,7 +893,7 @@ def profile_to_subdomains(
     df,
     n_subdomains=3,
     thickness_prefix="Dsnw",
-    stats=("mean", "min", "max"),
+    # stats=("mean", "min", "max"),
 ):
     """
     Convierte perfiles SNOWPACK en un conjunto fijo de features.
@@ -919,19 +919,23 @@ def profile_to_subdomains(
 
     layer_pattern = re.compile(r"(.+)_layer(\d+)")
 
-    variables = sorted({m.group(1)
-        for col in df.columns
-        if (m := layer_pattern.match(col))
-    })
+    variables = sorted(
+        {m.group(1) for col in df.columns if (m := layer_pattern.match(col))}
+    )
 
     def layer_num(c):
         return int(c.split("layer")[-1])
 
     thickness_cols = sorted(
-        df.filter(regex=rf"^{thickness_prefix}_layer\d+$").columns, key=layer_num)
+        df.filter(regex=rf"^{thickness_prefix}_layer\d+$").columns,
+        key=layer_num,
+    )
     var_cols = {
-        var: sorted(df.filter(regex=rf"^{var}_layer\d+$").columns, key=layer_num)
-        for var in variables}
+        var: sorted(
+            df.filter(regex=rf"^{var}_layer\d+$").columns, key=layer_num
+        )
+        for var in variables
+    }
 
     # variables.discard(thickness_prefix)
 
@@ -981,26 +985,15 @@ def profile_to_subdomains(
 
                 if len(overlap_vals) == 0:
 
-                    mean_v = min_v = max_v = np.nan
-
+                    sum_v = np.nan
                 else:
 
                     overlap_vals = np.asarray(overlap_vals)
-                    w = np.asarray(overlap_weights)
+                    w = np.asarray(overlap_weights / np.sum(overlap_weights))
 
-                    mean_v = np.average(overlap_vals, weights=w)
+                    sum_v = np.sum(overlap_vals * w)
 
-                    min_v = np.min(overlap_vals)
-                    max_v = np.max(overlap_vals)
-
-                if "mean" in stats:
-                    out[f"{var}_sub{j+1}_mean"] = mean_v
-
-                if "min" in stats:
-                    out[f"{var}_sub{j+1}_min"] = min_v
-
-                if "max" in stats:
-                    out[f"{var}_sub{j+1}_max"] = max_v
+                    out[f"{var}_sub{j+1}"] = sum_v
 
         outputs.append(out)
 
@@ -1044,11 +1037,22 @@ def model_read_output(wd_path, step, read_dump=True):
             },
         )
 
-        domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
+        D = df.filter(regex=r"^Dsnw_layer") / 100
+        rho = df.filter(regex=r"^rhosnw_layer")
 
-        # Arreglar NaN, por ejemplo Dsnw = NaN ->0
-        cols = domains.filter(like="Dsnw_sub").columns
-        domains[cols] = domains[cols].fillna(0)
+        SWE = pd.DataFrame(
+            D.to_numpy() * rho.to_numpy(),
+            index=D.index,
+            columns=[f"SWE_layer{i}" for i in range(1, D.shape[1] + 1)],
+        )
+
+        df = pd.concat([D, SWE], axis=1)
+
+        domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
+        domains = domains.drop(columns=domains.filter(regex="Dsnw").columns)
+
+        # Si no snow, SWE = 0
+        domains = domains.fillna(0)
 
         state = pd.concat(
             [state.reset_index(drop=True), domains.reset_index(drop=True)],
