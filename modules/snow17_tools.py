@@ -23,10 +23,12 @@ from datetime import datetime, timedelta
 if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
 
+model_columns = ["SWE", "snd", "outflow"]
+
 if cfg.DAsord:
-    model_columns = ("SWE", "snd", "outflow", tuple(cfg.DAord_names))
-else:
-    model_columns = ("SWE", "snd", "outflow")
+    model_columns.extend(cfg.DAord_names)
+
+model_columns = tuple(model_columns)
 
 
 def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat

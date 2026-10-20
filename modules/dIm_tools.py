@@ -24,10 +24,12 @@ if cfg.DAsord:
     from modules.user_optional_fns import snd_ord
 
 
+model_columns = ["SWE", "snd", "fSCA"]
+
 if cfg.DAsord:
-    model_columns = ("SWE", "snd", "fSCA", tuple(cfg.DAord_names))
-else:
-    model_columns = ("SWE", "snd", "fSCA")
+    model_columns.extend(cfg.DAord_names)
+
+model_columns = tuple(model_columns)
 
 
 def prepare_forz(forcing_sbst):

@@ -33,18 +33,19 @@ if cfg.run_smrt:
     import modules.FSM2SMRT as smrt
 # TODO: homogenize documentation format
 
+model_columns = [
+    "snd",
+    "SWE",
+    "Tsrf",
+    "fSCA",
+    "alb",
+    "H",
+    "LE",
+]
+
 if cfg.run_smrt:
-
-    smrt_names = smrt.return_col_names()
-    if cfg.DAsord:
-        model_columns = (
-            "snd",
-            "SWE",
-            "Tsrf",
-            "fSCA",
-            "alb",
-            "H",
-            "LE",
+    model_columns.extend(
+        [
             "Rgrn1",
             "Rgrn2",
             "Rgrn3",
@@ -68,60 +69,15 @@ if cfg.run_smrt:
             "Sliq1",
             "Sliq2",
             "Sliq3",
-            *smrt_names,
-            *cfg.DAord_names,
-        )
+        ]
+    )
 
-    else:
-        model_columns = (
-            "snd",
-            "SWE",
-            "Tsrf",
-            "fSCA",
-            "alb",
-            "H",
-            "LE",
-            "Rgrn1",
-            "Rgrn2",
-            "Rgrn3",
-            "Tsoil1",
-            "Tsoil2",
-            "Tsoil3",
-            "Tsoil4",
-            "Tsnow1",
-            "Tsnow2",
-            "Tsnow3",
-            "Vsmc1",
-            "Vsmc2",
-            "Vsmc3",
-            "Vsmc4",
-            "Dsnw1",
-            "Dsnw2",
-            "Dsnw3",
-            "Sice1",
-            "Sice2",
-            "Sice3",
-            "Sliq1",
-            "Sliq2",
-            "Sliq3",
-            *smrt_names,
-        )
-else:
-    if cfg.DAsord:
-        model_columns = (
-            "snd",
-            "SWE",
-            "Tsrf",
-            "fSCA",
-            "alb",
-            "H",
-            "LE",
-            tuple(cfg.DAord_names),
-        )
+    model_columns.extend(smrt.return_col_names())
 
-    else:
-        model_columns = ("snd", "SWE", "Tsrf", "fSCA", "alb", "H", "LE")
-    # , "Tsnow1", "Tsnow2", "Tsnow3",)
+if cfg.DAsord:
+    model_columns.extend(cfg.DAord_names)
+
+model_columns = tuple(model_columns)
 # TODO: create a smarter function that changes the compilation of FSM and
 # pd colum names dynamically to reduce/increase the model outputs.
 

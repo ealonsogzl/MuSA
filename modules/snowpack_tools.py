@@ -30,33 +30,18 @@ if cfg.run_smrt:
     import modules.SNOWPACK2SMRT as smrt
 # TODO: homogenize documentation format
 
+model_columns = ["snd", "SWE"]
+
+if cfg.post_profile:
+    model_columns.extend(f"SWE_sub{i}" for i in range(1, cfg.pro_domains + 1))
+
 if cfg.run_smrt:
+    model_columns.extend(smrt.return_col_names())
 
-    smrt_names = smrt.return_col_names()
-    if cfg.DAsord:
-        model_columns = (
-            "snd",
-            "SWE",
-            *smrt_names,
-            *cfg.DAord_names,
-        )
+if cfg.DAsord:
+    model_columns.extend(cfg.DAord_names)
 
-    else:
-        model_columns = (
-            "snd",
-            "SWE",
-            *smrt_names,
-        )
-else:
-    if cfg.DAsord:
-        model_columns = (
-            "snd",
-            "SWE",
-            tuple(cfg.DAord_names),
-        )
-
-    else:
-        model_columns = ("snd", "SWE")
+model_columns = tuple(model_columns)
 
 
 def model_copy(y_id, x_id):
@@ -1014,8 +999,10 @@ def profile_to_subdomains(
                 else:
 
                     overlap_vals = np.asarray(overlap_vals)
-                    overlap_weights = np.asarray(overlap_weights) / np.sum(overlap_weights)
-  
+                    overlap_weights = np.asarray(overlap_weights) / np.sum(
+                        overlap_weights
+                    )
+
                     mean_v = np.average(overlap_vals, weights=overlap_weights)
 
                     min_v = np.min(overlap_vals)
@@ -1057,6 +1044,32 @@ def model_read_output(wd_path, step, read_dump=True):
     # Traslate into MuSA (vars and units)
     state.columns = ["snd", "SWE"]
 
+    if cfg.post_profile:
+
+        file_pro = list(directory.glob("*.pro"))
+        df = read_snowpack_profile(
+            file_pro[0],
+            variables=[
+                "0501",  # height (cm)
+                "0502",  # density (kg m-3)
+            ],
+            rename={
+                "0501": "Dsnw",
+                "0502": "rhosnw",
+            },
+        )
+
+        domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
+
+        # Arreglar NaN, por ejemplo Dsnw = NaN ->0
+        cols = domains.filter(like="Dsnw_sub").columns
+        domains[cols] = domains[cols].fillna(0)
+
+        state = pd.concat(
+            [state.reset_index(drop=True), domains.reset_index(drop=True)],
+            axis=1,
+        )
+
     if cfg.run_smrt:
 
         file_pro = list(directory.glob("*.pro"))
@@ -1094,33 +1107,6 @@ def model_read_output(wd_path, step, read_dump=True):
         state = pd.concat(
             [state.reset_index(drop=True), df.reset_index(drop=True)], axis=1
         )
-
-    if cfg.post_profile:
-
-        file_pro = list(directory.glob("*.pro"))
-        df = read_snowpack_profile(
-            file_pro[0],
-            variables=[
-                "0501",  # height (cm)
-                "0502",  # density (kg m-3)
-            ],
-            rename={
-                "0501": "Dsnw",
-                "0502": "rhosnw",
-            },
-        )
-
-        domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
-
-        # Arreglar NaN, por ejemplo Dsnw = NaN ->0
-        cols = domains.filter(like="Dsnw_sub").columns
-        domains[cols] = domains[cols].fillna(0)
-
-        state = pd.concat(
-            [state.reset_index(drop=True), domains.reset_index(drop=True)],
-            axis=1,
-        )
-
     # Hay que  quitar la fila de solape en las siguientes simulaciones
     if step > 0:
         state = state.iloc[1:]
