@@ -705,7 +705,7 @@ def write_nlst(wd_path, params=None, step=None):
     COMBINE_ELEMENTS = TRUE
     REDUCE_N_ELEMENTS = TRUE
     HEIGHT_NEW_ELEM = 0.03
-    MINIMUM_L_ELEMENT = 0.01
+    MINIMUM_L_ELEMENT = 0.02
     """
     filename = Path(os.path.join(wd_path, "io_justacell.ini"))
     with open(filename, "w") as f:
@@ -970,18 +970,19 @@ def profile_to_subdomains(
 
                 z0, z1 = bounds[j], bounds[j + 1]
 
-                overlap_vals, overlap_weights = [], []
+                overlap_vals, overlap_weights, overlap_frac = [], [], []
 
                 for v, b, t in zip(vals, bottom, thickness):
 
                     if np.isnan(v):
                         continue
-
+                    dz = t - b
                     overlap = max(0, min(t, z1) - max(b, z0))
 
                     if overlap > 1e-9:
                         overlap_vals.append(v)
                         overlap_weights.append(overlap)
+                        overlap_frac.append(overlap / dz)
 
                 if len(overlap_vals) == 0:
 
@@ -989,9 +990,8 @@ def profile_to_subdomains(
                 else:
 
                     overlap_vals = np.asarray(overlap_vals)
-                    w = np.asarray(overlap_weights / np.sum(overlap_weights))
 
-                    sum_v = np.sum(overlap_vals * w)
+                    sum_v = np.sum(overlap_vals * overlap_frac)
 
                     out[f"{var}_sub{j+1}"] = sum_v
 
@@ -1038,10 +1038,15 @@ def model_read_output(wd_path, step, read_dump=True):
         )
 
         D = df.filter(regex=r"^Dsnw_layer") / 100
+        # Espesor de cada capa
+        thick = D.diff(axis=1)
+
+        # La primera capa va desde el suelo
+        thick.iloc[:, 0] = D.iloc[:, 0]
         rho = df.filter(regex=r"^rhosnw_layer")
 
         SWE = pd.DataFrame(
-            D.to_numpy() * rho.to_numpy(),
+            thick.to_numpy() * rho.to_numpy(),
             index=D.index,
             columns=[f"SWE_layer{i}" for i in range(1, D.shape[1] + 1)],
         )
@@ -1058,7 +1063,7 @@ def model_read_output(wd_path, step, read_dump=True):
             [state.reset_index(drop=True), domains.reset_index(drop=True)],
             axis=1,
         )
-
+        breakpoint()
     if cfg.run_smrt:
 
         file_pro = list(directory.glob("*.pro"))
