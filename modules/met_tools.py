@@ -8,62 +8,101 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import numpy as np
-from scipy.optimize import newton
 from scipy.special import expit, logit
+from scipy.optimize import root_scalar
 import constants as cnt
 import config as cfg
 from statsmodels.stats.weightstats import DescrStatsW
 import modules.spatialMuSA as spM
 
 
-def pp_psychrometric(ta2, rh2, precc, ret_fr = False):
+def pp_psychrometric(ta2, rh2, precc, ret_fr=False):
 
-    ta2_c = ta2 - cnt.KELVING_CONVER             # temp in [ºC]
+    ta2 = np.asarray(ta2, dtype=float)
+    rh2 = np.asarray(rh2, dtype=float)
+    precc = np.asarray(precc, dtype=float)
 
-    # L = latent heat of sublimation or vaporisation [J kg**-1]
-    latn_h = np.where(ta2_c >= 0,
-                      1000 * (2501 - (2.361 * ta2_c)),
-                      1000 * (2834.1 - 0.29 * ta2_c - 0.004 * ta2_c**2))
+    tc = ta2 - cnt.KELVING_CONVER
 
-    # thermal conduc of air [J (msK)**-1]
+    # Latent heat [J kg-1]
+    latn_h = np.where(
+        tc >= 0,
+        1000.0 * (2501.0 - 2.361 * tc),
+        1000.0 * (2834.1 - 0.29 * tc - 0.004 * tc**2),
+    )
+
+    # Thermal conductivity of air [W m-1 K-1]
     thr_cond = 0.000063 * ta2 + 0.00673
-    # diffusivity of vapour [m**2 s**-1]
-    dif_wv = 2.06E-5 * (ta2/273.15)**1.75
-    # vapour pressure [KPa]
-    e_press = (rh2/100) * 0.611 * np.exp((17.3 * ta2_c)/(ta2_c + 237.3))
-    # vapour pressure [Pa]
-    e_press = e_press * 1000
-    # water vapour density in atmosphere kg m**-3
+
+    # Water vapour diffusivity [m2 s-1]
+    dif_wv = 2.06e-5 * (ta2 / 273.15) ** 1.75
+
+    # Vapour pressure [Pa]
+    e_press = (rh2 / 100.0) * 611.0 * np.exp((17.3 * tc) / (tc + 237.3))
+
+    # Vapour density [kg m-3]
     pta = (cnt.MW * e_press) / (cnt.R * ta2)
 
-    def eti(surf_ti):  # Vapour pressure ecuation
-        return 0.611 * 1000 * np.exp((17.3 * (surf_ti - 273) /
-                                      ((surf_ti - 273) + 237.3)))
+    def eti(T):
+        Tc = T - cnt.KELVING_CONVER
+        return 611.0 * np.exp((17.3 * Tc) / (Tc + 237.3))
 
-    def pti(surf_ti):  # Vapour density ecuation
-        return (cnt.MW * eti(surf_ti)) / (cnt.R * surf_ti)
+    def pti(T):
+        return (cnt.MW * eti(T)) / (cnt.R * T)
 
-    def ti_ecuation(surf_ti):  # Objetive function to solve
-        return ta2 + (dif_wv / thr_cond) * latn_h * (pta -
-                                                     pti(surf_ti)) - surf_ti
+    # Scalar version for root finding
+    def solve_surface_temperature(Ta, pta_, Dv, k, L):
 
-    # Hidrometeor Surface temperature [ºK]
-    surf_ti = newton(ti_ecuation, ta2)
-    surf_ti = np.where(np.isfinite(surf_ti), surf_ti, ta2)  # if root fails
-    # Liquid precipitation fraction
-    rain_fr = 1 / (1 + 2.50286 * 0.125006**(surf_ti - cnt.KELVING_CONVER))
+        def f(T):
+            return Ta + (Dv / k) * L * (pta_ - pti(T)) - T
+
+        try:
+            sol = root_scalar(
+                f,
+                method="brentq",
+                bracket=[223.15, 323.15],
+            )
+
+            if sol.converged:
+                return sol.root
+
+        except ValueError:
+            pass
+
+        return Ta
+
+    surf_ti = np.vectorize(solve_surface_temperature)(
+        ta2,
+        pta,
+        dif_wv,
+        thr_cond,
+        latn_h,
+    )
+
+    # Liquid fraction
+    rain_fr = 1.0 / (
+        1.0
+        + 2.50286
+        * np.power(
+            0.125006,
+            surf_ti - cnt.KELVING_CONVER,
+        )
+    )
+
+    rain_fr = np.clip(rain_fr, 0.0, 1.0)
 
     liquid_prec = precc * rain_fr
-    solid_prec = precc * (1-rain_fr)
+    solid_prec = precc * (1.0 - rain_fr)
 
-    # Remove very low precipitations that can break the model
-    solid_prec[solid_prec < 0.1/3600] = 0
-    liquid_prec[liquid_prec < 0.1/3600] = 0
+    thresh = 0.1 / 3600.0
+
+    liquid_prec = np.where(liquid_prec < thresh, 0.0, liquid_prec)
+    solid_prec = np.where(solid_prec < thresh, 0.0, solid_prec)
 
     if ret_fr:
         return liquid_prec, solid_prec, rain_fr
-    else:
-        return liquid_prec, solid_prec
+
+    return liquid_prec, solid_prec
 
 
 def pp_temp_thld_log(ta2, precc):
@@ -72,8 +111,8 @@ def pp_temp_thld_log(ta2, precc):
     thres_prec = 273.689  # Threshold where 50% falls as rain/snow
     # Parameter influencing the temperature range with mixed precipitation
 
-    Tp = (ta2 - thres_prec)/m_prec
-    p_multi = np.exp(Tp)/(1 + np.exp(Tp))
+    Tp = (ta2 - thres_prec) / m_prec
+    p_multi = np.exp(Tp) / (1 + np.exp(Tp))
 
     liquid_prec = p_multi * precc
     solid_prec = precc - liquid_prec
@@ -88,20 +127,20 @@ def pres_from_dem(topo):
 
     one_atmos = 101300.0
     scale_ht = 8000.0
-    sfc_pressure = one_atmos * np.exp(- topo/scale_ht)
+    sfc_pressure = one_atmos * np.exp(-topo / scale_ht)
     return sfc_pressure
 
 
 def linear_liston(ta2, precc):
 
-    temp_C = ta2-cnt.KELVING_CONVER
+    temp_C = ta2 - cnt.KELVING_CONVER
 
     Tair_C_center = 1.1
     slope = -0.3
-    b = 0.5 - slope*Tair_C_center
+    b = 0.5 - slope * Tair_C_center
     snowfall_frac = np.array(slope * temp_C + b)
-    snowfall_frac[snowfall_frac > 1] = 1.
-    snowfall_frac[snowfall_frac < 0] = 0.
+    snowfall_frac[snowfall_frac > 1] = 1.0
+    snowfall_frac[snowfall_frac < 0] = 0.0
 
     solid_prec = precc * snowfall_frac
     liquid_prec = precc * (1 - snowfall_frac)
@@ -109,37 +148,41 @@ def linear_liston(ta2, precc):
 
 
 def glogit(x, bPmin, bPmax):
-    """ Generalized logit that transforms a logit-normal to a normal"""
+    """Generalized logit that transforms a logit-normal to a normal"""
 
     # HACK: make it numerically stable
     if (x == bPmin).any():
-        x[x == bPmin] = x[x == bPmin] + np.abs(np.spacing(x[x == bPmin])*100)
+        x[x == bPmin] = x[x == bPmin] + np.abs(np.spacing(x[x == bPmin]) * 100)
     if (x == bPmax).any():
-        x[x == bPmax] = x[x == bPmax] - np.abs(np.spacing(x[x == bPmax])*100)
+        x[x == bPmax] = x[x == bPmax] - np.abs(np.spacing(x[x == bPmax]) * 100)
 
-    xs = (x-bPmin)/(bPmax-bPmin)  # Scale x\in(a,b) to be between (0,1) instead
+    xs = (x - bPmin) / (
+        bPmax - bPmin
+    )  # Scale x\in(a,b) to be between (0,1) instead
     xt = logit(xs)
     return xt
 
 
 def gexpit(xt, bPmin, bPmax):
-    """ Generalized expit that transforms a normal to a logit-normal"""
+    """Generalized expit that transforms a normal to a logit-normal"""
     # HACK: make it numerically stable
     if (xt == bPmin).any():
-        xt[xt == bPmin] = xt[xt == bPmin] +\
-            np.abs(np.spacing(xt[xt == bPmin])*100)
+        xt[xt == bPmin] = xt[xt == bPmin] + np.abs(
+            np.spacing(xt[xt == bPmin]) * 100
+        )
     if (xt == bPmax).any():
-        xt[xt == bPmax] = xt[xt == bPmax] -\
-            np.abs(np.spacing(xt[xt == bPmax])*100)
+        xt[xt == bPmax] = xt[xt == bPmax] - np.abs(
+            np.spacing(xt[xt == bPmax]) * 100
+        )
 
     xs = expit(xt)
-    x = (bPmax-bPmin)*xs+bPmin
+    x = (bPmax - bPmin) * xs + bPmin
     return x
 
 
 def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
 
-    if (cfg.seed is not None):
+    if cfg.seed is not None:
         np.random.seed(cfg.seed)
 
     if perturbation_strategy == "normal":
@@ -150,8 +193,7 @@ def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
         noise = np.random.lognormal(mean, std_dev, 1)
         noise = np.repeat(noise, n_steps)
 
-    elif perturbation_strategy in ["logitnormal_mult",
-                                   "logitnormal_adi"]:
+    elif perturbation_strategy in ["logitnormal_mult", "logitnormal_adi"]:
 
         bPmax = cnt.upper_bounds[var]
         bPmin = cnt.lower_bounds[var]
@@ -167,7 +209,7 @@ def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
 
 def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
 
-    if (cfg.seed is not None):
+    if cfg.seed is not None:
         np.random.seed(cfg.seed)
 
     # Retrieve posterior timeseries
@@ -188,8 +230,9 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
         counts = len(posteriors)
 
     else:  # count the nymber of steps in each DAW
-        counts = np.array([np.sum(post_mean == value)
-                           for value in post_mean_vals])
+        counts = np.array(
+            [np.sum(post_mean == value) for value in post_mean_vals]
+        )
 
     # This part is necesary in case of total collapse of one or several DAWs
     idsDAWS = np.repeat(range(len(counts)), counts)
@@ -201,8 +244,11 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
         # combined standar deviation
         k = np.sum(idsDAWS == index)
         post_post_std_dev[i] = np.sqrt(
-            np.sum(post_std_dev[idsDAWS == index] *
-                   post_std_dev[idsDAWS == index])/k)
+            np.sum(
+                post_std_dev[idsDAWS == index] * post_std_dev[idsDAWS == index]
+            )
+            / k
+        )
 
     complet_noise = []
 
@@ -211,7 +257,7 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
         mean, std_dev = post_mean_vals[n], post_post_std_dev[n]
         n_steps = counts[0]
 
-        if (cfg.seed is not None):
+        if cfg.seed is not None:
             np.random.seed(cfg.seed)
 
         if perturbation_strategy == "normal":
@@ -222,8 +268,7 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
             noise = np.random.lognormal(mean, std_dev, 1)
             noise = np.repeat(noise, n_steps)
 
-        elif perturbation_strategy in ["logitnormal_mult",
-                                       "logitnormal_adi"]:
+        elif perturbation_strategy in ["logitnormal_mult", "logitnormal_adi"]:
 
             bPmax = cnt.upper_bounds[var_tmp]
             bPmin = cnt.lower_bounds[var_tmp]
@@ -247,7 +292,7 @@ def add_process_noise(noise_coef, var, strategy):
     lower_bounds = cnt.lower_bounds
 
     # Not to add process noise in spatial version yet
-    if cfg.implementation == 'Spatial_propagation':
+    if cfg.implementation == "Spatial_propagation":
         return noise_coef
 
     if cfg.add_dynamic_noise:
@@ -256,23 +301,22 @@ def add_process_noise(noise_coef, var, strategy):
         tmp_proc_noise = dyn_noise[var]
         add_vals = np.random.normal(0, tmp_proc_noise, len(noise_coef))
 
-        if strategy == 'normal':
+        if strategy == "normal":
 
             noise_coef = noise_coef + np.cumsum(add_vals)
 
-        elif strategy == 'lognormal':
+        elif strategy == "lognormal":
 
             noise_coef = np.log(noise_coef) + np.cumsum(add_vals)
             noise_coef = np.exp(noise_coef)
 
-        elif strategy in ["logitnormal_mult",
-                          "logitnormal_adi"]:
-            noise_coef = glogit(noise_coef,
-                                lower_bounds[var],
-                                upper_bounds[var]) + np.cumsum(add_vals)
-            noise_coef = gexpit(noise_coef,
-                                lower_bounds[var],
-                                upper_bounds[var])
+        elif strategy in ["logitnormal_mult", "logitnormal_adi"]:
+            noise_coef = glogit(
+                noise_coef, lower_bounds[var], upper_bounds[var]
+            ) + np.cumsum(add_vals)
+            noise_coef = gexpit(
+                noise_coef, lower_bounds[var], upper_bounds[var]
+            )
         else:
             raise Exception("Bad perturbation strategy")
 
@@ -282,9 +326,17 @@ def add_process_noise(noise_coef, var, strategy):
     return noise_coef
 
 
-def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None,
-                       posteriors=None, member=None, noise=None,
-                       update=False, readGSC=False, GSC_filename=None):
+def perturb_parameters(
+    main_forcing,
+    lat_idx=None,
+    lon_idx=None,
+    posteriors=None,
+    member=None,
+    noise=None,
+    update=False,
+    readGSC=False,
+    GSC_filename=None,
+):
 
     forcing_copy = main_forcing.copy()
 
@@ -310,8 +362,9 @@ def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None,
         strategy_tmp = perturbation_strategy[idv]
 
         if readGSC:
-            parameter = spM.read_parameter(GSC_filename, lat_idx, lon_idx,
-                                           var_tmp, member)
+            parameter = spM.read_parameter(
+                GSC_filename, lat_idx, lon_idx, var_tmp, member
+            )
             noise_coef = np.repeat(parameter, n_steps)
 
         elif update:
@@ -320,12 +373,16 @@ def perturb_parameters(main_forcing, lat_idx=None, lon_idx=None,
         else:
             if cfg.load_prev_run:
                 noise_coef = create_noise_from_posterior(
-                    posteriors, strategy_tmp, var_tmp)
+                    posteriors, strategy_tmp, var_tmp
+                )
             else:
-                noise_coef = create_noise(strategy_tmp, n_steps,
-                                          mean_errors[var_tmp],
-                                          sd_errors[var_tmp],
-                                          var_tmp)
+                noise_coef = create_noise(
+                    strategy_tmp,
+                    n_steps,
+                    mean_errors[var_tmp],
+                    sd_errors[var_tmp],
+                    var_tmp,
+                )
 
         noise_coef = add_process_noise(noise_coef, var_tmp, strategy_tmp)
         # If lognormal perturbation multiplicate, else add
@@ -352,8 +409,9 @@ def get_shape_from_noise(noise_dict, wgth, lowNeff):
 
     for count, var in enumerate(vars_to_perturbate):
 
-        var_temp = [noise_dict[mbr][var].copy() for
-                    mbr in range(ensemble_members)]
+        var_temp = [
+            noise_dict[mbr][var].copy() for mbr in range(ensemble_members)
+        ]
         var_temp = np.asarray(var_temp)
         var_temp = np.squeeze(var_temp)
 
@@ -361,11 +419,11 @@ def get_shape_from_noise(noise_dict, wgth, lowNeff):
         if perturbation_strategy[count] == "lognormal":
             var_temp = np.log(var_temp)
 
-        if perturbation_strategy[count] == ["logitnormal_mult",
-                                            "logitnormal_adi"]:
-            var_temp = glogit(var_temp,
-                              upper_bounds[var],
-                              lower_bounds[var])
+        if perturbation_strategy[count] == [
+            "logitnormal_mult",
+            "logitnormal_adi",
+        ]:
+            var_temp = glogit(var_temp, upper_bounds[var], lower_bounds[var])
 
         # reduce the timeserie to its mean
 
@@ -396,18 +454,20 @@ def redraw(func_shape):
         mu = func_shape[count, 0].copy()
         sigma = func_shape[count, 1].copy()
 
-        new_pert = mu+sigma*np.random.randn(1)
+        new_pert = mu + sigma * np.random.randn(1)
         if var == "lognormal":
             # re-draw in log-space
             new_pert = np.exp(new_pert)
 
-        if perturbation_strategy[count] == ["logitnormal_mult",
-                                            "logitnormal_adi"]:
+        if perturbation_strategy[count] == [
+            "logitnormal_mult",
+            "logitnormal_adi",
+        ]:
 
             varindict = cfg.vars_to_perturbate[count]
-            new_pert = gexpit(new_pert,
-                              upper_bounds[varindict],
-                              lower_bounds[varindict])
+            new_pert = gexpit(
+                new_pert, upper_bounds[varindict], lower_bounds[varindict]
+            )
 
         storage[count] = new_pert
 
