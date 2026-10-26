@@ -8,7 +8,9 @@ Note that not all the options will be used in all the experimental setups.
 
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
-numerical_model = "FSM2"  # model to use from FSM2, SNOWPACK, dIm or snow17
+numerical_model = (
+    "FSM2"  # model to use from FSM2, FSM2mem, SNOWPACK, dIm or snow17
+)
 dt = 3600  # timestep in seconds
 # -----------------------------------
 # Directories
@@ -113,7 +115,7 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
-implementation = "distributed"
+implementation = "point_scale"
 
 # if implementation = "Spatial_propagation" : specify which observation
 # variables are spatially propagated in a list
@@ -290,6 +292,10 @@ Dzsnow = [0.1, 0.2, 0.4]
 # -----------------------------------
 # FSM configuration (Compilation)
 # -----------------------------------
+# With numerical_model = "FSM2mem" the FSM2 Python/Numba package included in
+# modules/fsm2 is used instead of the Fortran executable. In that case
+# fsm_src_path and OPTIMIZATION are not used, but Dzsnow and the
+# parameterizations below keep the same meaning.
 
 # Optimization flag. Choose from -O (no optimization), -O1, -O2, -O3 or -Ofast.
 # Note: -O3 is recommended. -Ofast may be slightly faster (~10%), but its
@@ -315,7 +321,7 @@ SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 # SNOWPACK configuration
 # -----------------------------------
 
-post_profile = False
+post_profile = True
 pro_domains = 10
 
 # -----------------------------------

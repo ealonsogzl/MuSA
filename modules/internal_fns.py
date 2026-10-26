@@ -20,6 +20,8 @@ import config as cfg
 
 if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
+elif cfg.numerical_model == "FSM2mem":
+    import modules.fsm2_mem_tools as model
 elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
 elif cfg.numerical_model == "snow17":
@@ -706,7 +708,7 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
     temp_dest = model.model_copy(lat_idx, lon_idx)
     real_forcing = main_forcing.copy()
     model.model_forcing_wrt(real_forcing, temp_dest, step=0)
-    if cfg.numerical_model in ["FSM2"]:
+    if cfg.numerical_model in ["FSM2", "FSM2mem"]:
         model.model_run(temp_dest)
         state = model.model_read_output(temp_dest, read_dump=False)
     elif cfg.numerical_model in ["dIm", "snow17"]:

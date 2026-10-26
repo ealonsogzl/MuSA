@@ -16,6 +16,8 @@ import constants as cnt
 
 if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
+elif cfg.numerical_model == "FSM2mem":
+    import modules.fsm2_mem_tools as model
 elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
 elif cfg.numerical_model == "snow17":
@@ -500,7 +502,7 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         # write perturbed forcing
         model.model_forcing_wrt(forcing_mcmcstep, temp_dest, Ensemble.step)
         # Write init conditions or dump file from previous run if step != 0
-        if cfg.numerical_model in ["FSM2"]:
+        if cfg.numerical_model in ["FSM2", "FSM2mem"]:
             if Ensemble.step != 0:
                 model.write_dump(init_conditions, temp_dest)
             # create open loop simulation

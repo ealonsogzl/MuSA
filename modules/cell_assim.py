@@ -18,6 +18,8 @@ from threadpoolctl import threadpool_limits
 
 if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
+elif cfg.numerical_model == "FSM2mem":
+    import modules.fsm2_mem_tools as model
 elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
 elif cfg.numerical_model == "snow17":

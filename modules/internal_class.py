@@ -17,6 +17,11 @@ if cfg.numerical_model == "FSM2":
 
     if cfg.run_smrt:
         import modules.FSM2SMRT as smrt
+elif cfg.numerical_model == "FSM2mem":
+    import modules.fsm2_mem_tools as model
+
+    if cfg.run_smrt:
+        import modules.FSM2SMRT as smrt
 elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
 elif cfg.numerical_model == "snow17":
@@ -132,7 +137,7 @@ class SnowEnsemble:
         model.model_forcing_wrt(forcing_sbst, self.temp_dest, self.step)
 
         # Write init or dump file from previous run if step != 0 or self.real_time_restart
-        if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
+        if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
 
             if step == 0 and self.real_time_restart:
                 model.write_dump(self.origin_dump[-1], self.temp_dest)
@@ -251,7 +256,7 @@ class SnowEnsemble:
                     member_forcing, self.temp_dest, self.step
                 )
 
-            if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
+            if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
                 if step != 0 or self.real_time_restart:
                     if cfg.da_algorithm in ["PBS", "PF"]:
                         model.write_dump(self.out_members[mbr], self.temp_dest)
@@ -332,7 +337,7 @@ class SnowEnsemble:
                         member_forcing, self.temp_dest, self.step
                     )
 
-                if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
+                if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
 
                     if step != 0 or self.real_time_restart:
                         model.write_dump(
@@ -431,7 +436,7 @@ class SnowEnsemble:
 
             model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
-            if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
+            if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
                 if step != 0 or self.real_time_restart:
 
                     model.write_dump(
