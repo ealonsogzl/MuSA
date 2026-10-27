@@ -5,6 +5,7 @@ This module allows MuSA to propagate information between cells.
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
+
 import os
 import time
 import glob
@@ -31,18 +32,19 @@ import constants as cnt
 import modules.filters as flt
 from modules.mds import landmark_MDS
 from modules.internal_class import SnowEnsemble
-if cfg.numerical_model == 'FSM2':
+
+if cfg.numerical_model == "FSM2":
     import modules.fsm_tools as model
-elif cfg.numerical_model == 'FSM2mem':
+elif cfg.numerical_model == "FSM2mem":
     import modules.fsm2_mem_tools as model
-elif cfg.numerical_model == 'dIm':
+elif cfg.numerical_model == "dIm":
     import modules.dIm_tools as model
-elif cfg.numerical_model == 'snow17':
+elif cfg.numerical_model == "snow17":
     import modules.snow17_tools as model
-elif cfg.numerical_model == 'SNOWPACK':
+elif cfg.numerical_model == "SNOWPACK":
     import modules.snowpack_tools as model
 else:
-    raise Exception('Model not implemented')
+    raise Exception("Model not implemented")
 from statsmodels.stats.weightstats import DescrStatsW
 from fnmatch import fnmatchcase
 from threadpoolctl import threadpool_limits
@@ -61,19 +63,29 @@ def GC(d, c):
     if len(sel_points != 0):
 
         sel_points = sel_points / c
-        rho[d < c] = (-1/4) * (sel_points)**5 + (1/2) * (sel_points)**4 + \
-            (5/8) * (sel_points)**3 - (5/3) * (sel_points)**2 + 1
+        rho[d < c] = (
+            (-1 / 4) * (sel_points) ** 5
+            + (1 / 2) * (sel_points) ** 4
+            + (5 / 8) * (sel_points) ** 3
+            - (5 / 3) * (sel_points) ** 2
+            + 1
+        )
 
     # Correlation for mid-range points
-    sel_points = d[np.logical_and(d >= c, d <= 2*c)]
+    sel_points = d[np.logical_and(d >= c, d <= 2 * c)]
     if len(sel_points != 0):
 
-        sel_points = sel_points/c
+        sel_points = sel_points / c
 
-        rho[np.logical_and(d >= c, d <= 2*c)] = (1/12) * (sel_points)**5 - \
-            (1/2) * (sel_points)**4 + (5/8) * (sel_points)**3 + (5/3) * \
-                    (sel_points)**2 - 5 * (sel_points) + 4 - (2/3) * \
-                    (1/sel_points)
+        rho[np.logical_and(d >= c, d <= 2 * c)] = (
+            (1 / 12) * (sel_points) ** 5
+            - (1 / 2) * (sel_points) ** 4
+            + (5 / 8) * (sel_points) ** 3
+            + (5 / 3) * (sel_points) ** 2
+            - 5 * (sel_points)
+            + 4
+            - (2 / 3) * (1 / sel_points)
+        )
 
     # Correlation for far points (not necesary to run)
     # rho[d > 2*c] = 0
@@ -99,21 +111,22 @@ def fill_nan_arr(array):
     points = np.array([x, y]).T
     values = array[mask].reshape(-1)
 
-    interp_grid = griddata(points, values,
-                           (x_grid, y_grid), method='nearest')
+    interp_grid = griddata(points, values, (x_grid, y_grid), method="nearest")
 
     return interp_grid
 
 
 def regrid(data, out_x, out_y):
     m = max(data.shape[0], data.shape[1])
-    y = np.linspace(0, 1.0/m, data.shape[0])
-    x = np.linspace(0, 1.0/m, data.shape[1])
+    y = np.linspace(0, 1.0 / m, data.shape[0])
+    x = np.linspace(0, 1.0 / m, data.shape[1])
     interpolating_function = RegularGridInterpolator(
-        (y, x), data.astype('float64'))
+        (y, x), data.astype("float64")
+    )
 
-    yv, xv = np.meshgrid(np.linspace(0, 1.0/m, out_y),
-                         np.linspace(0, 1.0/m, out_x))
+    yv, xv = np.meshgrid(
+        np.linspace(0, 1.0 / m, out_y), np.linspace(0, 1.0 / m, out_x)
+    )
 
     return interpolating_function((xv, yv))
 
@@ -121,28 +134,28 @@ def regrid(data, out_x, out_y):
 def Sx(dem_arr):
     Sx_dmax = cfg.Sx_dmax
     DEM_res = cfg.DEM_res
-    dmax_grid = int(Sx_dmax/DEM_res)
+    dmax_grid = int(Sx_dmax / DEM_res)
 
-    rotated_arr = rotate(dem_arr, angle=cfg.Sx_angle-90, cval=np.nan)
+    rotated_arr = rotate(dem_arr, angle=cfg.Sx_angle - 90, cval=np.nan)
     wind_field = rotated_arr.copy()
     wind_field[:] = np.nan
     for (x, y), Z in np.ndenumerate(rotated_arr):
 
-        zwalk = rotated_arr[x, y+1:y + dmax_grid]
-        if (len(zwalk) == 0):
+        zwalk = rotated_arr[x, y + 1 : y + dmax_grid]
+        if len(zwalk) == 0:
             continue
-        distance = (np.arange(y+1, y + len(zwalk)+1) - y)*DEM_res
-        upward_angle = ((zwalk-Z) / distance)
+        distance = (np.arange(y + 1, y + len(zwalk) + 1) - y) * DEM_res
+        upward_angle = (zwalk - Z) / distance
         winstral = np.max(np.tan(upward_angle))
 
         wind_field[x, y] = winstral
 
     wind_field[np.isnan(wind_field)] = -1
 
-    Sx = rotate(wind_field, angle=-(cfg.Sx_angle-90), mode='nearest')
+    Sx = rotate(wind_field, angle=-(cfg.Sx_angle - 90), mode="nearest")
 
     ids = np.where(Sx > 0)
-    Sx = Sx[ids[0].min():ids[0].max(), ids[1].min():ids[1].max()]
+    Sx = Sx[ids[0].min() : ids[0].max(), ids[1].min() : ids[1].max()]
     Sx = regrid(Sx, dem_arr.shape[0], dem_arr.shape[1])
 
     return Sx
@@ -163,26 +176,27 @@ def get_topo_arr():
     # Grid spacing
     dels = 1
 
-    x = np.arange(0, dem_arr.shape[1], dels, dtype='float32')
-    y = np.arange(0, dem_arr.shape[0], dels, dtype='float32')
+    x = np.arange(0, dem_arr.shape[1], dels, dtype="float32")
+    y = np.arange(0, dem_arr.shape[0], dels, dtype="float32")
     X = np.tile(x, (len(y), 1)) * cfg.DEM_res
     Y = np.tile(y, (len(x), 1)).T * cfg.DEM_res
 
     # Slope
     px, py = np.gradient(dem_arr, 1)
-    slope = np.sqrt(px ** 2 + py ** 2)
+    slope = np.sqrt(px**2 + py**2)
     slope = np.degrees(np.arctan(slope))
 
     # aspect
-    aspect = 57.29578 * np.arctan2(py, - px)
+    aspect = 57.29578 * np.arctan2(py, -px)
 
     # Diurnal Anisotropic Heat
     amax = 202.500
-    DAH = np.cos((amax - aspect) * np.pi / 180) *\
-        np.arctan(slope * np.pi / 180)
+    DAH = np.cos((amax - aspect) * np.pi / 180) * np.arctan(
+        slope * np.pi / 180
+    )
 
     # TPI (vectorized sliding window)
-    side = int(cfg.TPI_size//cfg.DEM_res)
+    side = int(cfg.TPI_size // cfg.DEM_res)
     if side % 2:
         pass
     else:
@@ -194,13 +208,19 @@ def get_topo_arr():
         v = np.lib.stride_tricks.sliding_window_view(dem_arr, shape)
         v = np.mean(v, (2, 3))
 
-        v = np.pad(v, ((dem_arr.shape[0] - v.shape[0])//2,
-                       (dem_arr.shape[1] - v.shape[1])//2), 'constant',
-                   constant_values=np.nan)
+        v = np.pad(
+            v,
+            (
+                (dem_arr.shape[0] - v.shape[0]) // 2,
+                (dem_arr.shape[1] - v.shape[1]) // 2,
+            ),
+            "constant",
+            constant_values=np.nan,
+        )
         TPI = dem_arr - v
         TPI = fill_nan_arr(TPI)
     except Exception:
-        print('Unable to calculate TPI, assuming flat terrain')
+        print("Unable to calculate TPI, assuming flat terrain")
         TPI = np.zeros_like(dem_arr)
 
     # winstral wind parameter
@@ -208,17 +228,18 @@ def get_topo_arr():
     try:
         winstral_sx = Sx(dem_arr)
     except Exception:
-        print('Unable to calculate Sx parameter, assuming flat terrain')
+        print("Unable to calculate Sx parameter, assuming flat terrain")
         winstral_sx = np.zeros_like(dem_arr)
 
     topo_dic = {
-        'Ys': Y,
-        'Xs': X,
-        'Zs': dem_arr-np.min(dem_arr),
-        'slope': slope,
-        'DAH': DAH,
-        'TPI': TPI,
-        'Sx': winstral_sx}
+        "Ys": Y,
+        "Xs": X,
+        "Zs": dem_arr - np.min(dem_arr),
+        "slope": slope,
+        "DAH": DAH,
+        "TPI": TPI,
+        "Sx": winstral_sx,
+    }
 
     # remove useless features
     for topo_it, v in list(topographic_features.items()):
@@ -242,20 +263,22 @@ def calculate_coords():
 
     if mask:  # remove cells out of mask
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:].flatten()
+        mask_value = mask.variables["mask"][:].flatten()
         mask.close()
         coords = coords[mask_value == 1, :]
 
-    if cfg.dimension_reduction == 'PCA':
+    if cfg.dimension_reduction == "PCA":
 
         x_scaled = StandardScaler().fit_transform(coords)
         pca = PCA(n_components=cfg.dim_num)
         coords = pca.fit_transform(x_scaled)
 
-    elif cfg.dimension_reduction == 'LMDS':
-        lands = np.random.choice(range(0, coords.shape[0], 1),
-                                 int(coords.shape[0]*0.1),
-                                 replace=False)
+    elif cfg.dimension_reduction == "LMDS":
+        lands = np.random.choice(
+            range(0, coords.shape[0], 1),
+            int(coords.shape[0] * 0.1),
+            replace=False,
+        )
         Dl2 = distance.cdist(coords[lands, :], coords, cfg.dist_algo)
         coords = landmark_MDS(Dl2, lands, cfg.dim_num)
 
@@ -290,15 +313,21 @@ def save_distance(d, orderows, prior_id):
         distmask[~np.isnan(distmask)] = d.flatten()
         d = distmask
     """
-    f = nc.Dataset(name_dist, 'w', format='NETCDF4')
+    f = nc.Dataset(name_dist, "w", format="NETCDF4")
 
-    f.createDimension('Y', d.shape[0])
-    f.createDimension('X', d.shape[1])
+    f.createDimension("Y", d.shape[0])
+    f.createDimension("X", d.shape[1])
 
     # float 64 is necesary, otherwise distance matrix is not PD
-    distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
-                              zlib=True, complevel=4, fletcher32=True,
-                              chunksizes=(len(orderows), 1))
+    distnc = f.createVariable(
+        "Dist",
+        np.float64,
+        ("Y", "X"),
+        zlib=True,
+        complevel=4,
+        fletcher32=True,
+        chunksizes=(len(orderows), 1),
+    )
 
     distnc[:, :] = d
 
@@ -310,10 +339,10 @@ def closePD(C):
     # TODO: Check other approaches https://stackoverflow.com/questions/10939213/how-can-i-calculate-the-nearest-positive-semi-definite-matrix
     # Another algo.
 
-    if cfg.closePDmethod == 'clipped':  # faster
+    if cfg.closePDmethod == "clipped":  # faster
         return ct.cov_nearest(C, method="clipped")
 
-    elif cfg.closePDmethod == 'nearest':
+    elif cfg.closePDmethod == "nearest":
         return ct.cov_nearest(C, method="nearest")
     else:
         raise Exception("closePD method not implemented yet")
@@ -321,7 +350,7 @@ def closePD(C):
 
 def add_jitter(K, jitter=1e-6):
     if issparse(K):
-        jitter_matrix = eye(K.shape[0], format='csc') * jitter
+        jitter_matrix = eye(K.shape[0], format="csc") * jitter
         K = K + jitter_matrix
     else:
         K += np.eye(K.shape[0]) * jitter
@@ -339,48 +368,55 @@ def GSC(mu, sigma, rho, orderows):
 
     try:
         if issparse(C):
-            S = sksparse.cholmod.cholesky(C, ordering_method='natural').L()
+            S = sksparse.cholmod.cholesky(C, ordering_method="natural").L()
 
         else:
             S = np.linalg.cholesky(C)
 
-    except (np.linalg.LinAlgError,
-            sksparse.cholmod.CholmodNotPositiveDefiniteError):
+    except (
+        np.linalg.LinAlgError,
+        sksparse.cholmod.CholmodNotPositiveDefiniteError,
+    ):
 
-        if cfg.jitter > 0.:  # Adding jitter to the diagonal
+        if cfg.jitter > 0.0:  # Adding jitter to the diagonal
             count = 0  # Safety exit
 
             jitter = cfg.jitter  # initial jitter
             while True:
                 if count == 5:
-                    print('Cov matrix non PD after jitter')
+                    print("Cov matrix non PD after jitter")
                     break
-                print('Adding jitter. Iter: {count}'.format(count=count))
+                print("Adding jitter. Iter: {count}".format(count=count))
                 count = count + 1
                 C = add_jitter(C, jitter=jitter)
                 try:
                     if issparse(C):
                         S = sksparse.cholmod.cholesky(
-                            C, ordering_method='natural').L()
+                            C, ordering_method="natural"
+                        ).L()
                     else:
                         S = np.linalg.cholesky(C)
                     break
-                except (np.linalg.LinAlgError,
-                        sksparse.cholmod.CholmodNotPositiveDefiniteError):
-                    jitter *= 10.  # update jitter value
+                except (
+                    np.linalg.LinAlgError,
+                    sksparse.cholmod.CholmodNotPositiveDefiniteError,
+                ):
+                    jitter *= 10.0  # update jitter value
                     pass
 
-        if cfg.closePDmethod and 'S' not in locals():
+        if cfg.closePDmethod and "S" not in locals():
             print("rho is not positive-define, finding closer PD...")
             if issparse(C):
-                print("Closer PD is not possible with sparse matrices,",
-                      "transforming to dense matrix (high memory requirement)")
+                print(
+                    "Closer PD is not possible with sparse matrices,",
+                    "transforming to dense matrix (high memory requirement)",
+                )
                 C = C.toarray()
 
             count = 0  # Safety exit
             while True:
                 if count == 10:  # 10 is really a lot
-                    print('Cov matrix non PD after closePD')
+                    print("Cov matrix non PD after closePD")
                     break
                 C = closePD(C)
                 count = count + 1
@@ -388,36 +424,41 @@ def GSC(mu, sigma, rho, orderows):
                     C = csc_array(C)
                     print("trying Cholesky decomposition again...")
                     S = sksparse.cholmod.cholesky(
-                        C, ordering_method='natural').L()
+                        C, ordering_method="natural"
+                    ).L()
                     break
                 except sksparse.cholmod.CholmodNotPositiveDefiniteError:
 
-                    print("rho remains not positive-define,"
-                          " finding closer PD...")
+                    print(
+                        "rho remains not positive-define,"
+                        " finding closer PD..."
+                    )
                     C = C.toarray()
 
                     pass
 
-    if 'S' not in locals():  # If we do not have S, Exception
+    if "S" not in locals():  # If we do not have S, Exception
 
-        raise Exception('rho is not is not positive-definite.'
-                        'Options:\n'
-                        u'\u2022 Increase jitter\n'
-                        u'\u2022 try closePD = method\n'
-                        u'\u2022 Change cut-off distance for the'
-                        ' Gaspari and Cohn function\n'
-                        u'\u2022 Change topographical setup\n'
-                        u'\u2022 Check dist_algo\n'
-                        u'\u2022 Perform PCA, to reduce dimensions\n'
-                        u'\u2022 If the distances are read from'
-                        ' an external file, ensure its precision'
-                        ' is at least float64\n')
+        raise Exception(
+            "rho is not is not positive-definite."
+            "Options:\n"
+            "\u2022 Increase jitter\n"
+            "\u2022 try closePD = method\n"
+            "\u2022 Change cut-off distance for the"
+            " Gaspari and Cohn function\n"
+            "\u2022 Change topographical setup\n"
+            "\u2022 Check dist_algo\n"
+            "\u2022 Perform PCA, to reduce dimensions\n"
+            "\u2022 If the distances are read from"
+            " an external file, ensure its precision"
+            " is at least float64\n"
+        )
 
     # S is a lower triangular matrix loosely cooresponding to a standard
     # deviation matrix.
 
     z = np.random.normal(size=[n, N])
-    x = mu + S@z
+    x = mu + S @ z
     n_lats, n_lons = ifn.get_dims()
 
     # reorder
@@ -427,7 +468,7 @@ def GSC(mu, sigma, rho, orderows):
     if mask:  # recover original structure
 
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:].flatten()
+        mask_value = mask.variables["mask"][:].flatten()
         mask.close()
 
         real_x = np.zeros([n_lats * n_lons, N])
@@ -438,7 +479,7 @@ def GSC(mu, sigma, rho, orderows):
 
     # tidy matrix
     x = x[:, :, np.newaxis]
-    x = x.reshape((n_lats, n_lons, N), order='C')
+    x = x.reshape((n_lats, n_lons, N), order="C")
     # x = x.reshape((n_lats, n_lons, N), order='F')
 
     return x
@@ -453,7 +494,7 @@ def get_rho(prior_id):
 
     coords, orderows = calculate_coords()
 
-    if cfg.distance_mat_calc == 'Sparse':
+    if cfg.distance_mat_calc == "Sparse":
 
         # create netcdf to save distances line by line
         spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
@@ -461,15 +502,21 @@ def get_rho(prior_id):
         name_dist = "dist_" + str(prior_id) + ".nc"
         name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
 
-        f = nc.Dataset(name_dist, 'w', format='NETCDF4')
+        f = nc.Dataset(name_dist, "w", format="NETCDF4")
 
-        f.createDimension('Y', coords.shape[0])
-        f.createDimension('X', coords.shape[0])
+        f.createDimension("Y", coords.shape[0])
+        f.createDimension("X", coords.shape[0])
 
         # float 64 is necesary, otherwise distance matrix is not PD
-        distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
-                                  zlib=True, complevel=4, fletcher32=True,
-                                  chunksizes=(coords.shape[0], 1))
+        distnc = f.createVariable(
+            "Dist",
+            np.float64,
+            ("Y", "X"),
+            zlib=True,
+            complevel=4,
+            fletcher32=True,
+            chunksizes=(coords.shape[0], 1),
+        )
 
         f.close()
 
@@ -479,7 +526,7 @@ def get_rho(prior_id):
         rho_spar = [rho_spar.copy() for _ in range(len(c))]
 
         ids = np.argsort(orderows)  # ids to recover distance mat geometry
-        dist_nc = nc.Dataset(name_dist, 'a')
+        dist_nc = nc.Dataset(name_dist, "a")
 
         # loop over rows to avoid calculate all distances
 
@@ -488,9 +535,9 @@ def get_rho(prior_id):
 
             tmp_row = coords[orderows[n], :][np.newaxis, :]
 
-            tmp_dis = distance.cdist(coords[orderows, :],
-                                     tmp_row,
-                                     cfg.dist_algo)
+            tmp_dis = distance.cdist(
+                coords[orderows, :], tmp_row, cfg.dist_algo
+            )
 
             # compute GC row by row
             rho_tmp = [GC(tmp_dis, c[nn]) for nn in range(len(c))]
@@ -500,32 +547,33 @@ def get_rho(prior_id):
                 rho_spar[nn][n, :] = rho_tmp[nn]
 
             # Saves row distances in the netcdf
-            tmp_dis[tmp_dis > max(c)*2] = np.nan
-            dist_nc['Dist'][:, ids[n]] = tmp_dis[orderows]
+            tmp_dis[tmp_dis > max(c) * 2] = np.nan
+            dist_nc["Dist"][:, ids[n]] = tmp_dis[orderows]
             # d = d[:, orderows][orderows]
         dist_nc.close()
 
         # transform frmo lil_mat to csc to perform the chol latter
         rho = [csc_array(nn) for nn in rho_spar]
-    elif cfg.distance_mat_calc == 'Regular':
+    elif cfg.distance_mat_calc == "Regular":
 
-        d = distance.cdist(coords[orderows, :],
-                           coords[orderows, :],
-                           cfg.dist_algo)
+        d = distance.cdist(
+            coords[orderows, :], coords[orderows, :], cfg.dist_algo
+        )
 
-        d[d > max(c)*2] = np.nan
+        d[d > max(c) * 2] = np.nan
         save_distance(d, orderows, prior_id)
 
         # Transform to sparse matrix
         rho = [csc_array(GC(d, c_par)) for c_par in c]
 
-    elif cfg.distance_mat_calc == 'KDtree':
+    elif cfg.distance_mat_calc == "KDtree":
         # raise Exception('KDtree implementation not finished yet')
 
         A = cKDTree(coords[orderows, :])
 
-        d = A.sparse_distance_matrix(A,  max(c)*2, p=2.0,
-                                     output_type='coo_matrix')
+        d = A.sparse_distance_matrix(
+            A, max(c) * 2, p=2.0, output_type="coo_matrix"
+        )
         # Scompute correlations01
 
         data_dense = [GC(d.data, c_par) for c_par in c]
@@ -547,15 +595,21 @@ def get_rho(prior_id):
         name_dist = "dist_" + str(prior_id) + ".nc"
         name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
 
-        f = nc.Dataset(name_dist, 'w', format='NETCDF4')
+        f = nc.Dataset(name_dist, "w", format="NETCDF4")
 
-        f.createDimension('Y', coords.shape[0])
-        f.createDimension('X', coords.shape[0])
+        f.createDimension("Y", coords.shape[0])
+        f.createDimension("X", coords.shape[0])
 
         # float 64 is necesary, otherwise distance matrix is not PD
-        distnc = f.createVariable('Dist', np.float64, ('Y', 'X'),
-                                  zlib=True, complevel=4, fletcher32=True,
-                                  chunksizes=(coords.shape[0], 1))
+        distnc = f.createVariable(
+            "Dist",
+            np.float64,
+            ("Y", "X"),
+            zlib=True,
+            complevel=4,
+            fletcher32=True,
+            chunksizes=(coords.shape[0], 1),
+        )
 
         for n in range(coords.shape[0]):
             # Save line by line, to not todense() the whole d matrix
@@ -564,13 +618,13 @@ def get_rho(prior_id):
             tmp_dis = d[:, [n]].todense()
             # NOTE: this masks the current cell, but the current cell
             # is added anyway when the neig is created
-            tmp_dis[tmp_dis == 0.] = np.nan
-            tmp_dis[n] = 0.  # put 0 in diagonal
+            tmp_dis[tmp_dis == 0.0] = np.nan
+            tmp_dis[n] = 0.0  # put 0 in diagonal
 
             distnc[:, n] = tmp_dis
         f.close()
     else:
-        raise Exception('No valid distance_mat_calc')
+        raise Exception("No valid distance_mat_calc")
 
     return rho, orderows
 
@@ -594,11 +648,13 @@ def create_corelated_nc(prior_id):
     memb = np.arange(0, N, 1)
 
     # Path to intermediate file
-    tmp_file_name = os.path.join(spatial_propagation_storage_path,
-                                 str(prior_id)+'_tmp_GSC.nc')
+    tmp_file_name = os.path.join(
+        spatial_propagation_storage_path, str(prior_id) + "_tmp_GSC.nc"
+    )
 
-    file_name = os.path.join(spatial_propagation_storage_path,
-                             (str(prior_id) + '_GSC.nc'))
+    file_name = os.path.join(
+        spatial_propagation_storage_path, (str(prior_id) + "_GSC.nc")
+    )
 
     try:  # remove temporal file if exists
         os.remove(tmp_file_name)
@@ -610,18 +666,18 @@ def create_corelated_nc(prior_id):
     except OSError:
         pass
 
-    f = nc.Dataset(tmp_file_name, 'w', format='NETCDF4')
+    f = nc.Dataset(tmp_file_name, "w", format="NETCDF4")
 
-    f.createDimension('lat', len(lat))
-    f.createDimension('lon', len(lon))
-    f.createDimension('N', len(memb))
-    f.createDimension('time', None)
+    f.createDimension("lat", len(lat))
+    f.createDimension("lon", len(lon))
+    f.createDimension("N", len(memb))
+    f.createDimension("time", None)
 
-    latitude = f.createVariable('Latitude', 'f4', 'lat')
-    longitude = f.createVariable('Longitude', 'f4', 'lon')
+    latitude = f.createVariable("Latitude", "f4", "lat")
+    longitude = f.createVariable("Longitude", "f4", "lon")
 
-    levels = f.createVariable('Members', 'i4', 'N')
-    time = f.createVariable('Time', 'i4', 'time')
+    levels = f.createVariable("Members", "i4", "N")
+    time = f.createVariable("Time", "i4", "time")
 
     latitude[:] = lat
     longitude[:] = lon
@@ -640,10 +696,10 @@ def create_corelated_nc(prior_id):
     f.history = "Created " + today.strftime("%d/%m/%y")
 
     # Add local attributes to variable instances
-    longitude.units = 'cells'
-    latitude.units = 'cells'
-    time.units = 'days since Jan 01, 0001'
-    levels.units = 'members'
+    longitude.units = "cells"
+    latitude.units = "cells"
+    time.units = "days since Jan 01, 0001"
+    levels.units = "members"
 
     rho, orderows = get_rho(prior_id)
     # add GSC maps
@@ -659,12 +715,14 @@ def create_corelated_nc(prior_id):
         if perturbation_strategy[count] == "lognormal":
             gsc_arr = np.exp(gsc_arr)
 
-        elif perturbation_strategy[count] in ["logitnormal_mult",
-                                              "logitnormal_adi"]:
+        elif perturbation_strategy[count] in [
+            "logitnormal_mult",
+            "logitnormal_adi",
+        ]:
 
             gsc_arr = met.gexpit(gsc_arr, lower_bounds[var], upper_bounds[var])
 
-        gsc_var = f.createVariable(var, 'f4', ('time', 'lat', 'lon', 'N'))
+        gsc_var = f.createVariable(var, "f4", ("time", "lat", "lon", "N"))
         gsc_var[0, :, :, :] = gsc_arr
     f.close()
 
@@ -703,7 +761,7 @@ def generate_prior_maps(GSC_filenames, ini_DA_window):
 def read_parameter(GSC_filename, lat_idx, lon_idx, var_tmp, mbr):
 
     f = nc.Dataset(GSC_filename)
-    parameter = f.variables[var_tmp][:, lat_idx,  lon_idx, mbr]
+    parameter = f.variables[var_tmp][:, lat_idx, lon_idx, mbr]
     f.close()
     return parameter
 
@@ -718,16 +776,23 @@ def domain_steps():
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
 
-    del_t = np.asarray([date_ini + dt.timedelta(hours=x)
-                        for x in range(int((date_end-date_ini).total_seconds()
-                                           / 3600) + 1)])
+    del_t = np.asarray(
+        [
+            date_ini + dt.timedelta(hours=x)
+            for x in range(
+                int((date_end - date_ini).total_seconds() / 3600) + 1
+            )
+        ]
+    )
     days = [date.day for date in del_t]
     months = [date.month for date in del_t]
     hours = [date.hour for date in del_t]
 
-    season_ini_cuts = np.argwhere((np.asarray(days) == season_ini_day) &
-                                  (np.asarray(months) == season_ini_month) &
-                                  (np.asarray(hours) == 0))
+    season_ini_cuts = np.argwhere(
+        (np.asarray(days) == season_ini_day)
+        & (np.asarray(months) == season_ini_month)
+        & (np.asarray(hours) == 0)
+    )
 
     return season_ini_cuts
 
@@ -745,8 +810,9 @@ def prepare_forcing(lat_idx, lon_idx, step):
 def generate_obs_mask(HPC_task_id):
 
     name_obs_mask = "obs_mask.blp"
-    name_obs_mask = os.path.join(cfg.spatial_propagation_storage_path,
-                                 name_obs_mask)
+    name_obs_mask = os.path.join(
+        cfg.spatial_propagation_storage_path, name_obs_mask
+    )
 
     if HPC_task_id == 0:
         obs_mask()
@@ -772,7 +838,7 @@ def obs_mask():
 
     # ini_seasons = domain_steps()
 
-    array_obs = np.empty((len(obs_var_names),)+ifn.get_dims())
+    array_obs = np.empty((len(obs_var_names),) + ifn.get_dims())
     array_obs[:] = np.nan
     tmp_storage = []
 
@@ -798,13 +864,14 @@ def obs_mask():
     # mask
     if mask:
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:]
+        mask_value = mask.variables["mask"][:]
         mask.close()
         array_obs[mask_value != 1] = 0
 
     name_obs_mask = "obs_mask.blp"
-    name_obs_mask = os.path.join(cfg.spatial_propagation_storage_path,
-                                 name_obs_mask)
+    name_obs_mask = os.path.join(
+        cfg.spatial_propagation_storage_path, name_obs_mask
+    )
 
     ifn.io_write(name_obs_mask, array_obs)
 
@@ -823,14 +890,14 @@ def get_idrow_from_cor(lat_idx, lon_idx):
     lons = np.arange(n_lons)
 
     # Genera todas las combinaciones posibles usando np.meshgrid
-    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing='ij')
+    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing="ij")
 
     # Combina las matrices resultantes en una única matriz de coordenadas
     grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
 
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:]
+        mask_value = mask.variables["mask"][:]
         mask.close()
         mask = mask_value.flatten()
 
@@ -839,12 +906,18 @@ def get_idrow_from_cor(lat_idx, lon_idx):
 
     if lat_idx.size == 1:
 
-        idrow = int(np.where((grid[:, 0] == lat_idx) &
-                             (grid[:, 1] == lon_idx))[0])
+        idrow = int(
+            np.where((grid[:, 0] == lat_idx) & (grid[:, 1] == lon_idx))[0]
+        )
     else:
-        idrow = np.concatenate([np.where((grid[:, 0] == lat_idx[x]) &
-                                         (grid[:, 1] == lon_idx[x]))[0]
-                                for x in range(lat_idx.size)])
+        idrow = np.concatenate(
+            [
+                np.where(
+                    (grid[:, 0] == lat_idx[x]) & (grid[:, 1] == lon_idx[x])
+                )[0]
+                for x in range(lat_idx.size)
+            ]
+        )
 
     return idrow
 
@@ -860,7 +933,7 @@ def read_distances(lat_idx, lon_idx):
 
     idrow = get_idrow_from_cor(lat_idx, lon_idx)
 
-    f = nc.Dataset(name_dist, format='NETCDF4')
+    f = nc.Dataset(name_dist, format="NETCDF4")
     distances = f.variables["Dist"][:, idrow]
     f.close()
 
@@ -894,14 +967,14 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
     lons = np.arange(n_lons)
 
     # Genera todas las combinaciones posibles usando np.meshgrid
-    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing='ij')
+    mesh_lats, mesh_lons = np.meshgrid(lats, lons, indexing="ij")
 
     # Combina las matrices resultantes en una única matriz de coordenadas
     grid = np.column_stack((mesh_lats.flatten(), mesh_lons.flatten()))
 
     if mask:  # If mask exists, return string if masked
         mask = nc.Dataset(mask)
-        mask_value = mask.variables['mask'][:]
+        mask_value = mask.variables["mask"][:]
         mask.close()
         mask = mask_value.flatten()
 
@@ -915,31 +988,31 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
         neigb = neigb[np.newaxis, :]
 
     if j == 0:
-        neigb = ["{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
-            step=step,
-            lat=neigb[x, 0],
-            lon=neigb[x, 1])
-            for x in range(neigb.shape[0])]
+        neigb = [
+            "{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
+                step=step, lat=neigb[x, 0], lon=neigb[x, 1]
+            )
+            for x in range(neigb.shape[0])
+        ]
 
     else:
-        neigb = ["{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".
-                 format(step=step,
-                        j=j-1,
-                        lat=neigb[x, 0],
-                        lon=neigb[x, 1])
-                 for x in range(neigb.shape[0])]
+        neigb = [
+            "{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
+                step=step, j=j - 1, lat=neigb[x, 0], lon=neigb[x, 1]
+            )
+            for x in range(neigb.shape[0])
+        ]
 
     # add current cell
     if j == 0:
         current_path = "{step}pri_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
-            step=step, lat=lat_idx, lon=lon_idx)
+            step=step, lat=lat_idx, lon=lon_idx
+        )
 
     else:
-        current_path = "{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".\
-            format(step=step,
-                   j=j-1,
-                   lat=lat_idx,
-                   lon=lon_idx)
+        current_path = "{step}_{j}it_ensbl_{lat}_{lon}_obsTrue.pkl.blp".format(
+            step=step, j=j - 1, lat=lat_idx, lon=lon_idx
+        )
 
     current_path = os.path.join(cfg.save_ensemble_path, current_path)
     neigb.append(current_path)
@@ -951,8 +1024,10 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
     if cfg.spatial_in_mem:
         check = [i for i in neigb if i in sim_dic.keys()]
     else:
-        neigb = [os.path.join(cfg.save_ensemble_path, neigb[x])
-                 for x in range(len(neigb))]
+        neigb = [
+            os.path.join(cfg.save_ensemble_path, neigb[x])
+            for x in range(len(neigb))
+        ]
         check = [i for i in neigb if os.path.isfile(i)]
 
     return check
@@ -974,7 +1049,7 @@ def get_neig_info(lat_idx, lon_idx, step, j, sim_dic):
     pos = []
     [pos.append(var_to_assim.index(x)) for x in var_to_prop]
 
-    if (len(files) == 0 or len(pos) == 0):
+    if len(files) == 0 or len(pos) == 0:
         return neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long
 
     for count, file in enumerate(files):
@@ -999,8 +1074,9 @@ def get_neig_info(lat_idx, lon_idx, step, j, sim_dic):
         list_state = ens_tmp.state_membres
         predicted = flt.get_predictions(list_state, var_to_prop)
 
-        obs_masked, predicted, tmp_r_cov = \
-            flt.tidy_obs_pred_rcov(predicted, obs, errors)
+        obs_masked, predicted, tmp_r_cov = flt.tidy_obs_pred_rcov(
+            predicted, obs, errors
+        )
 
         if predicted.ndim == 1:
             predicted = predicted[np.newaxis, :]
@@ -1054,8 +1130,9 @@ def add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov):
 
     predicted = flt.get_predictions(Ensemble.state_membres, var_rem)
 
-    observations_sbst_masked, predicted, r_cov = \
-        flt.tidy_obs_pred_rcov(predicted, observations, errors)
+    observations_sbst_masked, predicted, r_cov = flt.tidy_obs_pred_rcov(
+        predicted, observations, errors
+    )
 
     if neig_obs != []:
 
@@ -1091,9 +1168,11 @@ def add_local_coords(Ensemble, curren_lat, current_lon, neig_lat, neig_long):
 
     if neig_lat != []:
         neig_lat = np.concatenate(
-            (neig_lat, np.repeat(curren_lat, n)[:, np.newaxis]))
+            (neig_lat, np.repeat(curren_lat, n)[:, np.newaxis])
+        )
         neig_long = np.concatenate(
-            (neig_long, np.repeat(current_lon, n)[:, np.newaxis]))
+            (neig_long, np.repeat(current_lon, n)[:, np.newaxis])
+        )
     else:
         neig_lat = np.repeat(curren_lat, n)[:, np.newaxis]
         neig_long = np.repeat(current_lon, n)[:, np.newaxis]
@@ -1114,15 +1193,15 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
 
     f = nc.Dataset(name_dist)
     if isinstance(neig_ids, int):
-        d_curent_neig = f.variables["Dist"][neig_ids,
-                                            current_id]
-        d_neig_neig = f.variables["Dist"][neig_ids,
-                                          neig_ids]
+        d_curent_neig = f.variables["Dist"][neig_ids, current_id]
+        d_neig_neig = f.variables["Dist"][neig_ids, neig_ids]
     else:
-        d_curent_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
-                                            current_id]
-        d_neig_neig = f.variables["Dist"][neig_ids.flatten().astype(int),
-                                          neig_ids.flatten().astype(int)]
+        d_curent_neig = f.variables["Dist"][
+            neig_ids.flatten().astype(int), current_id
+        ]
+        d_neig_neig = f.variables["Dist"][
+            neig_ids.flatten().astype(int), neig_ids.flatten().astype(int)
+        ]
     f.close()
 
     rho_par_predicted_obs = [GC(d_curent_neig, c_par) for c_par in c]
@@ -1131,35 +1210,45 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
     return rho_par_predicted_obs, rho_predicted_obs
 
 
-def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
-                         step, gsc_count, sim_dic=None,
-                         in_mem=cfg.spatial_in_mem):
+def create_ensemble_cell(
+    lat_idx,
+    lon_idx,
+    ini_DA_window,
+    step,
+    gsc_count,
+    sim_dic=None,
+    in_mem=cfg.spatial_in_mem,
+):
 
     real_time_restart = cfg.real_time_restart
 
-    main_forcing, time_dict, observations, errors = prepare_forcing(lat_idx,
-                                                                    lon_idx,
-                                                                    step)
+    main_forcing, time_dict, observations, errors = prepare_forcing(
+        lat_idx, lon_idx, step
+    )
     # subset forcing and observations
     # subset forcing, errors and observations
-    observations_sbst = observations[time_dict["Assimilation_steps"][step]:
-                                     time_dict["Assimilation_steps"][step
-                                                                     + 1]]
-    error_sbst = errors[time_dict["Assimilation_steps"][step]:
-                        time_dict["Assimilation_steps"][step
-                                                        + 1]]
+    observations_sbst = observations[
+        time_dict["Assimilation_steps"][step] : time_dict[
+            "Assimilation_steps"
+        ][step + 1]
+    ]
+    error_sbst = errors[
+        time_dict["Assimilation_steps"][step] : time_dict[
+            "Assimilation_steps"
+        ][step + 1]
+    ]
 
-    forcing_sbst = main_forcing[time_dict["Assimilation_steps"][step]:
-                                time_dict["Assimilation_steps"][step + 1]]\
-        .copy()
+    forcing_sbst = main_forcing[
+        time_dict["Assimilation_steps"][step] : time_dict[
+            "Assimilation_steps"
+        ][step + 1]
+    ].copy()
 
     obs_flag = ~np.isnan(observations_sbst).all()
 
     name_ensemble_end = "{step}pri_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
-        step=step,
-        lat=lat_idx,
-        lon=lon_idx,
-        obs=obs_flag)
+        step=step, lat=lat_idx, lon=lon_idx, obs=obs_flag
+    )
 
     # If file exists adn restart = True, continue to next
     if cfg.restart_run and os.path.isfile(name_ensemble_end):
@@ -1176,10 +1265,12 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
 
             try:
 
-                name_restart = "init_" + str(lat_idx) +\
-                    "_" + str(lon_idx) + ".pkl.blp"
-                name_restart = os.path.join(cfg.real_time_restart_path,
-                                            name_restart)
+                name_restart = (
+                    "init_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp"
+                )
+                name_restart = os.path.join(
+                    cfg.real_time_restart_path, name_restart
+                )
                 Ensemble = ifn.io_read(name_restart)
                 Ensemble.real_time_restart = True
 
@@ -1191,16 +1282,20 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
 
     else:
         # Open cell to create new ensemble
-        name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
-            format(step=step-1,
-                   j=cfg.max_iterations - 1,
-                   lat=lat_idx,
-                   lon=lon_idx,
-                   obs=obs_flag)
+        name_ensemble = (
+            "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
+                step=step - 1,
+                j=cfg.max_iterations - 1,
+                lat=lat_idx,
+                lon=lon_idx,
+                obs=obs_flag,
+            )
+        )
 
         if in_mem:
-            Ensemble = deepcopy(ifn.io_read(
-                sim_dic[name_ensemble], in_mem=True))
+            Ensemble = deepcopy(
+                ifn.io_read(sim_dic[name_ensemble], in_mem=True)
+            )
         else:
             name_ensemble = os.path.join(cfg.output_path, name_ensemble)
             Ensemble = ifn.io_read(name_ensemble)
@@ -1208,13 +1303,19 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
 
     if time_dict["Assimilation_steps"][step] in ini_DA_window:
-        GSC_filename = (str(gsc_count) + '_GSC.nc')
+        GSC_filename = str(gsc_count) + "_GSC.nc"
 
-        Ensemble.create(forcing_sbst, observations_sbst, error_sbst,  step,
-                        readGSC=True, GSC_filename=GSC_filename)
+        Ensemble.create(
+            forcing_sbst,
+            observations_sbst,
+            error_sbst,
+            step,
+            readGSC=True,
+            GSC_filename=GSC_filename,
+        )
 
     else:  # for filters
-        raise Exception('Filters not implemented yet in spatial propagation')
+        raise Exception("Filters not implemented yet in spatial propagation")
 
     # Save space. Not possible. If save space and no local or neig obs, the
     # output would be broken
@@ -1226,7 +1327,8 @@ def create_ensemble_cell(lat_idx, lon_idx, ini_DA_window,
         return {name_ensemble_end: ens_comp}
     else:
         name_ensemble_end = os.path.join(
-            cfg.save_ensemble_path, name_ensemble_end)
+            cfg.save_ensemble_path, name_ensemble_end
+        )
         ifn.io_write(name_ensemble_end, Ensemble)
 
 
@@ -1235,11 +1337,18 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
     grid = ifn.expand_grid()
 
     if j is None and step == 0:
-        files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                          "{step}pri*.pkl.blp".format(step=step)))
+        files = glob.glob(
+            os.path.join(
+                cfg.save_ensemble_path, "{step}pri*.pkl.blp".format(step=step)
+            )
+        )
     else:
-        files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                          "{step}_{j}it*.pkl.blp".format(step=step, j=j)))
+        files = glob.glob(
+            os.path.join(
+                cfg.save_ensemble_path,
+                "{step}_{j}it*.pkl.blp".format(step=step, j=j),
+            )
+        )
 
     # wait until finish
     while True:
@@ -1250,8 +1359,9 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
             if j is not None:
                 # try to remove prior files
                 if HPC_task_id == 0:
-                    rm_files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                                                      "*pri*.pkl.blp"))
+                    rm_files = glob.glob(
+                        os.path.join(cfg.save_ensemble_path, "*pri*.pkl.blp")
+                    )
                     for f in rm_files:
                         if os.path.isfile(f):
                             os.remove(f)
@@ -1259,25 +1369,30 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                 # [or] Solution in case of no iterations. If not,
                 # it will not clean
                 if HPC_task_id == 0 and j > 0 or cfg.max_iterations == 1:
-                    rm_files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                                                      "{step}_{j}it*.pkl.blp".
-                                                      format(step=step,
-                                                             j=j-1)))
+                    rm_files = glob.glob(
+                        os.path.join(
+                            cfg.save_ensemble_path,
+                            "{step}_{j}it*.pkl.blp".format(step=step, j=j - 1),
+                        )
+                    )
                     for f in rm_files:
                         if os.path.isfile(f):
                             os.remove(f)
 
                     # if end of the Kalman iterations move ensembles to results
-                    if j == cfg.max_iterations-1:
+                    if j == cfg.max_iterations - 1:
                         for f in files:
                             shutil.move(f, cfg.output_path)
 
                 # if not first task and end of iterations, wait for
                 # ensembles in results
-                if HPC_task_id != 0 and j == cfg.max_iterations-1:
-                    files = glob.glob(os.path.join(cfg.output_path,
-                                      "{step}_{j}it*.pkl.blp".format(step=step,
-                                                                     j=j)))
+                if HPC_task_id != 0 and j == cfg.max_iterations - 1:
+                    files = glob.glob(
+                        os.path.join(
+                            cfg.output_path,
+                            "{step}_{j}it*.pkl.blp".format(step=step, j=j),
+                        )
+                    )
                     while True:
                         if len(grid) == len(files):
                             break
@@ -1286,37 +1401,47 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                             files = glob.glob(
                                 os.path.join(
                                     cfg.output_path,
-                                    "{step}_{j}it*.pkl.blp".format(step=step,
-                                                                   j=j)))
+                                    "{step}_{j}it*.pkl.blp".format(
+                                        step=step, j=j
+                                    ),
+                                )
+                            )
 
             break
 
         else:
             time.sleep(2)
             if j is None:
-                files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                                  "{step}pri*.pkl.blp".format(step=step)))
+                files = glob.glob(
+                    os.path.join(
+                        cfg.save_ensemble_path,
+                        "{step}pri*.pkl.blp".format(step=step),
+                    )
+                )
             else:
-                files = glob.glob(os.path.join(cfg.save_ensemble_path,
-                                  "{step}_{j}it*.pkl.blp".format(step=step,
-                                                                 j=j)))
+                files = glob.glob(
+                    os.path.join(
+                        cfg.save_ensemble_path,
+                        "{step}_{j}it*.pkl.blp".format(step=step, j=j),
+                    )
+                )
 
 
-def spatial_assim(lat_idx, lon_idx, step, j,
-                  sim_dic=None, in_mem=cfg.spatial_in_mem):
+def spatial_assim(
+    lat_idx, lon_idx, step, j, sim_dic=None, in_mem=cfg.spatial_in_mem
+):
 
     vars_to_perturbate = cfg.vars_to_perturbate
 
     # Open cell to assim
     if j == 0:
-        file = "{step}pri_ensbl_{lat}_{lon}_obs*.pkl.blp".format(step=step,
-                                                                 lat=lat_idx,
-                                                                 lon=lon_idx)
+        file = "{step}pri_ensbl_{lat}_{lon}_obs*.pkl.blp".format(
+            step=step, lat=lat_idx, lon=lon_idx
+        )
     else:
-        file = "{step}_{j}it_ensbl_{lat}_{lon}_obs*.pkl.blp".format(step=step,
-                                                                    j=j-1,
-                                                                    lat=lat_idx,
-                                                                    lon=lon_idx)
+        file = "{step}_{j}it_ensbl_{lat}_{lon}_obs*.pkl.blp".format(
+            step=step, j=j - 1, lat=lat_idx, lon=lon_idx
+        )
 
     # trick to find the local ensemble
     if in_mem:
@@ -1334,18 +1459,15 @@ def spatial_assim(lat_idx, lon_idx, step, j,
             Ensemble = ifn.io_read(file)
 
     except FileNotFoundError:
-        print('Not found: ' + file)
+        print("Not found: " + file)
 
         return None
 
     # If new file exist from a previous run, continue
     obs_flag = ~np.isnan(Ensemble.observations).all()
-    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".\
-        format(step=step,
-               j=j,
-               lat=lat_idx,
-               lon=lon_idx,
-               obs=obs_flag)
+    name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
+        step=step, j=j, lat=lat_idx, lon=lon_idx, obs=obs_flag
+    )
 
     if cfg.restart_run and os.path.isfile(name_ensemble):
         # If file exists, continue to next
@@ -1354,20 +1476,22 @@ def spatial_assim(lat_idx, lon_idx, step, j,
     # try to update with neig inf, if any problem just copy prior
     try:
 
-        neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = \
+        neig_obs, neig_pred_obs, neig_r_cov, neig_lat, neig_long = (
             get_neig_info(lat_idx, lon_idx, step, j, sim_dic)
+        )
 
         # in case var_to_prop != var_to_assim, get_neig_info gets only the neigborhood obs and not the local observation:
         # add the local observations and coordinates in case some variables are not spatially propagated.
         if cfg.var_to_prop != cfg.var_to_assim:
 
-            neig_obs, neig_pred_obs, neig_r_cov = \
-                add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov)
+            neig_obs, neig_pred_obs, neig_r_cov = add_local_obs(
+                Ensemble, neig_obs, neig_pred_obs, neig_r_cov
+            )
 
             # add the coordinates of the local obs
-            neig_lat, neig_long = \
-                add_local_coords(Ensemble, lat_idx, lon_idx,
-                                 neig_lat, neig_long)
+            neig_lat, neig_long = add_local_coords(
+                Ensemble, lat_idx, lon_idx, neig_lat, neig_long
+            )
 
         # if no obs do nothing
 
@@ -1380,16 +1504,20 @@ def spatial_assim(lat_idx, lon_idx, step, j,
 
             # create neig rho
             rho_par_predicted_obs, rho_predicted_obs = generate_local_rho(
-                lat_idx, lon_idx, neig_lat, neig_long)
+                lat_idx, lon_idx, neig_lat, neig_long
+            )
 
             prior = np.ones((len(vars_to_perturbate), Ensemble.members))
             for cont, var in enumerate(vars_to_perturbate):
                 if j == 0:
-                    var_tmp = [Ensemble.noise[x][var]
-                               for x in range(Ensemble.members)]
+                    var_tmp = [
+                        Ensemble.noise[x][var] for x in range(Ensemble.members)
+                    ]
                 else:
-                    var_tmp = [Ensemble.noise_iter[x][var]
-                               for x in range(Ensemble.members)]
+                    var_tmp = [
+                        Ensemble.noise_iter[x][var]
+                        for x in range(Ensemble.members)
+                    ]
                 var_tmp = np.asarray(var_tmp)
                 var_tmp = np.squeeze(var_tmp)
                 # HACK: next lines have to be modified with time varying
@@ -1398,44 +1526,59 @@ def spatial_assim(lat_idx, lon_idx, step, j,
                 prior[cont, :] = var_tmp[:, 0]
 
             # translate paramsto normal distribution
-            prior = flt.transform_space(prior, 'to_normal')
+            prior = flt.transform_space(prior, "to_normal")
 
-            with threadpool_limits(limits=4):
+            with threadpool_limits(cfg.numpy_threads):
                 try:
 
-                    updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                               cfg.max_iterations, neig_r_cov,
-                                               rho_AB=rho_par_predicted_obs,
-                                               rho_BB=rho_predicted_obs,
-                                               stochastic=False)
+                    updated_pars = flt.ens_klm(
+                        prior,
+                        neig_obs,
+                        neig_pred_obs,
+                        cfg.max_iterations,
+                        neig_r_cov,
+                        rho_AB=rho_par_predicted_obs,
+                        rho_BB=rho_predicted_obs,
+                        stochastic=False,
+                    )
                 # Avoid crash if there are no local obs
                 # and there is only one obs in neig
                 except Exception as ex:
-                    print('({ex}) update fail, trying with rho=1:'
-                          '{lat}:lat_idx, {lon}:lon_idx'.
-                          format(lat=lat_idx, lon=lon_idx, ex=ex))
-                    updated_pars = flt.ens_klm(prior, neig_obs, neig_pred_obs,
-                                               cfg.max_iterations, neig_r_cov,
-                                               stochastic=False)
+                    print(
+                        "({ex}) update fail, trying with rho=1:"
+                        "{lat}:lat_idx, {lon}:lon_idx".format(
+                            lat=lat_idx, lon=lon_idx, ex=ex
+                        )
+                    )
+                    updated_pars = flt.ens_klm(
+                        prior,
+                        neig_obs,
+                        neig_pred_obs,
+                        cfg.max_iterations,
+                        neig_r_cov,
+                        stochastic=False,
+                    )
 
-                updated_pars = flt.transform_space(updated_pars, 'from_normal')
+                updated_pars = flt.transform_space(updated_pars, "from_normal")
 
-            Ensemble.iter_update(step, updated_pars,
-                                 create=True, iteration=j)
+            Ensemble.iter_update(step, updated_pars, create=True, iteration=j)
             Ensemble.update_iter_restarts()
 
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
-        print('({ex}) Cell not updated: {lat}:lat_idx, {lon}:lon_idx'.
-              format(lat=lat_idx, lon=lon_idx, ex=ex))
+        print(
+            "({ex}) Cell not updated: {lat}:lat_idx, {lon}:lon_idx".format(
+                lat=lat_idx, lon=lon_idx, ex=ex
+            )
+        )
 
         save_space_flag = False
         Ensemble.iter_update(create=False)
 
     # Save updated ensemble
-    if j < cfg.max_iterations-1 and save_space_flag:
+    if j < cfg.max_iterations - 1 and save_space_flag:
         Ensemble.save_space()
-    if j == cfg.max_iterations-1:
+    if j == cfg.max_iterations - 1:
         Ensemble.rm_forz()
 
     if in_mem:
@@ -1454,10 +1597,10 @@ def collect_results(lat_idx, lon_idx, list_of_simdic):
     date_end = cfg.date_end
 
     # remove prior files
-#    rm_files = glob.glob(os.path.join(cfg.save_ensemble_path, "*pri*.blp"))
-#    for f in rm_files:
-#        if os.path.isfile(f):
-#            os.remove(f)
+    #    rm_files = glob.glob(os.path.join(cfg.save_ensemble_path, "*pri*.blp"))
+    #    for f in rm_files:
+    #        if os.path.isfile(f):
+    #            os.remove(f)
 
     # create dates:
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
@@ -1468,19 +1611,19 @@ def collect_results(lat_idx, lon_idx, list_of_simdic):
     ini_DA_window = domain_steps()
 
     if cfg.write_stat_full:
-        stat_name_list = ['min', 'max', 'Q1', 'Q3', 'median', 'mean', 'std']
+        stat_name_list = ["min", "max", "Q1", "Q3", "median", "mean", "std"]
     else:
-        stat_name_list = ['mean', 'std']
+        stat_name_list = ["mean", "std"]
 
     # HACK: fake time_dict
-    time_dict = {'Assimilation_steps':
-                 np.append(ini_DA_window, len(del_t)),
-                 'del_t': ifn.generate_dates(date_ini, date_end)}
+    time_dict = {
+        "Assimilation_steps": np.append(ini_DA_window, len(del_t)),
+        "del_t": ifn.generate_dates(date_ini, date_end),
+    }
 
     # create filenames
     DA_Results = model.init_result(time_dict["del_t"], DA=True)  # DA parameter
-    OL_Sim = model.init_result(
-        time_dict["del_t"], OL=True)       # OL simulation
+    OL_Sim = model.init_result(time_dict["del_t"], OL=True)  # OL simulation
     poste_stat = model.init_result(time_dict["del_t"])
 
     # loop over DA steps
@@ -1491,14 +1634,19 @@ def collect_results(lat_idx, lon_idx, list_of_simdic):
             step=step,
             j=cfg.max_iterations - 1,
             lat_idx=lat_idx,
-            lon_idx=lon_idx)
+            lon_idx=lon_idx,
+        )
 
         try:
             if cfg.spatial_in_mem:
-                fname = [k for k in list_of_simdic[step].keys()
-                         if fnmatchcase(k, fname)][0]
-                Ensemble = deepcopy(ifn.io_read(list_of_simdic[step][fname],
-                                                in_mem=True))
+                fname = [
+                    k
+                    for k in list_of_simdic[step].keys()
+                    if fnmatchcase(k, fname)
+                ][0]
+                Ensemble = deepcopy(
+                    ifn.io_read(list_of_simdic[step][fname], in_mem=True)
+                )
 
             else:
                 fname = os.path.join(cfg.output_path, fname)
@@ -1518,12 +1666,17 @@ def collect_results(lat_idx, lon_idx, list_of_simdic):
         # extract psoterior parameters
         for cont, var_p in enumerate(cfg.vars_to_perturbate):
 
-            noise_ens_temp = [Ensemble.noise_iter[x][var_p]
-                              for x in range(len(Ensemble.noise_iter))]
+            noise_ens_temp = [
+                Ensemble.noise_iter[x][var_p]
+                for x in range(len(Ensemble.noise_iter))
+            ]
             noise_ens_temp = np.vstack(noise_ens_temp)
-            noise_ens_temp = flt.transform_space(noise_ens_temp, 'to_normal',
-                                                 pert_stra=cfg.perturbation_strategy[cont],
-                                                 vari=var_p)
+            noise_ens_temp = flt.transform_space(
+                noise_ens_temp,
+                "to_normal",
+                pert_stra=cfg.perturbation_strategy[cont],
+                vari=var_p,
+            )
 
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
             noise_tmp_avg = d1.mean
@@ -1532,38 +1685,44 @@ def collect_results(lat_idx, lon_idx, list_of_simdic):
             step_results[var_p + "_noise_mean"] = noise_tmp_avg
             step_results[var_p + "_noise_sd"] = noise_tmp_sd
 
-        model.storeDA(DA_Results, step_results, Ensemble.observations,
-                      Ensemble.errors, time_dict, step)
+        model.storeDA(
+            DA_Results,
+            step_results,
+            Ensemble.observations,
+            Ensemble.errors,
+            time_dict,
+            step,
+        )
 
-        model.store_sim(poste_stat, Ensemble,
-                        time_dict, step)
+        model.store_sim(poste_stat, Ensemble, time_dict, step)
 
     # the whole OL is stored in the last Ensemble
     try:
-        model.storeOL(OL_Sim, Ensemble, Ensemble.observations,
-                      time_dict, step)
+        model.storeOL(OL_Sim, Ensemble, Ensemble.observations, time_dict, step)
     except NameError:
         pass
 
     # Write results
-    cell_data = {**{"DA_Results": DA_Results, "OL_Sim": OL_Sim},
-                 **{key+'_Post': poste_stat[key] for key in stat_name_list}, }
+    cell_data = {
+        **{"DA_Results": DA_Results, "OL_Sim": OL_Sim},
+        **{key + "_Post": poste_stat[key] for key in stat_name_list},
+    }
 
-    filename = ("cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp")
+    filename = "cell_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp"
     filename = os.path.join(cfg.output_path, filename)
 
     ifn.io_write(filename, ifn.downcast_output(cell_data))
 
     # Save ensemble
     if cfg.save_ensemble:
-        name_ensemble = "ensbl_" + str(lat_idx) +\
-            "_" + str(lon_idx) + ".pkl.blp"
+        name_ensemble = (
+            "ensbl_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp"
+        )
         name_ensemble = os.path.join(cfg.save_ensemble_path, name_ensemble)
         ifn.io_write(name_ensemble, Ensemble)
 
     if cfg.real_time_restart:  # save space
-        name_restart = "init_" + str(lat_idx) +\
-            "_" + str(lon_idx) + ".pkl.blp"
+        name_restart = "init_" + str(lat_idx) + "_" + str(lon_idx) + ".pkl.blp"
         name_restart = os.path.join(cfg.real_time_restart_path, name_restart)
         Ensemble.forcing = []  # save some space
         Ensemble.origin_state = pd.DataFrame()
