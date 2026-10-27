@@ -8,7 +8,7 @@ import warnings
 import pandas as pd
 import numpy as np
 import config as cfg
-from threadpoolctl import threadpool_limits
+from modules.threading_utils import threadpool_limits_safe
 from smrt import make_snowpack, make_model, make_soil, sensor_list
 
 
@@ -103,7 +103,7 @@ def run_SMRT(rows, statedataframe, k):
         # create the model
         m = make_model("iba", "dort")
         # run the model
-        with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+        with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
             result = m.run(radiometer, snowpack, parallel_computation="none")
 
         # outputs

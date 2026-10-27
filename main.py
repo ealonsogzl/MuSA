@@ -33,7 +33,8 @@ elif cfg.parallelization == "HPC.array":
 else:
     pass
 from modules.cell_assim import cell_assimilation
-from mpi4py import MPI
+if cfg.MPI:
+    from mpi4py import MPI
 import logging
 
 
@@ -357,16 +358,22 @@ def MuSA():
 
 def check_platform():
 
-    # TODO: provide full suport for wind32
-
-    if sys.platform not in ("linux", "darwin"):
-        raise Exception(sys.platform + " is not supported by MuSA yet")
+    if sys.platform not in ("linux", "darwin", "win32"):
+        raise Exception(
+            sys.platform
+            + " is not supported by MuSA. Supported platforms are Linux, "
+            "macOS and Windows"
+        )
 
 
 if __name__ == "__main__":
 
+    # Windows and macOS only implement the spawn start method. It is also
+    # the safest choice everywhere (fork is deprecated on macOS and can
+    # deadlock with some scientific libraries), so force it on all platforms.
     if cfg.parallelization in ["multiprocessing", "HPC.array"]:
         mp.set_start_method("spawn", force=True)
+        mp.freeze_support()
 
     check_platform()
     ifn.pre_cheks()

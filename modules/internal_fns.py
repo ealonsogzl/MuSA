@@ -10,6 +10,7 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 from multiprocessing import TimeoutError
 import glob
 import os
+import sys
 import shutil
 import datetime as dt
 import netCDF4 as nc
@@ -59,7 +60,7 @@ def pre_cheks():
         warnings.warn("timeout is ignored with MPI")
 
     if cfg.parallelization == "HPC.array" and cfg.numerical_model == "FSM2":
-        fsm_filename = os.path.join(cfg.fsm_src_path, "FSM2")
+        fsm_filename = model.model_binary_path()
         if os.path.isfile(fsm_filename):
             warnings.warn("FSM binary exists, reusing compile options")
 
@@ -118,6 +119,26 @@ def return_step_j(logfile):
 
 
 def change_chunk_size_nccopy(input_file):
+    # nccopy is distributed with the netCDF C utilities. It is not always
+    # available (especially on Windows), so this is a best-effort helper.
+    nccopy = shutil.which("nccopy")
+    if nccopy is None and os.name == "nt":
+        # The conda environment is not necessarily activated: look for the
+        # executable shipped with it explicitly.
+        for candidate in (
+            os.path.join(sys.prefix, "Library", "bin", "nccopy.exe"),
+            os.path.join(sys.prefix, "Scripts", "nccopy.exe"),
+        ):
+            if os.path.isfile(candidate):
+                nccopy = candidate
+                break
+    if nccopy is None:
+        warnings.warn(
+            "nccopy was not found in PATH. Skipping chunk optimization for "
+            + input_file
+        )
+        return
+
     # Open the input NetCDF file to get dimension sizes
     with nc.Dataset(input_file, "r") as dataset:
         # Determine chunk sizes based on dimensions
@@ -129,7 +150,7 @@ def change_chunk_size_nccopy(input_file):
     # Build the nccopy command to copy to a temporary file
     temp_file = input_file + ".temp"
     command = [
-        "nccopy",
+        nccopy,
         "-c",
         ",".join(f"{dim}/{size}" for dim, size in chunk_sizes.items()),
         input_file,
@@ -139,18 +160,21 @@ def change_chunk_size_nccopy(input_file):
     # Execute the command
     try:
         subprocess.run(command, check=True)
-        print("Chunking successful.")
 
         # Replace the original file with the temporary file
-        os.remove(input_file)
-        os.rename(temp_file, input_file)
-        print("File replaced successfully.")
-    except subprocess.CalledProcessError as e:
+        os.replace(temp_file, input_file)
+        print("Chunking successful.")
+
+    except (subprocess.CalledProcessError, OSError) as e:
         print(f"Error: {e}")
         print(
             f"Not possible to chunk file: {input_file}."
             "Manual chunking is recommended"
         )
+        try:
+            os.remove(temp_file)
+        except OSError:
+            pass
 
 
 def io_write(filename_or_obj, obj=None, codec="lz4", clevel=3, in_mem=False):

@@ -1,0 +1,30 @@
+name: MuSA
+channels:
+  - conda-forge
+dependencies:
+  # Python and scientific stack
+  - python=3.12
+  - numpy
+  - pandas
+  - scipy
+  - netcdf4
+  - numba
+  - pyarrow
+  - statsmodels
+  - threadpoolctl
+  - scikit-learn
+  # Use OpenBLAS instead of MKL: threadpoolctl (used to limit threads) can
+  # fail while introspecting MKL on Windows.
+  - libblas=*=*openblas
+  - liblapack=*=*openblas
+  # Sparse Cholesky for spatial propagation (distance_mat_calc = Sparse/KDtree)
+  - scikit-sparse
+  # Fortran compiler for the FSM2 backend (native Windows build)
+  - gfortran
+  # Optional, used by helpers/plot_example.py
+  - matplotlib
+  - pytest
+  - pip
+  - pip:
+      - blosc==1.11.2
+      - pandas-downcast==1.2.4
