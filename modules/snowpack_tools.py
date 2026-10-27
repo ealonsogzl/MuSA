@@ -132,6 +132,27 @@ def forcing_table(lat_idx, lon_idx, step=0):
 
     else:
 
+        # Open each forcing file once and extract every variable needed by
+        # this model, instead of one full pass over the files per variable.
+        _forcing_names = [
+            forcing_var_names["SW_var_name"],
+            forcing_var_names["LW_var_name"],
+            forcing_var_names["Precip_var_name"],
+            forcing_var_names["Temp_var_name"],
+            forcing_var_names["RH_var_name"],
+            forcing_var_names["Wind_var_name"],
+        ]
+        if forcing_var_names["Press_var_name"] != "from_DEM":
+            _forcing_names.append(forcing_var_names["Press_var_name"])
+        ifn.cache_forcing_arrays(
+            nc_forcing_path,
+            lat_idx,
+            lon_idx,
+            _forcing_names,
+            date_ini,
+            date_end,
+        )
+
         short_w = ifn.nc_array_forcing(
             nc_forcing_path,
             lat_idx,

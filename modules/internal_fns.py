@@ -492,6 +492,111 @@ def generate_dates(date_ini, date_end, timestep=cfg.dt):
     return np.asarray(del_t)
 
 
+def _forcing_cache_key(nc_forcing_path, lat_idx, lon_idx, date_ini, date_end):
+    return (
+        nc_forcing_path,
+        int(lat_idx),
+        int(lon_idx),
+        str(date_ini),
+        str(date_end),
+    )
+
+
+# Single-cell cache filled by cache_forcing_arrays(). Only the most recently
+# primed cell is kept so long sequential runs do not accumulate memory.
+_FORCING_CACHE = {}
+
+
+def cache_forcing_arrays(
+    nc_forcing_path, lat_idx, lon_idx, nc_var_names, date_ini, date_end
+):
+    """
+    Read several forcing variables for one cell in a single pass over the
+    files and cache them for nc_array_forcing().
+
+    The forcing is stored as one NetCDF file per time chunk and each variable
+    has its own HDF5 chunk. Reading variables one at a time re-opens and
+    re-parses every file once per variable. Opening each file only once and
+    extracting all the requested variables before closing it removes that
+    repeated metadata cost, which dominates for small grids. The gain matters
+    in the normal MuSA workflow, where every cell runs in its own process and
+    otherwise repeats the same set of opens for its own (lat, lon).
+
+    Parameters
+    ----------
+    nc_forcing_path : string
+        Path of the netcdf files.
+    lat_idx : int
+        Netcdf latitude idx.
+    lon_idx : int
+        Netcdf longitude idx.
+    nc_var_names : iterable of string
+        Variables to read. Names absent from the files are ignored.
+    date_ini : string
+        First date of the forcing.
+    date_end : string
+        Last of the end of the forcing.
+
+    Returns
+    -------
+    arrays : dict
+        Mapping variable name -> np array. Missing variables are omitted.
+    """
+    date_ini_parsed = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
+    date_end_parsed = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
+    del_t = generate_dates(date_ini_parsed, date_end_parsed)
+
+    files = glob.glob(nc_forcing_path + "*.nc")
+    files.sort()
+
+    # Preserve request order and drop duplicates.
+    var_names = list(dict.fromkeys(nc_var_names))
+
+    arrays = {}
+    missing = set(var_names)
+    if not files or not var_names:
+        _FORCING_CACHE.clear()
+        _FORCING_CACHE[
+            _forcing_cache_key(nc_forcing_path, lat_idx, lon_idx, date_ini, date_end)
+        ] = (arrays, missing)
+        return arrays
+
+    # The files share the same schema; use the first one to discard the
+    # variables that this dataset does not provide.
+    with nc.Dataset(files[0]) as first:
+        available = [name for name in var_names if name in first.variables]
+    missing.difference_update(available)
+
+    data = {name: [] for name in available}
+
+    for ncfile in files:
+        with nc.Dataset(ncfile) as data_temp:
+            # Same values as np.ma.getdata(): _FillValue is not masked out.
+            data_temp.set_auto_mask(False)
+            for name in available:
+                data[name].append(
+                    data_temp.variables[name][:, lat_idx, lon_idx]
+                )
+
+    for name in available:
+        chunks = data[name]
+        array_nc = (
+            np.concatenate(chunks) if len(chunks) > 1 else np.asarray(chunks[0])
+        )
+
+        if len(del_t) != len(array_nc):
+            raise Exception("date_end - date_ini longuer than forcing")
+
+        arrays[name] = array_nc
+
+    _FORCING_CACHE.clear()
+    _FORCING_CACHE[
+        _forcing_cache_key(nc_forcing_path, lat_idx, lon_idx, date_ini, date_end)
+    ] = (arrays, missing)
+
+    return arrays
+
+
 def nc_array_forcing(
     nc_forcing_path, lat_idx, lon_idx, nc_var_name, date_ini, date_end
 ):
@@ -517,6 +622,18 @@ def nc_array_forcing(
     array_nc : np array
         Array of forcing timesteps.
     """
+    cached = _FORCING_CACHE.get(
+        _forcing_cache_key(nc_forcing_path, lat_idx, lon_idx, date_ini, date_end)
+    )
+    if cached is not None:
+        cached_arrays, cached_missing = cached
+        if nc_var_name in cached_arrays:
+            return cached_arrays[nc_var_name]
+        # A variable known to be absent is reported without touching the
+        # files again; callers rely on this KeyError to use defaults.
+        if nc_var_name in cached_missing:
+            raise KeyError(nc_var_name)
+        # Otherwise this variable was not primed: fall back to reading it.
 
     date_ini = dt.datetime.strptime(date_ini, "%Y-%m-%d %H:%M")
     date_end = dt.datetime.strptime(date_end, "%Y-%m-%d %H:%M")
