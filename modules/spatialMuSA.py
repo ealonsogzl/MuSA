@@ -1422,6 +1422,7 @@ def spatial_assim(lat_idx, lon_idx, step, j,
 
             Ensemble.iter_update(step, updated_pars,
                                  create=True, iteration=j)
+            Ensemble.update_iter_restarts()
 
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
