@@ -894,6 +894,22 @@ def compilar_numba(configuracion=None):
     Tveg = np.full(ncnpy, 285.0, dtype=np.float64)
     Vsmc = np.array(fsat * params.Vsat, dtype=np.float64)
 
+    # Work arrays for the fused timestep (see fsm2_timestep).
+    ws = (
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(nsmax, dtype=np.float64),
+        np.zeros(nsoil, dtype=np.float64),
+        np.zeros(nsoil, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(ncnpy, dtype=np.float64),
+        np.zeros(nsmax, dtype=np.float64),
+    )
+
     inicio = time.perf_counter()
     fsm2_timestep(
         params,
@@ -928,6 +944,7 @@ def compilar_numba(configuracion=None):
         Tsoil,
         Tveg,
         Vsmc,
+        ws,
     )
 
     # Compile the fused time loop as well.  It receives the same state

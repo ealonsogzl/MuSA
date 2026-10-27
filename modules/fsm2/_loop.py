@@ -1,6 +1,7 @@
 """Fused time loop: run all timesteps without returning to Python."""
 
 from numba import njit
+import numpy as np
 
 from ._timestep import fsm2_timestep
 
@@ -23,6 +24,23 @@ def fsm2_run(params, dt, zT, zU, trans,
     nt = elev.shape[0]
     npuntos = albs.shape[0]
 
+    # Small work arrays reused across every timestep.  fsm2_timestep zeroes
+    # them at entry, so the results are identical to allocating them there.
+    ws = (
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.nsmax),
+        np.zeros(params.nsoil),
+        np.zeros(params.nsoil),
+        np.zeros(params.ncnpy),
+        np.zeros(params.ncnpy),
+        np.zeros(params.nsmax),
+    )
+
     for it in range(nt):
         elev_t = elev[it]
         for ip in range(npuntos):
@@ -35,7 +53,8 @@ def fsm2_run(params, dt, zT, zU, trans,
                 trans, Ua[it, ip], alb0[ip], vegh[ip], VAI[ip],
                 albs[ip], Tsrf[ip], Dsnw[ip], Nsnow[ip], Qcan[ip],
                 Rgrn[ip], Sice[ip], Sliq[ip], Sveg[ip], Tcan[ip],
-                Tsnow[ip], Tsoil[ip], Tveg[ip], Vsmc[ip]
+                Tsnow[ip], Tsoil[ip], Tveg[ip], Vsmc[ip],
+                ws
             )
 
             Nsnow[ip] = Nsnow_i
