@@ -9,7 +9,7 @@ from ._snow import snow, soil
 from ._surface import srfb
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def fsm2_timestep(params, dt, elev, zT, zU, LW, Ps, Qa, Rf, Sdif, Sdir,
                   Sf, Ta, trans, Ua, alb0, vegh, VAI,
                   albs, Tsrf, Dsnw, Nsnow, Qcan, Rgrn, Sice, Sliq, Sveg,

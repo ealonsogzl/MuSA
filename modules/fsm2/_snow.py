@@ -23,7 +23,7 @@ from ._numeric import array_sum, cube, sixth
 from ._radiation import tridiag
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def snow(params, dt, drip, Esrf, Gsrf, ksnow, ksoil, Melt, Rf, Sf, Ta,
          trans, Tsrf, unload, Nsnow, Dsnw, Rgrn, Sice, Sliq, Tsnow,
          Tsoil, Wflx):
@@ -480,7 +480,7 @@ def snow(params, dt, drip, Esrf, Gsrf, ksnow, ksoil, Melt, Rf, Sf, Ta,
     return Nsnow, Gsoil, Roff, snd, snw
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def soil(params, csoil, dt, Gsoil, ksoil, Tsoil):
     """Update soil temperatures (translation of ``SOIL.F90``)."""
     nsoil = params.nsoil

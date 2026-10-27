@@ -10,7 +10,7 @@ from ._numeric import array_sum, cube, fourth
 from ._radiation import ludcmp, psih, psim, qsat
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def srfb(params, cveg, Ds1, dt, fcans, fsnow, gs1, ks1, lveg, LW, Ps, Qa,
          SWsrf, Sveg, SWveg, Ta, tdif, Ts1, Tveg0, Ua, VAI, vegh,
          zT, zU, Tsrf, Qcan, Sice, Tcan, Tveg, Eveg):

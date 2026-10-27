@@ -26,7 +26,7 @@ from ._constants import (
 )
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def qsat(P, T):
     """Saturation specific humidity (same as ``QSAT.F90``)."""
     Tc = T - TM
@@ -37,7 +37,7 @@ def qsat(P, T):
     return EPS * es / P
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def psim(z, rL):
     """Stability function for momentum (same as ``PSIMH.F90``)."""
     zeta = z * rL
@@ -56,7 +56,7 @@ def psim(z, rL):
     )
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def psih(z, rL):
     """Stability function for heat (same as ``PSIMH.F90``)."""
     zeta = z * rL
@@ -70,7 +70,7 @@ def psih(z, rL):
     return 2.0 * math.log((1.0 + x * x) / 2.0)
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def ludcmp(A, b):
     """Solve ``A x = b`` with the same scaled partial pivoting as LUDCMP.F90."""
     n = A.shape[0]
@@ -144,7 +144,7 @@ def ludcmp(A, b):
     return x
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def tridiag(n, a, b, c, r):
     """Solve a tridiagonal system (same as TRIDIAG.F90)."""
     x = np.empty(n)
@@ -160,7 +160,7 @@ def tridiag(n, a, b, c, r):
     return x
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def twostream(params, elev, fcans, lveg):
     """Two-stream reflectance and transmittance of one canopy layer."""
     omega = (1.0 - fcans) * params.avg0 + fcans * params.avgs
@@ -206,7 +206,7 @@ def twostream(params, elev, fcans, lveg):
     return fdir, rdif, rdir, tdif, tdir
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def canopy(params, Sveg, Tveg, VAI, cveg, fcans, lveg, Scap, Tveg0):
     """Properties of the canopy layers (same as CANOPY.F90)."""
     ncnpy = params.ncnpy
@@ -231,7 +231,7 @@ def canopy(params, Sveg, Tveg, VAI, cveg, fcans, lveg, Scap, Tveg0):
                     fcans[n] = 1.0
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def swrad(params, alb0, Dsnw, dt, elev, fcans, lveg, Sdif, Sdir, Sf, Tsrf,
           albs, SWveg, tdif):
     """Surface and canopy net shortwave radiation (same as SWRAD.F90)."""
@@ -345,7 +345,7 @@ def swrad(params, alb0, Dsnw, dt, elev, fcans, lveg, Sdif, Sdir, Sf, Tsrf,
     return albs, fsnow, SWout, SWsrf, SWsub
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def thermal(params, Dsnw, Nsnow, Sice, Sliq, Tsnow, Tsoil, Vsmc, csoil,
             ksnow, ksoil):
     """Thermal properties of snow and soil (same as THERMAL.F90)."""

@@ -428,12 +428,17 @@ def _build_params(cfg):
     )
 
 
+def _writable(arr):
+    """Return a writable array, copying read-only views when needed."""
+    return arr if arr.flags.writeable else arr.copy()
+
+
 def _broadcast_vector(value, n, name):
     arr = np.asarray(value, dtype=np.float64).ravel()
     if arr.size == 1:
         return np.full(n, arr[0], dtype=np.float64)
     if arr.size == n:
-        return np.ascontiguousarray(arr, dtype=np.float64)
+        return _writable(np.ascontiguousarray(arr, dtype=np.float64))
     raise ValueError(f"{name} debe ser un escalar o tener {n} elementos")
 
 
@@ -445,7 +450,7 @@ def _as_2d(value, name, nt, npuntos):
         if arr.size == 1:
             return np.full((nt, npuntos), arr[0], dtype=np.float64)
         if arr.size == nt and npuntos == 1:
-            return np.ascontiguousarray(arr.reshape(nt, 1))
+            return _writable(np.ascontiguousarray(arr.reshape(nt, 1)))
         if arr.size == npuntos:
             return np.broadcast_to(arr, (nt, npuntos)).copy()
         if arr.size == nt:
@@ -459,7 +464,7 @@ def _as_2d(value, name, nt, npuntos):
                 f"{name} tiene {arr.shape[0]} tiempos; se esperaba {nt}"
             )
         if arr.shape[1] == npuntos:
-            return np.ascontiguousarray(arr, dtype=np.float64)
+            return _writable(np.ascontiguousarray(arr, dtype=np.float64))
         if arr.shape[1] == 1:
             return np.broadcast_to(arr, (nt, npuntos)).copy()
         raise ValueError(
@@ -747,11 +752,11 @@ def _coerce_state(value, shape, name, default, integer=False):
     if arr.size == 1:
         return np.full(shape, arr.ravel()[0], dtype=arr.dtype)
     if len(shape) > 1 and arr.shape == shape[1:]:
-        return np.ascontiguousarray(np.broadcast_to(arr, shape))
+        return _writable(np.ascontiguousarray(np.broadcast_to(arr, shape)))
     if len(shape) > 1 and arr.shape == (shape[0],):
         target = (shape[0],) + (1,) * (len(shape) - 1)
-        return np.ascontiguousarray(
-            np.broadcast_to(arr.reshape(target), shape)
+        return _writable(
+            np.ascontiguousarray(np.broadcast_to(arr.reshape(target), shape))
         )
     raise ValueError(
         f"Condiciones.{name} tiene forma {arr.shape}; se esperaba {shape}"

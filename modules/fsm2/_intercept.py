@@ -7,7 +7,7 @@ from numba import njit
 from ._constants import EPSR, LF, TM
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def intercept(params, dt, cveg, Eveg, lveg, Scap, Sf, Ta, Ua, Sveg, Tveg):
     """Mass balance of snow intercepted by vegetation."""
     ncnpy = params.ncnpy

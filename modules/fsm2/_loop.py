@@ -5,7 +5,7 @@ from numba import njit
 from ._timestep import fsm2_timestep
 
 
-@njit(cache=False, fastmath=True)
+@njit(cache=True, fastmath=True)
 def fsm2_run(params, dt, zT, zU, trans,
               elev, LW, Ps, Qa, Rf, Sdif, Sdir, Sf, Ta, Ua,
               alb0, vegh, VAI,
