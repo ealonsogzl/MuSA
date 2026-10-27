@@ -8,19 +8,13 @@ This module adapts the Python/Numba package :mod:`fsm2` to the same
 ``modules.snow17_tools`` and ``modules.snowpack_tools``.  MuSA imports it as
 ``model`` when ``config.numerical_model == "FSM2mem"``.
 
-The model runs entirely in memory.  ``model_copy`` only creates a working
-directory used as a unique key and as the path MuSA expects for cleaning up
-temporary directories; no meteorological, state or output files are written or
-read by the model itself.
+The model runs entirely in memory, like ``modules.dIm_tools`` and
+``modules.snow17_tools``.  ``model_run(forcing_df, init)`` returns the state
+table and the final dump; no meteorological, state or output files are written
+or read.
 
 Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
-
-import os
-import shutil
-import tempfile
-import secrets
-from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -93,40 +87,8 @@ model_columns = tuple(model_columns)
 
 
 # ---------------------------------------------------------------------------
-# Workspace storage
+# FSM2 in-memory helpers
 # ---------------------------------------------------------------------------
-
-
-@dataclass
-class _Workspace:
-    """In-memory state associated with one MuSA temporary directory."""
-
-    path: str
-    forzamiento: object = None
-    configuracion: object = None
-    step: int = 0
-    reinicio: object = None
-    simulacion: object = None
-    condiciones_finales: object = None
-
-
-_WORKSPACES = {}
-
-
-def _prune_workspaces():
-    """Drop workspaces whose MuSA temporary parent no longer exists."""
-    for path in list(_WORKSPACES):
-        parent = os.path.dirname(os.path.normpath(path))
-        if not os.path.isdir(parent):
-            _WORKSPACES.pop(path, None)
-
-
-def _workspace(path, create=True):
-    ws = _WORKSPACES.get(path)
-    if ws is None and create:
-        ws = _Workspace(path=path)
-        _WORKSPACES[path] = ws
-    return ws
 
 
 def _fsm_tools():
@@ -273,29 +235,8 @@ def _configuracion_base():
 
 
 def model_copy(y_id, x_id):
-    """Create a unique working path and its in-memory workspace."""
-    _prune_workspaces()
-
-    to_directory = cfg.tmp_path
-    if to_directory is None:
-        parent = tempfile.mkdtemp()
-        final_directory = os.path.join(
-            parent, str(y_id) + "_" + str(x_id) + "_FSM2mem"
-        )
-    else:
-        token = secrets.token_urlsafe(16)
-        final_directory = os.path.join(
-            to_directory,
-            token,
-            str(y_id) + "_" + str(x_id) + "_FSM2mem",
-        )
-
-    if os.path.exists(final_directory):
-        shutil.rmtree(final_directory, ignore_errors=True)
-    os.makedirs(final_directory, exist_ok=True)
-
-    _WORKSPACES[final_directory] = _Workspace(path=final_directory)
-    return final_directory
+    """FSM2mem runs in memory: no working directory is needed."""
+    return None
 
 
 def model_compile():
@@ -316,36 +257,39 @@ def model_compile_HPC(HPC_task_id):
     return None
 
 
-def model_run(fsm_path):
-    """Run FSM2 in memory using the forcing and restart stored for ``fsm_path``."""
-    ws = _workspace(fsm_path)
-    if ws.forzamiento is None or ws.configuracion is None:
-        raise RuntimeError(
-            "No hay forzamiento para este directorio. "
-            "Llama antes a model_forcing_wrt()."
-        )
+def model_run(forcing_df, init=None):
+    """Run FSM2 in memory, like dIm and snow17.
+
+    Parameters
+    ----------
+    forcing_df : pandas.DataFrame
+        Forcing table with one row per timestep.
+    init : pandas.DataFrame or None
+        Optional FSM2 dump from the previous run, used as restart state.
+
+    Returns
+    -------
+    state : pandas.DataFrame
+        Model output with one row per forcing timestep.
+    dump : pandas.DataFrame
+        Final model state, ready to be used as ``init`` in the next run.
+    """
+    forzamiento, configuracion = _prepare_forcing(forcing_df)
 
     # Ensure the optional profile output is enabled when SMRT needs it.
-    ws.configuracion.guardar_estado = bool(cfg.run_smrt)
+    configuracion.guardar_estado = bool(cfg.run_smrt)
 
-    ws.simulacion, ws.condiciones_finales = _fsm2(
-        ws.forzamiento,
-        ws.reinicio,
-        ws.configuracion,
+    reinicio = None
+    if init is not None:
+        reinicio = _condiciones_from_dump(init, configuracion)
+
+    simulacion, condiciones_finales = _fsm2(
+        forzamiento,
+        reinicio,
+        configuracion,
     )
-    return None
 
-
-def model_read_output(fsm_path, step=0, read_dump=True):
-    """Return the FSM2 output table and, optionally, the final state dump."""
-    ws = _workspace(fsm_path, create=False)
-    if ws is None or ws.simulacion is None:
-        raise RuntimeError(
-            "No hay resultados para este directorio. "
-            "Llama antes a model_run()."
-        )
-
-    state = _state_dataframe(ws)
+    state = _state_dataframe(simulacion)
 
     if cfg.DAsord:
         state = snd_ord(state)
@@ -356,19 +300,12 @@ def model_read_output(fsm_path, step=0, read_dump=True):
             "perturbation_strategy and the configured model parameters."
         )
 
-    if read_dump:
-        dump = _dump_dataframe(ws)
-        return state, dump
-    return state
+    return state, _dump_dataframe(condiciones_finales)
 
 
 def model_remove(fsm_path):
-    """Remove the in-memory workspace and MuSA's temporary directory."""
-    _WORKSPACES.pop(fsm_path, None)
-    if os.path.exists(fsm_path):
-        if cfg.tmp_path is not None:
-            fsm_path = os.path.split(fsm_path)[0]
-        shutil.rmtree(fsm_path, ignore_errors=True)
+    """FSM2mem has no working directory to remove."""
+    return None
 
 
 def get_var_state_position(var):
@@ -445,11 +382,10 @@ def stable_forcing(forcing_df):
     return temp_forz_def
 
 
-def model_forcing_wrt(forcing_df, temp_dest, step=0):
-    """Store the FSM2 forcing and parameters associated with ``temp_dest``."""
+def _prepare_forcing(forcing_df):
+    """Build the FSM2 forcing and configuration from MuSA's forcing table."""
     import modules.met_tools as met
 
-    ws = _workspace(temp_dest)
     temp_forz_def = stable_forcing(forcing_df.copy())
 
     if cfg.precipitation_phase == "Harder":
@@ -472,7 +408,7 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
         raise Exception("Precipitation phase partitioning not implemented")
 
     # ``pp_*`` returns (liquid, solid) in all three cases.
-    ws.forzamiento = Forzamiento(
+    forzamiento = Forzamiento(
         year=temp_forz_def["year"].to_numpy(dtype=np.int64),
         month=temp_forz_def["month"].to_numpy(dtype=np.int64),
         day=temp_forz_def["day"].to_numpy(dtype=np.int64),
@@ -486,14 +422,14 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
         Ua=temp_forz_def["Ua"].to_numpy(dtype=np.float64),
         Ps=temp_forz_def["Ps"].to_numpy(dtype=np.float64),
     )
-    ws.configuracion = _configuracion_from_forcing(temp_forz_def)
-    ws.step = int(step)
+    configuracion = _configuracion_from_forcing(temp_forz_def)
 
-    # A new forcing marks the beginning of a new model run.  The restart
-    # state, if needed, must be provided explicitly with write_dump().
-    ws.reinicio = None
-    ws.simulacion = None
-    ws.condiciones_finales = None
+    return forzamiento, configuracion
+
+
+def model_forcing_wrt(forcing_df, temp_dest, step=0):
+    """Kept for compatibility: FSM2mem builds forcing inside ``model_run``."""
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -536,9 +472,8 @@ def _capas(tipo, configuracion=None):
     raise ValueError(tipo)
 
 
-def _dump_dataframe(ws):
+def _dump_dataframe(final):
     """Create an out_dump-like DataFrame from the final FSM2 conditions."""
-    final = ws.condiciones_finales
     if final is None:
         raise RuntimeError("No hay condiciones finales para generar el dump")
 
@@ -607,12 +542,8 @@ def _condiciones_from_dump(dump, configuracion):
 
 
 def write_dump(dump, fsm_path):
-    """Store a restart dump in memory for the given working path."""
-    ws = _workspace(fsm_path)
-    configuracion = ws.configuracion
-    if configuracion is None:
-        configuracion = _configuracion_base()
-    ws.reinicio = _condiciones_from_dump(dump, configuracion)
+    """Kept for compatibility: restart is passed directly to ``model_run``."""
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -620,9 +551,7 @@ def write_dump(dump, fsm_path):
 # ---------------------------------------------------------------------------
 
 
-def _state_dataframe(ws):
-    sim = ws.simulacion
-
+def _state_dataframe(sim):
     if sim.snd.shape[1] != 1:
         raise ValueError(
             "El backend FSM2mem de MuSA espera un único punto por celda"

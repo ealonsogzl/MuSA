@@ -849,10 +849,10 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
     temp_dest = model.model_copy(lat_idx, lon_idx)
     real_forcing = main_forcing.copy()
     model.model_forcing_wrt(real_forcing, temp_dest, step=0)
-    if cfg.numerical_model in ["FSM2", "FSM2mem"]:
+    if cfg.numerical_model == "FSM2":
         model.model_run(temp_dest)
         state = model.model_read_output(temp_dest, read_dump=False)
-    elif cfg.numerical_model in ["dIm", "snow17"]:
+    elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
         state = model.model_run(real_forcing)[0]
     else:
         Exception("Numerical model not implemented")
