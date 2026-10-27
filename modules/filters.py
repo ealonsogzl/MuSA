@@ -502,7 +502,7 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         # write perturbed forcing
         model.model_forcing_wrt(forcing_mcmcstep, temp_dest, Ensemble.step)
         # Write init conditions or dump file from previous run if step != 0
-        if cfg.numerical_model in ["FSM2", "FSM2mem"]:
+        if cfg.numerical_model == "FSM2":
             if Ensemble.step != 0:
                 model.write_dump(init_conditions, temp_dest)
             # create open loop simulation
@@ -510,10 +510,15 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
             # read model outputs
             state_tmp, dump_tmp = model.model_read_output(temp_dest)
 
-        elif cfg.numerical_model in ["dIm", "snow17"]:
+        elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
+            if cfg.numerical_model == "FSM2mem":
+                init_state = init_conditions
+            else:
+                init_state = temp_dest
+
             if Ensemble.step != 0:
                 state_tmp, dump_tmp = model.model_run(
-                    forcing_mcmcstep, temp_dest
+                    forcing_mcmcstep, init_state
                 )
             else:
                 state_tmp, dump_tmp = model.model_run(forcing_mcmcstep)

@@ -37,6 +37,15 @@ import modules.met_tools as met
 import modules.internal_fns as fns
 
 
+def _apply_smrt(state, forcing, observations):
+    """Apply SMRT when the FSM2mem backend is used with ``run_smrt``."""
+    if cfg.run_smrt and cfg.numerical_model == "FSM2mem":
+        k = forcing["k"].values[0]
+        idx_smrt = np.where(~np.isnan(observations))[0]
+        return smrt.run_SMRT(idx_smrt, state, k)
+    return state
+
+
 class SnowEnsemble:
     """
     Main class containing the ensemble of simulations
@@ -137,7 +146,7 @@ class SnowEnsemble:
         model.model_forcing_wrt(forcing_sbst, self.temp_dest, self.step)
 
         # Write init or dump file from previous run if step != 0 or self.real_time_restart
-        if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
+        if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
 
             if step == 0 and self.real_time_restart:
                 model.write_dump(self.origin_dump[-1], self.temp_dest)
@@ -159,7 +168,7 @@ class SnowEnsemble:
                 idx_smrt = np.where(~np.isnan(self.observations))[0]
                 origin_state_tmp = smrt.run_SMRT(idx_smrt, origin_state_tmp, k)
 
-        elif cfg.numerical_model in ["dIm", "snow17"]:
+        elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
             if step == 0 and self.real_time_restart:
                 origin_state_tmp, origin_dump_tmp = model.model_run(
                     forcing_sbst, self.origin_dump[-1]
@@ -172,6 +181,10 @@ class SnowEnsemble:
                 origin_state_tmp, origin_dump_tmp = model.model_run(
                     forcing_sbst
                 )
+
+            origin_state_tmp = _apply_smrt(
+                origin_state_tmp, forcing_sbst, self.observations
+            )
 
         else:
             raise Exception("Numerical model not implemented")
@@ -256,7 +269,7 @@ class SnowEnsemble:
                     member_forcing, self.temp_dest, self.step
                 )
 
-            if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
+            if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
                 if step != 0 or self.real_time_restart:
                     if cfg.da_algorithm in ["PBS", "PF"]:
                         model.write_dump(self.out_members[mbr], self.temp_dest)
@@ -276,7 +289,7 @@ class SnowEnsemble:
                     idx_smrt = np.where(~np.isnan(self.observations))[0]
                     state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
 
-            elif cfg.numerical_model in ["dIm", "snow17"]:
+            elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
                 if step != 0 or self.real_time_restart:
                     if cfg.da_algorithm in ["PBS", "PF"]:
                         state_tmp, dump_tmp = model.model_run(
@@ -288,6 +301,10 @@ class SnowEnsemble:
                         )
                 else:
                     state_tmp, dump_tmp = model.model_run(member_forcing)
+
+                state_tmp = _apply_smrt(
+                    state_tmp, member_forcing, self.observations
+                )
 
             else:
                 raise Exception("Numerical model not implemented")
@@ -337,7 +354,7 @@ class SnowEnsemble:
                         member_forcing, self.temp_dest, self.step
                     )
 
-                if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
+                if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
 
                     if step != 0 or self.real_time_restart:
                         model.write_dump(
@@ -355,7 +372,7 @@ class SnowEnsemble:
                         idx_smrt = np.where(~np.isnan(self.observations))[0]
                         state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
 
-                elif cfg.numerical_model in ["dIm", "snow17"]:
+                elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
 
                     if step != 0 or self.real_time_restart:
                         state_tmp, dump_tmp = model.model_run(
@@ -363,6 +380,10 @@ class SnowEnsemble:
                         )
                     else:
                         state_tmp, dump_tmp = model.model_run(member_forcing)
+
+                    state_tmp = _apply_smrt(
+                        state_tmp, member_forcing, self.observations
+                    )
 
                 self.state_membres[mbr] = state_tmp.copy()
 
@@ -436,7 +457,7 @@ class SnowEnsemble:
 
             model.model_forcing_wrt(member_forcing, self.temp_dest, self.step)
 
-            if cfg.numerical_model in ["FSM2", "FSM2mem", "SNOWPACK"]:
+            if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
                 if step != 0 or self.real_time_restart:
 
                     model.write_dump(
@@ -454,13 +475,17 @@ class SnowEnsemble:
                     idx_smrt = np.where(~np.isnan(self.observations))[0]
                     state_tmp = smrt.run_SMRT(idx_smrt, state_tmp, k)
 
-            elif cfg.numerical_model in ["dIm", "snow17"]:
+            elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
                 if step != 0 or self.real_time_restart:
                     state_tmp, dump_tmp = model.model_run(
                         member_forcing, self.out_members_mcmc[mbr]
                     )
                 else:
                     state_tmp, dump_tmp = model.model_run(member_forcing)
+
+                state_tmp = _apply_smrt(
+                    state_tmp, member_forcing, self.observations
+                )
 
             else:
                 raise Exception("Numerical model not implemented")
