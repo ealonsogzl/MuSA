@@ -668,7 +668,7 @@ def write_nlst(wd_path, params=None, step=None):
     TIME_ZONE = 0.00
     METEO = SMET
     METEOPATH = ./input
-    STATION1 = justacell
+    METEOFILE1 = justacell
     SNOWFILE1 = justacell
     
     [InputEditing]
@@ -727,6 +727,10 @@ def write_nlst(wd_path, params=None, step=None):
     REDUCE_N_ELEMENTS = TRUE
     HEIGHT_NEW_ELEM = 0.03
     MINIMUM_L_ELEMENT = 0.02
+
+    [Interpolations1D]
+    PSUM::resample = accumulate
+    PSUM::accumulate::period = 3600
     """
     filename = Path(os.path.join(wd_path, "io_justacell.ini"))
     with open(filename, "w") as f:
