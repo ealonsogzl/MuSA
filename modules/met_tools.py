@@ -9,7 +9,6 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 
 import numpy as np
 from scipy.special import expit, logit
-from scipy.optimize import root_scalar
 import constants as cnt
 import config as cfg
 from statsmodels.stats.weightstats import DescrStatsW
@@ -21,6 +20,14 @@ def pp_psychrometric(ta2, rh2, precc, ret_fr=False):
     ta2 = np.asarray(ta2, dtype=float)
     rh2 = np.asarray(rh2, dtype=float)
     precc = np.asarray(precc, dtype=float)
+
+    # Work on flat, broadcast-compatible arrays: index assignment is used
+    # below and 0-d arrays do not support it. The original shape is restored
+    # before returning.
+    shape = np.broadcast_shapes(ta2.shape, rh2.shape, precc.shape)
+    ta2 = np.broadcast_to(ta2, shape).reshape(-1)
+    rh2 = np.broadcast_to(rh2, shape).reshape(-1)
+    precc = np.broadcast_to(precc, shape).reshape(-1)
 
     tc = ta2 - cnt.KELVING_CONVER
 
@@ -43,41 +50,66 @@ def pp_psychrometric(ta2, rh2, precc, ret_fr=False):
     # Vapour density [kg m-3]
     pta = (cnt.MW * e_press) / (cnt.R * ta2)
 
-    def eti(T):
-        Tc = T - cnt.KELVING_CONVER
-        return 611.0 * np.exp((17.3 * Tc) / (Tc + 237.3))
+    # Surface temperature: solve
+    #     f(T) = Ta + (Dv / k) * L * (pta - pti(T)) - T = 0
+    # f is strictly decreasing in T. Instead of one scalar brentq per
+    # timestep (millions of Python callbacks), use a vectorised bisection.
+    #
+    # Outside [T_SNOW, T_RAIN] the rain fraction is 0 or 1 to within ~1e-9,
+    # which is far below any meaningful precipitation tolerance, so those
+    # points are resolved without iterating. For the rest, the sign of f at
+    # both bounds also gives a tight initial bracket.
+    T_SNOW = 263.15  # rain_fr < 4e-10 below this surface temperature
+    T_RAIN = 283.15  # 1 - rain_fr < 3e-9 above this surface temperature
+    T_LO, T_HI = 223.15, 323.15
 
-    def pti(T):
-        return (cnt.MW * eti(T)) / (cnt.R * T)
+    alpha = (dif_wv / thr_cond) * latn_h
 
-    # Scalar version for root finding
-    def solve_surface_temperature(Ta, pta_, Dv, k, L):
+    def f_surface(T):
+        # pti(T) inlined (formerly eti() + pti()) to avoid two extra
+        # Python calls per evaluation.
+        t_c = T - cnt.KELVING_CONVER
+        pti = (cnt.MW * 611.0 * np.exp((17.3 * t_c) / (t_c + 237.3))) / (
+            cnt.R * T
+        )
+        return ta2 + alpha * (pta - pti) - T
 
-        def f(T):
-            return Ta + (Dv / k) * L * (pta_ - pti(T)) - T
+    f_lo = f_surface(T_LO)
+    f_hi = f_surface(T_HI)
+    # Same domain check as brentq: a root exists only when f changes sign.
+    bracket = (f_lo >= 0.0) & (f_hi <= 0.0)
 
-        try:
-            sol = root_scalar(
-                f,
-                method="brentq",
-                bracket=[223.15, 323.15],
-            )
+    f_snow = f_surface(T_SNOW)
+    f_rain = f_surface(T_RAIN)
 
-            if sol.converged:
-                return sol.root
+    surf_ti = ta2.copy()  # fallback, as in the previous ValueError branch
+    all_snow = bracket & (f_snow <= 0.0)
+    all_rain = bracket & (f_rain >= 0.0)
+    mixed = bracket & ~all_snow & ~all_rain
 
-        except ValueError:
-            pass
+    surf_ti[all_snow] = T_SNOW
+    surf_ti[all_rain] = T_RAIN
 
-        return Ta
+    if mixed.any():
+        ta_m = ta2[mixed]
+        pta_m = pta[mixed]
+        alpha_m = alpha[mixed]
 
-    surf_ti = np.vectorize(solve_surface_temperature)(
-        ta2,
-        pta,
-        dif_wv,
-        thr_cond,
-        latn_h,
-    )
+        lo = np.full(ta_m.shape, T_SNOW)
+        hi = np.full(ta_m.shape, T_RAIN)
+
+        # 20 K / 2**48 ~ 7e-14 K: well below the brentq tolerance.
+        for _ in range(48):
+            mid = 0.5 * (lo + hi)
+            mid_c = mid - cnt.KELVING_CONVER
+            pti_mid = (
+                cnt.MW * 611.0 * np.exp((17.3 * mid_c) / (mid_c + 237.3))
+            ) / (cnt.R * mid)
+            below = (ta_m + alpha_m * (pta_m - pti_mid) - mid) < 0.0
+            hi = np.where(below, mid, hi)
+            lo = np.where(below, lo, mid)
+
+        surf_ti[mixed] = 0.5 * (lo + hi)
 
     # Liquid fraction
     rain_fr = 1.0 / (
@@ -98,6 +130,10 @@ def pp_psychrometric(ta2, rh2, precc, ret_fr=False):
 
     liquid_prec = np.where(liquid_prec < thresh, 0.0, liquid_prec)
     solid_prec = np.where(solid_prec < thresh, 0.0, solid_prec)
+
+    liquid_prec = liquid_prec.reshape(shape)
+    solid_prec = solid_prec.reshape(shape)
+    rain_fr = rain_fr.reshape(shape)
 
     if ret_fr:
         return liquid_prec, solid_prec, rain_fr
