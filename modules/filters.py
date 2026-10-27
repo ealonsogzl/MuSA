@@ -33,7 +33,7 @@ import shutil
 import os
 import statsmodels.stats.correlation_tools as ct
 from statsmodels.stats.weightstats import DescrStatsW
-from threadpoolctl import threadpool_limits
+from modules.threading_utils import threadpool_limits_safe
 
 
 def ens_klm(
@@ -69,7 +69,7 @@ def ens_klm(
     if pred.ndim == 1:
         pred = pred[np.newaxis, :]
 
-    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+    with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
         # Checks on the observation error covariance matrix.
         if R.ndim == 2:
             if np.shape(R)[0] == m and np.shape(R)[1] == m:
@@ -301,7 +301,7 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
     else:
         raise Exception("R must be a scalar, m x 1 vector.")
 
-    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+    with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
         if m == 1:
             residual = obs - pred
             Phid = -0.5 * ((residual**2) * (1 / R))
@@ -384,7 +384,7 @@ def AMIS(obs, pred, R, prim, pric, propm, propc, props):
         pass
     else:
         raise Exception("R must be a scalar, m x 1 vector.")
-    with threadpool_limits(limits=cfg.numpy_threads, user_api="blas"):
+    with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
         cy = np.linalg.det(2 * np.pi * np.diag(R)) ** (-0.5)
         c0 = np.linalg.det(2 * np.pi * pric) ** (-0.5)
         b = cy * c0

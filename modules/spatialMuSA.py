@@ -17,7 +17,16 @@ import datetime as dt
 from copy import deepcopy
 from scipy.spatial import distance, cKDTree
 from scipy.sparse import lil_matrix, csc_array, issparse, eye
-import sksparse
+try:
+    import sksparse.cholmod
+
+    _CHOLMOD_ERRORS = (sksparse.cholmod.CholmodNotPositiveDefiniteError,)
+except ImportError:
+    # scikit-sparse is only required for sparse covariance matrices.
+    # Keeping it optional lets point and distributed runs work on platforms
+    # where SuiteSparse/scikit-sparse is not installed.
+    sksparse = None
+    _CHOLMOD_ERRORS = ()
 from scipy.interpolate import griddata, RegularGridInterpolator
 from scipy.ndimage import rotate
 from sklearn.preprocessing import StandardScaler
@@ -47,7 +56,19 @@ else:
     raise Exception("Model not implemented")
 from statsmodels.stats.weightstats import DescrStatsW
 from fnmatch import fnmatchcase
-from threadpoolctl import threadpool_limits
+from modules.threading_utils import threadpool_limits_safe
+
+
+def _remove_quietly(path, attempts=5, delay=0.2):
+    """Remove a file, retrying transient Windows sharing violations."""
+    for _ in range(attempts):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(delay)
 
 
 def GC(d, c):
@@ -357,6 +378,34 @@ def add_jitter(K, jitter=1e-6):
     return K
 
 
+def _cholmod_lower(C):
+    """Return the lower Cholesky factor using either scikit-sparse API."""
+    try:
+        # scikit-sparse >= 0.5 changed ordering_method to order and returns
+        # the factor directly (instead of a Factor object with .L()).
+        return sksparse.cholmod.cholesky(C, order=None, lower=True)
+    except TypeError as exc:
+        if "order" not in str(exc):
+            raise
+        # scikit-sparse < 0.5
+        return sksparse.cholmod.cholesky(
+            C, ordering_method="natural"
+        ).L()
+
+
+def _cholesky_factor(C):
+    """Cholesky factor of a dense or sparse covariance matrix."""
+    if issparse(C):
+        if sksparse is None:
+            raise RuntimeError(
+                "scikit-sparse is required to factorize sparse covariance "
+                "matrices. Install it with 'conda install -c conda-forge "
+                "scikit-sparse' or use distance_mat_calc = 'Regular'."
+            )
+        return _cholmod_lower(C)
+    return np.linalg.cholesky(C)
+
+
 def GSC(mu, sigma, rho, orderows):
 
     N = cfg.ensemble_members
@@ -367,16 +416,9 @@ def GSC(mu, sigma, rho, orderows):
     C = rho * sigma**2
 
     try:
-        if issparse(C):
-            S = sksparse.cholmod.cholesky(C, ordering_method="natural").L()
+        S = _cholesky_factor(C)
 
-        else:
-            S = np.linalg.cholesky(C)
-
-    except (
-        np.linalg.LinAlgError,
-        sksparse.cholmod.CholmodNotPositiveDefiniteError,
-    ):
+    except (np.linalg.LinAlgError,) + _CHOLMOD_ERRORS:
 
         if cfg.jitter > 0.0:  # Adding jitter to the diagonal
             count = 0  # Safety exit
@@ -390,17 +432,9 @@ def GSC(mu, sigma, rho, orderows):
                 count = count + 1
                 C = add_jitter(C, jitter=jitter)
                 try:
-                    if issparse(C):
-                        S = sksparse.cholmod.cholesky(
-                            C, ordering_method="natural"
-                        ).L()
-                    else:
-                        S = np.linalg.cholesky(C)
+                    S = _cholesky_factor(C)
                     break
-                except (
-                    np.linalg.LinAlgError,
-                    sksparse.cholmod.CholmodNotPositiveDefiniteError,
-                ):
+                except (np.linalg.LinAlgError,) + _CHOLMOD_ERRORS:
                     jitter *= 10.0  # update jitter value
                     pass
 
@@ -423,11 +457,9 @@ def GSC(mu, sigma, rho, orderows):
                 try:
                     C = csc_array(C)
                     print("trying Cholesky decomposition again...")
-                    S = sksparse.cholmod.cholesky(
-                        C, ordering_method="natural"
-                    ).L()
+                    S = _cholesky_factor(C)
                     break
-                except sksparse.cholmod.CholmodNotPositiveDefiniteError:
+                except _CHOLMOD_ERRORS:
 
                     print(
                         "rho remains not positive-define,"
@@ -726,8 +758,10 @@ def create_corelated_nc(prior_id):
         gsc_var[0, :, :, :] = gsc_arr
     f.close()
 
-    # Rename file to allow other processes to find it
-    os.rename(tmp_file_name, file_name)
+    # Rename file to allow other processes to find it. os.replace also
+    # works on Windows when the destination already exists (os.rename does
+    # not).
+    os.replace(tmp_file_name, file_name)
 
 
 def generate_prior_maps_onenode(ini_DA_window):
@@ -906,9 +940,10 @@ def get_idrow_from_cor(lat_idx, lon_idx):
 
     if lat_idx.size == 1:
 
-        idrow = int(
-            np.where((grid[:, 0] == lat_idx) & (grid[:, 1] == lon_idx))[0]
-        )
+        matching_rows = np.where(
+            (grid[:, 0] == lat_idx) & (grid[:, 1] == lon_idx)
+        )[0]
+        idrow = int(matching_rows[0])
     else:
         idrow = np.concatenate(
             [
@@ -1354,7 +1389,7 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
     while True:
         if len(grid) == len(files):
             # try to desyncrhonice to speedup IO
-            time.sleep(float(np.random.rand(1)))
+            time.sleep(float(np.random.rand()))
             # free a bit of space, remove previous iteration from first task
             if j is not None:
                 # try to remove prior files
@@ -1364,7 +1399,7 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                     )
                     for f in rm_files:
                         if os.path.isfile(f):
-                            os.remove(f)
+                            _remove_quietly(f)
 
                 # [or] Solution in case of no iterations. If not,
                 # it will not clean
@@ -1377,7 +1412,7 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                     )
                     for f in rm_files:
                         if os.path.isfile(f):
-                            os.remove(f)
+                            _remove_quietly(f)
 
                     # if end of the Kalman iterations move ensembles to results
                     if j == cfg.max_iterations - 1:
@@ -1528,7 +1563,7 @@ def spatial_assim(
             # translate paramsto normal distribution
             prior = flt.transform_space(prior, "to_normal")
 
-            with threadpool_limits(cfg.numpy_threads):
+            with threadpool_limits_safe(cfg.numpy_threads):
                 try:
 
                     updated_pars = flt.ens_klm(

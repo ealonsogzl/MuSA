@@ -7,6 +7,8 @@ Author: Esteban Alonso González - alonsoe@ipe.csic.es
 """
 
 import os
+import sys
+import glob
 import shutil
 import subprocess
 import tempfile
@@ -196,17 +198,221 @@ def write_nlst(temp_dest, params, step):
         file.write(filedata)
 
 
+def _fsm_binary_name():
+    """Name of the FSM2 executable on this platform."""
+    return "FSM2.exe" if os.name == "nt" else "FSM2"
+
+
+def model_binary_path():
+    """Return the path of the compiled FSM2 executable."""
+    return os.path.join(cfg.fsm_src_path, _fsm_binary_name())
+
+
+def _fortran_runtime_env():
+    """Return an environment able to load the gfortran runtime on Windows.
+
+    When Python is called from a conda environment that has not been
+    activated, ``Library\\bin`` is not part of PATH. The FSM2 executable then
+    fails to load libgfortran/libgcc DLLs. Prepending the environment
+    directories makes MuSA work without requiring ``conda activate`` first.
+    """
+    env = os.environ.copy()
+
+    if os.name != "nt":
+        return env
+
+    candidates = [
+        os.path.join(sys.prefix, "Library", "bin"),
+        os.path.join(sys.prefix, "Library", "mingw-w64", "bin"),
+        os.path.join(sys.prefix, "Scripts"),
+        os.path.join(sys.prefix, "bin"),
+        os.path.dirname(sys.executable),
+    ]
+    extra = [path for path in candidates if os.path.isdir(path)]
+    current = env.get("PATH", "")
+    env["PATH"] = os.pathsep.join(extra + ([current] if current else []))
+    return env
+
+
+def _find_fortran_compiler():
+    """Locate gfortran, preferring the compiler of the active environment."""
+    candidates = []
+
+    env_fc = os.environ.get("FC")
+    if env_fc:
+        candidates.append(env_fc)
+
+    # Prefer the compiler shipped with the active environment (conda). This
+    # avoids picking an unrelated system compiler from PATH.
+    for base in (sys.prefix, os.path.dirname(sys.executable)):
+        candidates.append(os.path.join(base, "Library", "bin", "gfortran.exe"))
+        candidates.append(os.path.join(base, "bin", "gfortran"))
+        candidates.append(os.path.join(base, "Scripts", "gfortran.exe"))
+
+    candidates.append("gfortran")
+
+    for candidate in candidates:
+        if os.path.isabs(candidate):
+            found = candidate if os.path.isfile(candidate) else None
+        else:
+            found = shutil.which(candidate)
+
+        if found:
+            return found
+
+    raise RuntimeError(
+        "gfortran was not found. Install it (for example with "
+        "'conda install -c conda-forge gfortran') or activate the MuSA "
+        "environment before running MuSA."
+    )
+
+
+def _opts_h_contents(fsm_path):
+    """Build OPTS.h from the template embedded in compil_base.sh.
+
+    Reusing the shell script as a template keeps the compilation options of
+    the Linux and Windows workflows in sync.
+    """
+    compil_path = os.path.join(fsm_path, "compil_base.sh")
+
+    with open(compil_path, "r", encoding="utf-8") as file:
+        lines = file.read().splitlines()
+
+    try:
+        start = next(
+            i
+            for i, line in enumerate(lines)
+            if line.strip().startswith("cat > OPTS.h")
+        )
+        end = next(
+            i
+            for i in range(start + 1, len(lines))
+            if lines[i].strip() == "EOF"
+        )
+    except StopIteration:
+        raise RuntimeError(
+            "Could not find the OPTS.h template in " + compil_path
+        )
+
+    opts = "\n".join(lines[start + 1:end]) + "\n"
+
+    replacements = {
+        "pyALBEDO": cfg.ALBEDO,
+        "pyCANINT": cfg.CANINT,
+        "pyCANMOD": cfg.CANMOD,
+        "pyCANRAD": cfg.CANRAD,
+        "pyCANUNL": cfg.CANUNL,
+        "pyCONDCT": cfg.CONDCT,
+        "pyDENSTY": cfg.DENSTY,
+        "pyEXCHNG": cfg.EXCHNG,
+        "pyHYDROL": cfg.HYDROL,
+        "pySGRAIN": cfg.SGRAIN,
+        "pySNFRAC": cfg.SNFRAC,
+        "pySMRT": 1 if cfg.run_smrt else 0,
+    }
+
+    for key, value in replacements.items():
+        opts = opts.replace(key, str(value))
+
+    return opts
+
+
+# Source files compiled by compil_base.sh. Keep both lists in sync.
+_FSM_SOURCES = [
+    "FSM2_MODULES.F90",
+    "FSM2_PARAMS.F90",
+    "FSM2.F90",
+    "FSM2_DRIVE.F90",
+    "FSM2_OUTPUT.F90",
+    "FSM2_VEG.F90",
+    "FSM2_TIMESTEP.F90",
+    "CANOPY.F90",
+    "INTERCEPT.F90",
+    "LUDCMP.F90",
+    "PSIMH.F90",
+    "QSAT.F90",
+    "SNOW.F90",
+    "SOIL.F90",
+    "SOLARPOS.F90",
+    "SRFEBAL.F90",
+    "SWRAD.F90",
+    "THERMAL.F90",
+    "TRIDIAG.F90",
+    "TWOSTREAM.F90",
+]
+
+
+def _compile_fsm_windows(fsm_path, bin_name):
+    """Compile FSM2 natively on Windows, without requiring bash.
+
+    The POSIX workflow relies on compil_base.sh, but Git Bash/WSL is not
+    guaranteed to be available. gfortran is called directly instead.
+    """
+    src_path = os.path.join(fsm_path, "src")
+    opts_path = os.path.join(src_path, "OPTS.h")
+    bin_name = os.path.abspath(bin_name)
+
+    # Remove module files from previous builds so a failed compilation
+    # cannot silently reuse stale interfaces.
+    for mod_file in glob.glob(os.path.join(src_path, "*.mod")):
+        try:
+            os.remove(mod_file)
+        except OSError:
+            pass
+
+    with open(opts_path, "w", encoding="utf-8", newline="\n") as file:
+        file.write(_opts_h_contents(fsm_path))
+
+    compiler = _find_fortran_compiler()
+    command = (
+        [compiler, "-cpp"]
+        + cfg.OPTIMIZATION.split()
+        + ["-o", bin_name]
+        + _FSM_SOURCES
+    )
+
+    completed = subprocess.run(
+        command,
+        cwd=src_path,
+        env=_fortran_runtime_env(),
+        capture_output=True,
+        text=True,
+    )
+
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "FSM2 compilation failed (gfortran exit code {code}).\n"
+            "stdout:\n{out}\nstderr:\n{err}".format(
+                code=completed.returncode,
+                out=completed.stdout,
+                err=completed.stderr,
+            )
+        )
+
+    # Remove module files, as compil_base.sh does
+    for mod_file in glob.glob(os.path.join(src_path, "*.mod")):
+        try:
+            os.remove(mod_file)
+        except OSError:
+            pass
+
+
 def model_compile():
 
     fsm_path = cfg.fsm_src_path
-    # TODO: provide full suport for wind32
+    bin_name = model_binary_path()
 
-    bin_name = os.path.join(fsm_path, "FSM2")
+    # Remove stale binaries (both names, in case the platform changed)
+    for stale in {bin_name, os.path.join(fsm_path, "FSM2"),
+                  os.path.join(fsm_path, "FSM2.exe")}:
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
 
-    try:  # remove FSM binary if exists
-        os.remove(bin_name)
-    except OSError:
-        pass
+    if os.name == "nt":
+        _compile_fsm_windows(fsm_path, bin_name)
+        return
 
     with open(os.path.join(fsm_path, "compil_base.sh"), "r") as file:
         filedata = file.read()
@@ -255,12 +461,10 @@ def model_compile():
 
 def model_compile_HPC(HPC_task_id):
     # Compile FSM in the first HPC task
-    fsm_path = cfg.fsm_src_path
-    file_name = os.path.join(fsm_path, "FSM2")
+    file_name = model_binary_path()
 
     # if binary exist, pass to avoid breaking HPC job arrays
-    fsm_filename = os.path.join(cfg.fsm_src_path, "FSM2")
-    if os.path.isfile(fsm_filename):
+    if os.path.isfile(file_name):
         return None
 
     if HPC_task_id == 0:
@@ -288,16 +492,36 @@ def model_run(fsm_path):
     [None]
 
     """
-    fsm_exe_dir = os.path.join(fsm_path, "FSM2")
-    order = [fsm_exe_dir]
-    fsm_run_command = subprocess.call(
-        order, cwd=fsm_path, stdin=open(os.path.join(fsm_path, "nlst"), "r")
-    )
-    # stdout=subprocess.DEVNULL)
-    # https://stackoverflow.com/questions/41171791/how-to-suppress-or-capture-the-output-of-subprocess-run
+    fsm_exe_dir = os.path.join(fsm_path, _fsm_binary_name())
+
+    run_kwargs = {}
+    if os.name == "nt":
+        # Avoid flashing console windows when running from pythonw/GUI
+        run_kwargs["creationflags"] = getattr(
+            subprocess, "CREATE_NO_WINDOW", 0
+        )
+
+    with open(os.path.join(fsm_path, "nlst"), "r") as nlst_file:
+        fsm_run_command = subprocess.call(
+            [fsm_exe_dir],
+            cwd=fsm_path,
+            stdin=nlst_file,
+            env=_fortran_runtime_env(),
+            **run_kwargs,
+        )
 
     if fsm_run_command != 0:
-        raise Exception("FSM failed")
+        if os.name == "nt" and (
+            fsm_run_command < 0 or fsm_run_command >= 0xC0000000
+        ):
+            raise Exception(
+                "FSM failed with exit code "
+                + hex(fsm_run_command & 0xFFFFFFFF)
+                + ". This usually means that the gfortran runtime DLLs "
+                "cannot be found. Activate the MuSA environment or install "
+                "gfortran in it."
+            )
+        raise Exception("FSM failed with exit code " + str(fsm_run_command))
 
 
 def model_read_output(fsm_path, step, read_dump=True):

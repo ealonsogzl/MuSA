@@ -130,3 +130,13 @@ dmypy.json
 
 mydir
 DATA/ERRORS
+
+# FSM2 build artifacts (Linux and Windows)
+FSM2/FSM2
+FSM2/FSM2.exe
+FSM2/compil.sh
+FSM2/src/*.mod
+FSM2/src/*.o
+
+# MuSA runtime logs
+spatiallogfile.txt
