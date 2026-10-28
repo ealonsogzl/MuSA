@@ -531,9 +531,13 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
         Up = neglogpost(nll, phip, SD0, m0)
 
-        mh = np.float64(min(1, np.exp(np.float128(-Up + Uc))))
-        u = np.random.rand(1)
-        accept = mh > u
+        if not np.isfinite(Up):
+            raise FloatingPointError(f"Non-finite potential Up={Up}")
+
+        log_mh = min(0.0,-Up+Uc)
+        mh = np.exp(log_mh)
+        log_u = np.log(np.random.rand(1))
+        accept = log_mh > log_u
         if accept:
             phic = phip
             Uc = Up
