@@ -532,9 +532,7 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         Up = neglogpost(nll, phip, SD0, m0)
 
         if not np.isfinite(Up):
-            raise FloatingPointError(
-                f"Non-finite potential Up={Up} at proposal {phip}"
-            )
+            raise FloatingPointError(f"Non-finite potential Up={Up}")
 
         log_mh = min(0.0,-Up+Uc)
         mh = np.exp(log_mh)
