@@ -183,37 +183,26 @@ def linear_liston(ta2, precc):
     return liquid_prec, solid_prec
 
 
-def glogit(x, bPmin, bPmax):
+def glogit(x, bPmin, bPmax, nudge_ulps=100):
     """Generalized logit that transforms a logit-normal to a normal"""
 
-    # HACK: make it numerically stable
-    if (x == bPmin).any():
-        x[x == bPmin] = x[x == bPmin] + np.abs(np.spacing(x[x == bPmin]) * 100)
-    if (x == bPmax).any():
-        x[x == bPmax] = x[x == bPmax] - np.abs(np.spacing(x[x == bPmax]) * 100)
+    xs = (x - bPmin) / (bPmax - bPmin) # input remains untouched 
 
-    xs = (x - bPmin) / (
-        bPmax - bPmin
-    )  # Scale x\in(a,b) to be between (0,1) instead
-    xt = logit(xs)
-    return xt
+    # HACK: make it numerically stable (avoid the exact bounds)
+
+    delta = nudge_ulps * np.finfo(xs.dtype).eps 
+
+    xs = np.where(xs == 0, delta, xs)
+    xs = np.where(xs == 1, 1 - delta, xs)
+
+    return logit(xs)
 
 
 def gexpit(xt, bPmin, bPmax):
     """Generalized expit that transforms a normal to a logit-normal"""
-    # HACK: make it numerically stable
-    if (xt == bPmin).any():
-        xt[xt == bPmin] = xt[xt == bPmin] + np.abs(
-            np.spacing(xt[xt == bPmin]) * 100
-        )
-    if (xt == bPmax).any():
-        xt[xt == bPmax] = xt[xt == bPmax] - np.abs(
-            np.spacing(xt[xt == bPmax]) * 100
-        )
-
+    
     xs = expit(xt)
-    x = (bPmax - bPmin) * xs + bPmin
-    return x
+    return (bPmax - bPmin) * xs + bPmin
 
 
 def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
