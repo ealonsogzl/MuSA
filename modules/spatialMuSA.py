@@ -936,7 +936,6 @@ def get_idrow_from_cor(lat_idx, lon_idx):
         mask = mask_value.flatten()
 
         grid = grid[mask == 1, :]
-        grid = np.squeeze(grid)
 
     if lat_idx.size == 1:
 
@@ -1014,7 +1013,6 @@ def create_neigb(lat_idx, lon_idx, step, j, sim_dic=None):
         mask = mask_value.flatten()
 
         grid = grid[mask == 1, :]
-        grid = np.squeeze(grid)
 
     neigb = np.squeeze(grid[id_neigb])
 

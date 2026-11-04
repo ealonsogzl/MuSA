@@ -756,7 +756,6 @@ def expand_grid():
         mask = mask_value.flatten("F")
 
         grid = grid[mask == 1]
-        grid = np.squeeze(grid)
 
     return grid
 
