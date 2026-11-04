@@ -455,11 +455,12 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
     phic = np.reshape(
         starting_parameters.T[0, :], (1, starting_parameters.shape[0])
     )
-    observations_vec = np.asarray(observations_sbst_masked).reshape(-1)
-    R_vec = np.asarray(R).reshape(-1)
-    predicted_vec = np.asarray(predicted).reshape(-1)
-    nll = 0.5 * np.sum((observations_vec - predicted_vec) ** 2 / R_vec)
-    Uc = nll + 0.5 * np.sum(((phic - m0) / SD0) ** 2)
+    nll = negloglik(
+        np.asarray(predicted).reshape(-1, 1),
+        observations_sbst_masked,
+        R,
+    )
+    Uc = neglogpost(nll, phic, SD0, m0)
     mcmc_storage = np.zeros((chain_len, len(vars_to_perturbate)))
     mcmc_storage[:] = np.nan
     sigp = 0.1  # Gaussian proposal width. Only used if histcov is False
@@ -528,16 +529,16 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
                 state_tmp, dump_tmp = model.model_run(forcing_mcmcstep)
 
         mcmc_step_simulations = get_predictions([state_tmp], cfg.var_to_assim)
-        _, predicted_step, r_step = tidy_obs_pred_rcov(
+        _, predicted_step, _ = tidy_obs_pred_rcov(
             mcmc_step_simulations, Ensemble.observations, Ensemble.errors
         )
 
-        predicted_step_vec = np.asarray(predicted_step).reshape(-1)
-        r_step_vec = np.asarray(r_step).reshape(-1)
-        nll = 0.5 * np.sum(
-            (observations_vec - predicted_step_vec) ** 2 / r_step_vec
+        nll = negloglik(
+            np.asarray(predicted_step).reshape(-1, 1),
+            observations_sbst_masked,
+            R,
         )
-        Up = nll + 0.5 * np.sum(((phip - m0) / SD0) ** 2)
+        Up = neglogpost(nll, phip, SD0, m0)
 
         if not np.isfinite(Up):
             raise FloatingPointError(f"Non-finite potential Up={Up}")
