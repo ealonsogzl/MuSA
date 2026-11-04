@@ -961,7 +961,7 @@ def init_result(del_t, DA=False, OL=False):
             np.nan, index=range(len(del_t)), columns=col_names
         )
 
-        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%S") for x in del_t]
+        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%M") for x in del_t]
         return Results
 
     else:
@@ -971,7 +971,7 @@ def init_result(del_t, DA=False, OL=False):
             np.nan, index=range(len(del_t)), columns=model_columns
         )
 
-        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%S") for x in del_t]
+        Results["Date"] = [x.strftime("%d/%m/%Y-%H:%M") for x in del_t]
         # Reordenar las columnas para que 'Date' sea la primera
         cols = ["Date"] + [col for col in Results if col != "Date"]
         Results = Results[cols]
