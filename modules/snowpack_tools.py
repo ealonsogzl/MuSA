@@ -1088,7 +1088,7 @@ def model_read_output(wd_path, step, read_dump=True):
             [state.reset_index(drop=True), domains.reset_index(drop=True)],
             axis=1,
         )
-        breakpoint()
+
     if cfg.run_smrt:
 
         file_pro = list(directory.glob("*.pro"))
