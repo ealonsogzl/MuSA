@@ -59,6 +59,7 @@ The outputs of MuSA are pickles compressed with blosc (the latid_lonid.pkl.bl fo
 -  **std_Prior**: Contains the prior standar deviation of the ensemble (no assimilation)
 -  **mean_Post**: Contains the updated simulation after the assimilation, i.e. weighted mean of the ensemble of simulations.
 -  **std_Post**: Contains the weighted standard deviation of the ensemble after the assimilation.
+-  **mcmc_stat**: Contains the posterior mean and standard deviation from the MCMC step (only for IES-MCMC and IES-MCMC_AI).
 
 You can open these files by your own means, or by using the following function:
 

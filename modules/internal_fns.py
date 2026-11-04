@@ -245,7 +245,14 @@ def downcast_output(output):
 
         for n in output.keys():
 
-            output[n] = pdc.downcast(output[n], numpy_dtypes_only=True)
+            value = output[n]
+            if isinstance(value, dict):
+                output[n] = {
+                    key: pdc.downcast(item, numpy_dtypes_only=True)
+                    for key, item in value.items()
+                }
+            else:
+                output[n] = pdc.downcast(value, numpy_dtypes_only=True)
     return output
 
 

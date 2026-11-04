@@ -112,6 +112,8 @@ def cell_assimilation(lat_idx, lon_idx):
     OL_Sim = model.init_result(time_dict["del_t"], OL=True)  # OL simulation
     poste_stat = model.init_result(time_dict["del_t"])
     prior_stat = model.init_result(time_dict["del_t"])
+    if cfg.da_algorithm in ["IES-MCMC", "IES-MCMC_AI"]:
+        mcmc_stat = model.init_result(time_dict["del_t"])
 
     # initialice Ensemble class
     # open previous ensemble if reastart (not if reconstruct)
@@ -179,7 +181,9 @@ def cell_assimilation(lat_idx, lon_idx):
         model.store_sim(poste_stat, Ensemble, time_dict, step)
 
         if cfg.da_algorithm in ["IES-MCMC", "IES-MCMC_AI"]:
-            mcmc_stat = model.store_sim(Ensemble, time_dict, step, MCMC=True)
+            model.store_sim(
+                mcmc_stat, Ensemble, time_dict, step, MCMC=True
+            )
 
         # If redraw, calculate the postrior shape
         if cfg.redraw_prior:
@@ -199,6 +203,7 @@ def cell_assimilation(lat_idx, lon_idx):
                 "IES",
                 "PIES",
                 "IES-MCMC",
+                "IES-MCMC_AI",
             ]
             and cfg.da_DAW is None
         ):
@@ -224,11 +229,15 @@ def cell_assimilation(lat_idx, lon_idx):
     }
 
     if cfg.da_algorithm in ["IES-MCMC", "IES-MCMC_AI"]:
+        if cfg.write_stat_daily:
+            mcmc_stat = {
+                key: mean_daily(mcmc_stat[key]) for key in stat_name_list
+            }
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             mcmc_stat = {key: mcmc_stat[key] for key in stat_name_list}
 
-        cell_data["mcmc_stat"] = {**cell_data, **mcmc_stat}
+        cell_data["mcmc_stat"] = mcmc_stat
 
     # downcast and write output
     ifn.io_write(filename, ifn.downcast_output(cell_data))

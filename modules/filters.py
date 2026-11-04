@@ -455,9 +455,11 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
     phic = np.reshape(
         starting_parameters.T[0, :], (1, starting_parameters.shape[0])
     )
-    nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
-
-    Uc = neglogpost(nll, phic, SD0, m0)
+    observations_vec = np.asarray(observations_sbst_masked).reshape(-1)
+    R_vec = np.asarray(R).reshape(-1)
+    predicted_vec = np.asarray(predicted).reshape(-1)
+    nll = 0.5 * np.sum((observations_vec - predicted_vec) ** 2 / R_vec)
+    Uc = nll + 0.5 * np.sum(((phic - m0) / SD0) ** 2)
     mcmc_storage = np.zeros((chain_len, len(vars_to_perturbate)))
     mcmc_storage[:] = np.nan
     sigp = 0.1  # Gaussian proposal width. Only used if histcov is False
@@ -502,13 +504,15 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         # write perturbed forcing
         model.model_forcing_wrt(forcing_mcmcstep, temp_dest, Ensemble.step)
         # Write init conditions or dump file from previous run if step != 0
-        if cfg.numerical_model == "FSM2":
+        if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
             if Ensemble.step != 0:
                 model.write_dump(init_conditions, temp_dest)
             # create open loop simulation
             model.model_run(temp_dest)
             # read model outputs
-            state_tmp, dump_tmp = model.model_read_output(temp_dest)
+            state_tmp, dump_tmp = model.model_read_output(
+                temp_dest, Ensemble.step
+            )
 
         elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
             if cfg.numerical_model == "FSM2mem":
@@ -524,26 +528,30 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
                 state_tmp, dump_tmp = model.model_run(forcing_mcmcstep)
 
         mcmc_step_simulations = get_predictions([state_tmp], cfg.var_to_assim)
-        _, predicted, _ = tidy_obs_pred_rcov(
+        _, predicted_step, r_step = tidy_obs_pred_rcov(
             mcmc_step_simulations, Ensemble.observations, Ensemble.errors
         )
 
-        nll = negloglik(predicted[:, np.newaxis], observations_sbst_masked, R)
-        Up = neglogpost(nll, phip, SD0, m0)
+        predicted_step_vec = np.asarray(predicted_step).reshape(-1)
+        r_step_vec = np.asarray(r_step).reshape(-1)
+        nll = 0.5 * np.sum(
+            (observations_vec - predicted_step_vec) ** 2 / r_step_vec
+        )
+        Up = nll + 0.5 * np.sum(((phip - m0) / SD0) ** 2)
 
         if not np.isfinite(Up):
             raise FloatingPointError(f"Non-finite potential Up={Up}")
 
-        log_mh = min(0.0,-Up+Uc)
+        log_mh = min(0.0, -Up + Uc)
         mh = np.exp(log_mh)
-        log_u = np.log(np.random.rand(1))
+        log_u = np.log(np.random.rand())
         accept = log_mh > log_u
         if accept:
             phic = phip
             Uc = Up
             accepted = accepted + 1
 
-        mcmc_storage[nsteps] = phic
+        mcmc_storage[nsteps] = np.asarray(phic).reshape(-1)
         # If adaptive, update proposal covariance for next step.
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
         if adaptive:
@@ -569,7 +577,7 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
         pass
     printstr = "mcmc done, adaptive=%s, acceptance rate=%4.2f" % (
         adaptive,
-        (1.0 * accepted) / nsteps,
+        (1.0 * accepted) / max(chain_len, 1),
     )
     print(printstr)
     return accepted, mcmc_storage
@@ -630,15 +638,15 @@ def AI_mcmc(
         nll, sd = gp_emul.predict(phip, return_std=True)
 
         Up = neglogpost(nll, phip, SD0, m0)
-        mh = min(1, np.exp(-Up + Uc))
-        u = np.random.rand(1)
+        mh = min(1.0, float(np.exp(-Up + Uc)))
+        u = np.random.rand()
         accept = mh > u
         if accept:
             phic = phip
             Uc = Up
             accepted = accepted + 1
 
-        mcmc_storage[nsteps] = phic
+        mcmc_storage[nsteps] = np.asarray(phic).reshape(-1)
 
         # If adaptive, update proposal covariance for next step.
         # RAM algorithm by Vihola (https://doi.org/10.1007/s11222-011-9269-5)
@@ -660,7 +668,7 @@ def AI_mcmc(
 
     printstr = "mcmc done, adaptive=%s, acceptance rate=%4.2f" % (
         adaptive,
-        (1.0 * accepted) / nsteps,
+        (1.0 * accepted) / max(chain_len, 1),
     )
     print(printstr)
     return accepted, mcmc_storage
@@ -908,7 +916,7 @@ def tidy_obs_pred_rcov(
     observations_sbst_f_masked = observations_sbst_f[mask]
     r_cov_f = np.array(np.squeeze(r_cov_f[mask]))
 
-    predicted = np.squeeze(predicted[:, mask])
+    predicted = predicted[:, mask].squeeze(axis=-1)
     predicted = np.ndarray.transpose(predicted)
 
     if ret_mask:
@@ -922,7 +930,7 @@ def tidy_predictions(predicted, mask):
     predicted_sf = predicted.copy()
 
     predicted_sf = np.concatenate(predicted_sf, axis=1)
-    predicted_sf = np.squeeze(predicted_sf[:, mask])
+    predicted_sf = predicted_sf[:, mask].squeeze(axis=-1)
     predicted_sf = np.ndarray.transpose(predicted_sf)
 
     return predicted_sf
@@ -1748,7 +1756,7 @@ def implement_assimilation(Ensemble, step):
 
             noise_ens_temp = transform_space(post_sample, "to_normal")[cont, :]
             d1 = DescrStatsW(noise_ens_temp, weights=Ensemble.wgth)
-            noise_tmp_avg = d1.std_mean
+            noise_tmp_avg = d1.mean
             noise_tmp_sd = d1.std
 
             noise_tmp_avg = np.repeat(noise_tmp_avg, Ensemble.forcing.shape[0])

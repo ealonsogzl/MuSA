@@ -461,7 +461,7 @@ class SnowEnsemble:
                 if step != 0 or self.real_time_restart:
 
                     model.write_dump(
-                        self.out_members_mcmc[mbr], self.temp_dest
+                        self.out_members_iter[mbr], self.temp_dest
                     )
 
                 model.model_run(self.temp_dest)
@@ -478,7 +478,7 @@ class SnowEnsemble:
             elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
                 if step != 0 or self.real_time_restart:
                     state_tmp, dump_tmp = model.model_run(
-                        member_forcing, self.out_members_mcmc[mbr]
+                        member_forcing, self.out_members_iter[mbr]
                     )
                 else:
                     state_tmp, dump_tmp = model.model_run(member_forcing)
