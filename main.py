@@ -23,10 +23,7 @@ else:
 import numpy as np
 import sys
 
-if (
-    cfg.parallelization == "multiprocessing"
-    or cfg.implementation == "open_loop"
-):
+if cfg.parallelization == "multiprocessing":
     import multiprocessing as mp
 elif cfg.parallelization == "HPC.array":
     import multiprocessing as mp
@@ -48,7 +45,6 @@ def MuSA():
     if cfg.implementation in [
         "distributed",
         "Spatial_propagation",
-        "open_loop",
     ]:
         grid = ifn.expand_grid()
 
@@ -330,27 +326,6 @@ def MuSA():
             inputs = [grid[:, 0], grid[:, 1], [iteration_sims] * len(ids)]
 
             ifn.safe_pool(spM.collect_results, inputs, nprocess)
-
-    elif cfg.implementation == "open_loop":
-
-        print("Running FSM simulation: Distributed (multiprocessing)")
-
-        if isinstance(cfg.nprocess, int):
-            nprocess = cfg.nprocess
-        else:
-            nprocess = mp.cpu_count() - 1
-
-        print(
-            "Launching "
-            + str(nprocess)
-            + " processes in "
-            + str(mp.cpu_count())
-            + " processors"
-        )
-
-        inputs = [grid[:, 0], grid[:, 1]]
-
-        ifn.safe_pool(ifn.open_loop_simulation, inputs, nprocess)
 
     else:
         raise Exception("Choose an available implementation")

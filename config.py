@@ -115,6 +115,8 @@ save_ensemble = False
 # -----------------------------------
 
 # implementation from "point_scale", "distributed" or "Spatial_propagation"
+# For a pure open-loop simulation use implementation = "distributed" (or
+# "point_scale") together with da_algorithm = "deterministic_OL".
 implementation = "point_scale"
 
 # if implementation = "Spatial_propagation" : specify which observation

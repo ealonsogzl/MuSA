@@ -82,24 +82,27 @@ def cell_assimilation(lat_idx, lon_idx):
     if cfg.restart_run and os.path.exists(filename):
         return None
 
-    dates_obs = ifn.get_dates_obs()
-    observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
-
-    if isinstance(observations, str):  # check if masked
-        return None
-
     main_forcing = model.forcing_table(lat_idx, lon_idx)
 
     if ifn.forcing_check(main_forcing):
         print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
         return None
 
+    # Deterministic open-loop does not need observations at all.
+    if cfg.da_algorithm == "deterministic_OL" and not cfg.load_prev_run:
+        ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
+        return None
+
+    dates_obs = ifn.get_dates_obs()
+    observations, errors = ifn.obs_array(dates_obs, lat_idx, lon_idx)
+
+    if isinstance(observations, str):  # check if masked
+        return None
+
     time_dict = ifn.simulation_steps(observations, dates_obs)
 
-    # If no obs in the cell or det_OL, run openloop, unless cfg.load_prev_run
-    if (
-        np.isnan(observations).all() or cfg.da_algorithm == "deterministic_OL"
-    ) and not cfg.load_prev_run:
+    # If the cell has no valid observations, run the open-loop simulation.
+    if np.isnan(observations).all() and not cfg.load_prev_run:
         ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
         return None
 

@@ -850,12 +850,25 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
     model.model_forcing_wrt(real_forcing, temp_dest, step=0)
     if cfg.numerical_model == "FSM2":
         model.model_run(temp_dest)
-        state = model.model_read_output(temp_dest, read_dump=False)
+        state = model.model_read_output(temp_dest, 0, read_dump=False)
     elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
         state = model.model_run(real_forcing)[0]
+    elif cfg.numerical_model == "SNOWPACK":
+        model.model_run(temp_dest)
+        state = model.model_read_output(temp_dest, 0, read_dump=False)
     else:
-        Exception("Numerical model not implemented")
+        raise Exception("Numerical model not implemented")
     state.columns = list(model.model_columns)
+
+    del_t = generate_dates(
+        dt.datetime.strptime(cfg.date_ini, "%Y-%m-%d %H:%M"),
+        dt.datetime.strptime(cfg.date_end, "%Y-%m-%d %H:%M"),
+    )
+    if len(del_t) != len(state.index):
+        raise Exception(
+            "Open-loop model output length does not match the forcing period"
+        )
+    state.insert(0, "Date", [x.strftime("%d/%m/%Y-%H:%M") for x in del_t])
 
     io_write(filename, state)
     # Clean tmp directory

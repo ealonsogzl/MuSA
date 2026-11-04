@@ -106,7 +106,7 @@ mpiexec -n nprocess python -m mpi4py.futures main.py
 
 Where nprocess is the number of threads to be deployed. MPI requires a working MPI implementation and `mpi4py`; the default `multiprocessing` parallelization needs neither and is fully supported on Windows.
 
-These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file.
+These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file. To run a simulation without data assimilation, use `implementation = "distributed"` (or `"point_scale"`) together with `da_algorithm = "deterministic_OL"`.
 An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.sh) is also provided to run MuSA in distributed supercomputing facilities using PBS (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](https://github.com/ealonsogzl/MuSA/blob/master/run_slurm.sh) arrays. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing, allowing many different parallelization schemes depending on the need. PBS/Slurm job arrays are only available on HPC clusters and are not used on a regular Windows workstation; use `parallelization = "multiprocessing"` there.
 
 If the spatial propagation is activated, it is necessary to launch the pre-processor that activates the spatial prior sampling before launching the main program.
@@ -116,6 +116,26 @@ conda activate MuSAenv
 python pre_main_spatial.py
 python main.py
 ```
+
+### Release tests
+
+Before publishing a new version, run the release test suite from the
+repository root:
+
+```
+conda activate MuSAenv
+python run_tests.py            # standard release gate
+python run_tests.py --full     # also run slow/optional configurations
+```
+
+The runner creates isolated temporary workspaces, so it does not modify
+`DATA/`, `config.py` or the compiled FSM2 executable. It checks the Python
+environment, compiles every Python file, validates the example data, exercises
+all data assimilation algorithms and model backends, and validates the
+resulting pickles. Use `python run_tests.py --list` to see the cases,
+`--quick` for a fast sanity check, and `--allow-known` to ignore documented
+known issues while still reporting them. A non-zero exit status means that at
+least one unexpected test failed.
 
 ### How to cite and license
 This software is licensed under the GNU General Public License v3.0 (GPL-3.0).
