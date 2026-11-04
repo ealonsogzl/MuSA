@@ -793,7 +793,6 @@ def simulation_steps(observations, dates_obs):
         assimilation_steps = 0
 
     elif cfg.da_DAW is not None:
-        breakpoint()
         assimilation_steps = np.arange(
             cfg.da_DAW - 1,
             len(del_t),

@@ -59,7 +59,6 @@ def run_SMRT(rows, statedataframe, k):
         ]  # QUIARESTO DE LA SALIDA
 
         # prepare inputs
-        breakpoint()
         thickness = list(Dsnw)
         corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrn
         temperature = tsnow
