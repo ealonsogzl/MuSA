@@ -363,19 +363,29 @@ def model_forcing_wrt(forcing_df, wd_path, step=0):
         hour=int(temp_forz_def["hours"].iloc[0]),
     )
 
-    # El forzamiento tiene que emepzar en el timestep anterior:
-    firstdate_minus_one_dt = firstdate - pd.Timedelta(hours=cfg.dt / 3600)
+    # Forcing gotta start at least two timesteps before:
+    # the (.sno) restart has date: firstdate - dt, and
+    # PSUM::ACCUMULATE needs an earlier date.
+    # In a restart (e.g two seasons) SNOWPACK will simulate 
+    # again the timestep from (.sno) but keeps precip = 0 to
+    # avoid double-counting.
+    for n_dt in (1, 2):
+        prev_date = firstdate - pd.Timedelta(hours=n_dt * cfg.dt / 3600)
 
-    temp_forz_def = pd.concat([temp_forz_def.iloc[[0]], temp_forz_def])
+        temp_forz_def = pd.concat([temp_forz_def.iloc[[0]], temp_forz_def])
 
-    temp_forz_def.iloc[
-        0, temp_forz_def.columns.get_indexer(["year", "month", "day", "hours"])
-    ] = [
-        firstdate_minus_one_dt.year,
-        firstdate_minus_one_dt.month,
-        firstdate_minus_one_dt.day,
-        firstdate_minus_one_dt.hour,
-    ]
+        temp_forz_def.iloc[
+            0,
+            temp_forz_def.columns.get_indexer(
+                ["year", "month", "day", "hours", "Prec"]
+            ),
+        ] = [
+            prev_date.year,
+            prev_date.month,
+            prev_date.day,
+            prev_date.hour,
+            0.0
+        ]
 
     file_name = os.path.join(wd_path, "input", "justacell.smet")
     write_smet(temp_forz_def, file_name)
@@ -729,8 +739,8 @@ def write_nlst(wd_path, params=None, step=None):
     MINIMUM_L_ELEMENT = 0.02
 
     [Interpolations1D]
-    PSUM::resample = accumulate
-    PSUM::accumulate::period = 3600
+    PSUM::RESAMPLE1 = ACCUMULATE
+    PSUM::ARG1::PERIOD = 3600
     """
     filename = Path(os.path.join(wd_path, "io_justacell.ini"))
     with open(filename, "w") as f:
