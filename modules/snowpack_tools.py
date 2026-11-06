@@ -370,7 +370,7 @@ def model_forcing_wrt(forcing_df, wd_path, step=0):
     # again the timestep from (.sno) but keeps precip = 0 to
     # avoid double-counting.
     for n_dt in (1, 2):
-        prev_date = firstdate - pd.Timedelta(hours=cfg.dt / 3600)
+        prev_date = firstdate - pd.Timedelta(hours=n_dt * cfg.dt / 3600)
 
         temp_forz_def = pd.concat([temp_forz_def.iloc[[0]], temp_forz_def])
 
