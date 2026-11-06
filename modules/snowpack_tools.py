@@ -729,8 +729,8 @@ def write_nlst(wd_path, params=None, step=None):
     MINIMUM_L_ELEMENT = 0.02
 
     [Interpolations1D]
-    PSUM::resample = accumulate
-    PSUM::accumulate::period = 3600
+    PSUM::RESAMPLE1 = ACCUMULATE
+    PSUM::ARG1::PERIOD = 3600
     """
     filename = Path(os.path.join(wd_path, "io_justacell.ini"))
     with open(filename, "w") as f:
