@@ -826,77 +826,6 @@ def prepare_forcing(lat_idx, lon_idx, step):
     return main_forcing, time_dict, observations, errors
 
 
-def generate_obs_mask(HPC_task_id):
-
-    name_obs_mask = "obs_mask.blp"
-    name_obs_mask = os.path.join(
-        cfg.spatial_propagation_storage_path, name_obs_mask
-    )
-
-    if HPC_task_id == 0:
-        obs_mask()
-    else:
-        while True:
-            if os.path.isfile(name_obs_mask):
-                break
-            else:
-                time.sleep(5)
-
-
-def obs_mask():
-
-    nc_obs_path = cfg.nc_obs_path
-    mask = cfg.nc_maks_path
-    obs_var_names = cfg.obs_var_names
-
-    files = glob.glob(nc_obs_path + "*.nc")
-    # TODO: let the user define the prefix of the observations
-    files.sort()
-
-    # obs_dates = ifn.get_dates_obs()
-
-    # ini_seasons = domain_steps()
-
-    array_obs = np.empty((len(obs_var_names),) + ifn.get_dims())
-    array_obs[:] = np.nan
-    tmp_storage = []
-
-    for cont, obs_var in enumerate(obs_var_names):
-
-        for i, ncfile in enumerate(files):
-
-            data_temp = nc.Dataset(ncfile)
-            if obs_var in data_temp.variables.keys():
-                nc_value = data_temp.variables[obs_var][:, :, :]
-                nc_value = nc_value.filled(np.nan)
-                tmp_storage.extend(nc_value)
-                data_temp.close()
-
-    tmp_storage = np.dstack(tmp_storage)
-    tmp_storage = np.moveaxis(tmp_storage, 2, 0)
-    tmp_storage[~np.isnan(tmp_storage)] = 1
-    tmp_storage = np.nansum(tmp_storage, axis=0)
-
-    array_obs[cont, :, :] = tmp_storage
-    array_obs = np.nansum(array_obs, axis=0)
-
-    # mask
-    if mask:
-        mask = nc.Dataset(mask)
-        mask_value = mask.variables["mask"][:]
-        mask.close()
-        array_obs[mask_value != 1] = 0
-
-    name_obs_mask = "obs_mask.blp"
-    name_obs_mask = os.path.join(
-        cfg.spatial_propagation_storage_path, name_obs_mask
-    )
-
-    ifn.io_write(name_obs_mask, array_obs)
-
-    return True
-
-
 def get_idrow_from_cor(lat_idx, lon_idx):
 
     lat_idx = np.asarray(lat_idx).ravel()
@@ -957,17 +886,6 @@ def read_distances(lat_idx, lon_idx):
     f.close()
 
     # distances[distances > c*2] = np.nan # far distances already masked
-
-    # obs mask array
-    # name_mask_file = "obs_mask.blp"
-    # name_mask_file = os.path.join(spatial_propagation_storage_path,
-    #                             name_mask_file)
-
-    # data_mask = ifn.io_read(name_mask_file)
-
-    # data_mask = data_mask.flatten()
-
-    # distances[data_mask < 1] = np.nan
 
     return distances
 

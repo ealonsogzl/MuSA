@@ -17,7 +17,6 @@ dependencies:
   - statsmodels
   - numba
   - netcdf4
-  - pyarrow-core
   - python-blosc
   - threadpoolctl
   # Sparse Cholesky for Spatial_propagation with sparse covariance matrices
