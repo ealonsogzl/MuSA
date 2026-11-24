@@ -185,8 +185,14 @@ noon = 12
 zT = 2
 zU = 10
 read(5,drive)
+#if DRIV1D == 1
+! Binary driving data written by MuSA (stream access)
+open(umet, file = met_file, access = 'stream', form = 'unformatted')
+read(umet) year,month,day,hour
+#else
 open(umet, file = met_file)
 read(umet,*) year,month,day,hour
+#endif
 rewind(umet)
 lat = (3.14159/180)*lat
 trans = 0  ! no snow transport

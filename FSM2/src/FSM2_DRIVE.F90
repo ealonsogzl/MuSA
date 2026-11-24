@@ -61,8 +61,8 @@ real :: &
   Tc                  ! Temperature (C)
 
 #if DRIV1D == 1
-! FSM driving data
-read(umet,*,end=1) year,month,day,hour,SW,LW,Sf,Rf,Ta,RH,Ua,Ps
+! FSM driving data (binary stream written by MuSA: 3 integers, 9 reals)
+read(umet,end=1) year,month,day,hour,SW,LW,Sf,Rf,Ta,RH,Ua,Ps
 ! Convert relative to specific humidity
 Tc = Ta - Tm
 es = e0*exp(17.5043*Tc/(241.3 + Tc))

@@ -22,8 +22,6 @@ import time
 import copy
 import pdcast as pdc
 import warnings
-import pyarrow as pa
-import pyarrow.csv as csv
 import numpy as np
 import netCDF4 as nc
 import modules.internal_fns as ifn
@@ -141,6 +139,9 @@ def write_nlst(temp_dest, params, step):
     filedata = filedata.replace("pyNSMAX", str(Nsmax))
     filedata = filedata.replace("pyDZSNOW", Dzsnow)
     filedata = filedata.replace("pyTIMESTEP", str(cfg.dt))
+
+    # The driving data is written in binary by model_forcing_wrt
+    filedata = filedata.replace("met_file = 'input.txt'", "met_file = 'input.bin'")
 
     # Vegetation characteristics
     filedata = filedata.replace("pyvegh", str(params["vegh"]))
@@ -693,6 +694,14 @@ def stable_forcing(forcing_df):
     return temp_forz_def
 
 
+# Record of the binary driving file (native byte order, as FSM2 reads it)
+_MET_DTYPE = np.dtype(
+    [("year", "i4"), ("month", "i4"), ("day", "i4")]
+    + [(name, "f4") for name in
+       ("hour", "SW", "LW", "Sf", "Rf", "Ta", "RH", "Ua", "Ps")]
+)
+
+
 def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
     temp_forz_def = forcing_df.copy()
@@ -722,109 +731,33 @@ def model_forcing_wrt(forcing_df, temp_dest, step=0):
 
         raise Exception("Precipitation phase partitioning not implemented")
 
-    temp_forz_def.insert(6, "Sf", Sf)
-    temp_forz_def.insert(7, "Rf", Rf)
-
-    file_name = os.path.join(temp_dest, "input.txt")
-
+    first = temp_forz_def.iloc[0]
     params = {
-        "VAI": temp_forz_def.iloc[0]["VAI"],
-        "vegh": temp_forz_def.iloc[0]["vegh"],
-        "asmn": temp_forz_def.iloc[0]["asmn"],
-        "asmx": temp_forz_def.iloc[0]["asmx"],
-        "eta0": temp_forz_def.iloc[0]["eta0"],
-        "hfsn": temp_forz_def.iloc[0]["hfsn"],
-        "kfix": temp_forz_def.iloc[0]["kfix"],
-        "rcld": temp_forz_def.iloc[0]["rcld"],
-        "rfix": temp_forz_def.iloc[0]["rfix"],
-        "rgr0": temp_forz_def.iloc[0]["rgr0"],
-        "rhof": temp_forz_def.iloc[0]["rhof"],
-        "rhow": temp_forz_def.iloc[0]["rhow"],
-        "rmlt": temp_forz_def.iloc[0]["rmlt"],
-        "Salb": temp_forz_def.iloc[0]["Salb"],
-        "snda": temp_forz_def.iloc[0]["snda"],
-        "Talb": temp_forz_def.iloc[0]["Talb"],
-        "tcld": temp_forz_def.iloc[0]["tcld"],
-        "tmlt": temp_forz_def.iloc[0]["tmlt"],
-        "trho": temp_forz_def.iloc[0]["trho"],
-        "Wirr": temp_forz_def.iloc[0]["Wirr"],
-        "z0sn": temp_forz_def.iloc[0]["z0sn"],
-        "alb0": temp_forz_def.iloc[0]["alb0"],
-        "fcly": temp_forz_def.iloc[0]["fcly"],
-        "fsnd": temp_forz_def.iloc[0]["fsnd"],
-        "gsat": temp_forz_def.iloc[0]["gsat"],
-        "z0sf": temp_forz_def.iloc[0]["z0sf"],
-        "acn0": temp_forz_def.iloc[0]["acn0"],
-        "acns": temp_forz_def.iloc[0]["acns"],
-        "avg0": temp_forz_def.iloc[0]["avg0"],
-        "avgs": temp_forz_def.iloc[0]["avgs"],
-        "cvai": temp_forz_def.iloc[0]["cvai"],
-        "gsnf": temp_forz_def.iloc[0]["gsnf"],
-        "hbas": temp_forz_def.iloc[0]["hbas"],
-        "kext": temp_forz_def.iloc[0]["kext"],
-        "leaf": temp_forz_def.iloc[0]["leaf"],
-        "svai": temp_forz_def.iloc[0]["svai"],
-        "tunl": temp_forz_def.iloc[0]["tunl"],
-        "wcan": temp_forz_def.iloc[0]["wcan"],
+        name: first[name]
+        for name in (
+            "VAI", "vegh", "asmn", "asmx", "eta0", "hfsn", "kfix", "rcld",
+            "rfix", "rgr0", "rhof", "rhow", "rmlt", "Salb", "snda", "Talb",
+            "tcld", "tmlt", "trho", "Wirr", "z0sn", "alb0", "fcly", "fsnd",
+            "gsat", "z0sf", "acn0", "acns", "avg0", "avgs", "cvai", "gsnf",
+            "hbas", "kext", "leaf", "svai", "tunl", "wcan",
+        )
     }
 
     write_nlst(temp_dest, params, step)
 
-    del temp_forz_def["Prec"]  # remove total precipitation, we use the rates
-
-    del temp_forz_def["VAI"]
-    del temp_forz_def["vegh"]
-    del temp_forz_def["asmn"]
-    del temp_forz_def["asmx"]
-    del temp_forz_def["eta0"]
-    del temp_forz_def["hfsn"]
-    del temp_forz_def["kfix"]
-    del temp_forz_def["rcld"]
-    del temp_forz_def["rfix"]
-    del temp_forz_def["rgr0"]
-    del temp_forz_def["rhof"]
-    del temp_forz_def["rhow"]
-    del temp_forz_def["rmlt"]
-    del temp_forz_def["Salb"]
-    del temp_forz_def["snda"]
-    del temp_forz_def["Talb"]
-    del temp_forz_def["tcld"]
-    del temp_forz_def["tmlt"]
-    del temp_forz_def["trho"]
-    del temp_forz_def["Wirr"]
-    del temp_forz_def["z0sn"]
-    del temp_forz_def["alb0"]
-    del temp_forz_def["fcly"]
-    del temp_forz_def["fsnd"]
-    del temp_forz_def["gsat"]
-    del temp_forz_def["z0sf"]
-    del temp_forz_def["acn0"]
-    del temp_forz_def["acns"]
-    del temp_forz_def["avg0"]
-    del temp_forz_def["avgs"]
-    del temp_forz_def["cvai"]
-    del temp_forz_def["gsnf"]
-    del temp_forz_def["hbas"]
-    del temp_forz_def["kext"]
-    del temp_forz_def["leaf"]
-    del temp_forz_def["svai"]
-    del temp_forz_def["tunl"]
-    del temp_forz_def["wcan"]
-
-    # TODO: Explore export to binary
-    # https://stackoverflow.com/questions/44074122/reading-in-fortran-binaries-written-with-python
-    # temp_forz_def.to_csv(file_name, sep="\t",
-    #                     header=False,
-    #                     index=False,
-    #                     chunksize=1000)
-
-    # write the csv with pyarrow
-    temp_forz_def = pa.Table.from_pandas(temp_forz_def)
-    csv.write_csv(
-        temp_forz_def,
-        file_name,
-        csv.WriteOptions(include_header=False, batch_size=8760, delimiter=" "),
-    )
+    # Binary driving file, read by FSM2_DRIVE with stream access: for every
+    # time step year, month, day (int32) and hour, SW, LW, Sf, Rf, Ta, RH,
+    # Ua, Ps (float32, the default Fortran real)
+    drive = np.empty(len(temp_forz_def), dtype=_MET_DTYPE)
+    drive["year"] = temp_forz_def["year"].to_numpy()
+    drive["month"] = temp_forz_def["month"].to_numpy()
+    drive["day"] = temp_forz_def["day"].to_numpy()
+    drive["hour"] = temp_forz_def["hours"].to_numpy()
+    for name in ("SW", "LW", "Ta", "RH", "Ua", "Ps"):
+        drive[name] = temp_forz_def[name].to_numpy()
+    drive["Sf"] = Sf
+    drive["Rf"] = Rf
+    drive.tofile(os.path.join(temp_dest, "input.bin"))
 
 
 def write_dump(dump, fsm_path):
