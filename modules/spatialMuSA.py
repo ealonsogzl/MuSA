@@ -1369,6 +1369,17 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
 
     grid = ifn.expand_grid()
 
+    # At the last iteration task 0 moves the ensembles to output_path as soon
+    # as it sees all of them, so the other tasks may never see them all in
+    # save_ensemble_path. They wait for them in output_path instead.
+    if HPC_task_id != 0 and j == cfg.max_iterations - 1:
+        pattern = os.path.join(
+            cfg.output_path, "{step}_{j}it*.pkl.blp".format(step=step, j=j)
+        )
+        while len(glob.glob(pattern)) != len(grid):
+            time.sleep(2)
+        return
+
     if j is None and step == 0:
         files = glob.glob(
             os.path.join(
@@ -1416,29 +1427,6 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
                     if j == cfg.max_iterations - 1:
                         for f in files:
                             shutil.move(f, cfg.output_path)
-
-                # if not first task and end of iterations, wait for
-                # ensembles in results
-                if HPC_task_id != 0 and j == cfg.max_iterations - 1:
-                    files = glob.glob(
-                        os.path.join(
-                            cfg.output_path,
-                            "{step}_{j}it*.pkl.blp".format(step=step, j=j),
-                        )
-                    )
-                    while True:
-                        if len(grid) == len(files):
-                            break
-                        else:
-                            time.sleep(2)
-                            files = glob.glob(
-                                os.path.join(
-                                    cfg.output_path,
-                                    "{step}_{j}it*.pkl.blp".format(
-                                        step=step, j=j
-                                    ),
-                                )
-                            )
 
             break
 
