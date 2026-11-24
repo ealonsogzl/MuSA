@@ -216,8 +216,15 @@ def MuSA():
 
                     ifn.safe_pool(spM.spatial_assim, inputs, nprocess)
 
-                    # Wait untill all ensembles are updated and remove prior
-                    spM.wait_for_ensembles(step, HPC_task_id, j)
+                    # Wait untill all ensembles are updated and remove prior.
+                    # After the last iteration of the last window only task 0
+                    # has work left (collect_results), so the others finish.
+                    if not (
+                        HPC_task_id != 0
+                        and step == len(ini_DA_window) - 1
+                        and j == cfg.max_iterations - 1
+                    ):
+                        spM.wait_for_ensembles(step, HPC_task_id, j)
 
             # collect results from HPC_task_id = 0
             if HPC_task_id != 0:

@@ -1612,7 +1612,7 @@ def spatial_assim(
         return None
 
 
-def collect_results(lat_idx, lon_idx, list_of_simdic):
+def collect_results(lat_idx, lon_idx, list_of_simdic=None):
 
     date_ini = cfg.date_ini
     date_end = cfg.date_end
