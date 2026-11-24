@@ -1314,23 +1314,25 @@ def create_ensemble_cell(
             Ensemble = SnowEnsemble(lat_idx, lon_idx)
 
     else:
-        # Open cell to create new ensemble
-        name_ensemble = (
-            "{step}_{j}it_ensbl_{lat}_{lon}_obs{obs}.pkl.blp".format(
-                step=step - 1,
-                j=cfg.max_iterations - 1,
-                lat=lat_idx,
-                lon=lon_idx,
-                obs=obs_flag,
-            )
+        # Open cell to create new ensemble. The previous window may have a
+        # different obs flag than the current one, so match any of them.
+        name_ensemble = "{step}_{j}it_ensbl_{lat}_{lon}_obs*.pkl.blp".format(
+            step=step - 1,
+            j=cfg.max_iterations - 1,
+            lat=lat_idx,
+            lon=lon_idx,
         )
 
         if in_mem:
+            name_ensemble = [
+                k for k in sim_dic.keys() if fnmatchcase(k, name_ensemble)
+            ][0]
             Ensemble = deepcopy(
                 ifn.io_read(sim_dic[name_ensemble], in_mem=True)
             )
         else:
             name_ensemble = os.path.join(cfg.output_path, name_ensemble)
+            name_ensemble = glob.glob(name_ensemble)[0]
             Ensemble = ifn.io_read(name_ensemble)
 
     # Ensemble.create(forcing_sbst, observations_sbst, error_sbst, step)
