@@ -914,8 +914,8 @@ def obs_mask():
 
 def get_idrow_from_cor(lat_idx, lon_idx):
 
-    lat_idx = np.asarray(lat_idx)
-    lon_idx = np.asarray(lon_idx)
+    lat_idx = np.asarray(lat_idx).ravel()
+    lon_idx = np.asarray(lon_idx).ravel()
 
     mask = cfg.nc_maks_path
 
@@ -1222,19 +1222,16 @@ def generate_local_rho(curren_lat, current_lon, neig_lat, neig_long):
     name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
 
     current_id = get_idrow_from_cor(curren_lat, current_lon)
-    neig_ids = get_idrow_from_cor(neig_lat, neig_long)
+    # Always an array, also with a single observation in the neighbourhood
+    neig_ids = np.atleast_1d(get_idrow_from_cor(neig_lat, neig_long))
 
     f = nc.Dataset(name_dist)
-    if isinstance(neig_ids, int):
-        d_curent_neig = f.variables["Dist"][neig_ids, current_id]
-        d_neig_neig = f.variables["Dist"][neig_ids, neig_ids]
-    else:
-        d_curent_neig = f.variables["Dist"][
-            neig_ids.flatten().astype(int), current_id
-        ]
-        d_neig_neig = f.variables["Dist"][
-            neig_ids.flatten().astype(int), neig_ids.flatten().astype(int)
-        ]
+    d_curent_neig = f.variables["Dist"][
+        neig_ids.flatten().astype(int), current_id
+    ]
+    d_neig_neig = f.variables["Dist"][
+        neig_ids.flatten().astype(int), neig_ids.flatten().astype(int)
+    ]
     f.close()
 
     rho_par_predicted_obs = [GC(d_curent_neig, c_par) for c_par in c]
