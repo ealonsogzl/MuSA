@@ -78,19 +78,19 @@ Additionally it is possible to store the ensembles generated for each cell. This
 MuSA runs natively on GNU/Linux, macOS and Windows. MuSA relies on python3 with the usual scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. You will also need to have gfortran in the path (or installed in the active conda environment). The easiest way to do this is to generate a dedicated conda environment with the [MuSAenv.yml](MuSAenv.yml) file of the repository. The same file works on every platform and already includes gfortran:
 
 ```
-conda env create --name MuSAenv --file=MuSAenv.yml
+conda env create --file=MuSAenv.yml
 ```
 
 The environment includes everything MuSA needs, including `mpi4py` for MPI runs and [SMRT](https://github.com/smrt-model/smrt) (`run_smrt = True`). To use [helpers/plot_example.py](helpers/plot_example.py) also install matplotlib:
 
 ```
-conda install --name MuSAenv -c conda-forge matplotlib-base
+conda install --name MuSA -c conda-forge matplotlib-base
 ```
 
 Then for running MuSA simply, on every platform:
 
 ```
-conda activate MuSAenv
+conda activate MuSA
 python main.py
 ```
 
@@ -99,19 +99,25 @@ On Windows MuSA compiles FSM2 natively with gfortran. WSL, Git Bash, `make` or a
 MPI is optional. If MPI is activated in the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file:
 
 ```
-conda activate MuSAenv
+conda activate MuSA
 mpiexec -n nprocess python -m mpi4py.futures main.py
 ```
 
 Where nprocess is the number of threads to be deployed. `mpi4py` and an MPI implementation are already included in the conda environment (on HPC clusters you may prefer to link it to the system MPI, see the [conda-forge documentation](https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries)); the default `multiprocessing` parallelization needs neither and is fully supported on Windows.
 
 These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file. To run a simulation without data assimilation, use `implementation = "distributed"` (or `"point_scale"`) together with `da_algorithm = "deterministic_OL"`.
-An [example script](https://github.com/ealonsogzl/MuSA/blob/master/run_PBS.sh) is also provided to run MuSA in distributed supercomputing facilities using PBS (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](https://github.com/ealonsogzl/MuSA/blob/master/run_slurm.sh) arrays. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing. The use of PBS/Slurm arrays is compatible with both MPI and multiprocessing, allowing many different parallelization schemes depending on the need. PBS/Slurm job arrays are only available on HPC clusters and are not used on a regular Windows workstation; use `parallelization = "multiprocessing"` there.
+Example scripts are also provided to run MuSA in distributed supercomputing facilities using [PBS](run_PBS.sh) (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](run_slurm.sh) job arrays. The cells of the domain are split among `njobs` array tasks, and each task runs on one node with `nprocs` multiprocessing workers:
+
+```
+bash run_slurm.sh njobs nprocs   # or: bash run_PBS.sh njobs nprocs
+```
+
+Set `parallelization = "HPC.array"`, `MPI = False` and `implementation = "distributed"` (or `"Spatial_propagation"`) in [config.py](config.py) first. The scripts check the configuration and compile FSM2 before submitting the array, and activate the `MuSA` conda environment inside each task. The environment name, memory per CPU and time limit can be changed with the `MUSA_ENV`, `MUSA_MEM_PER_CPU` and `MUSA_WALLTIME` variables, and cluster-specific options (partition, account...) can be added to the `#SBATCH`/`#PBS` lines. PBS/Slurm job arrays are only available on HPC clusters and are not used on a regular Windows workstation; use `parallelization = "multiprocessing"` there.
 
 If the spatial propagation is activated, it is necessary to launch the pre-processor that activates the spatial prior sampling before launching the main program.
 
 ```
-conda activate MuSAenv
+conda activate MuSA
 python pre_main_spatial.py
 python main.py
 ```
@@ -122,7 +128,7 @@ Before publishing a new version, run the release test suite from the
 repository root:
 
 ```
-conda activate MuSAenv
+conda activate MuSA
 python run_tests.py            # standard release gate
 python run_tests.py --full     # also run slow/optional configurations
 ```
