@@ -508,9 +508,9 @@ class SnowEnsemble:
         ]
 
     def reduce_precision(self):
-        self.state_membres = [
-            x.round(2).astype(np.float16) for x in self.state_membres
-        ]
+        # float32 halves the memory of float64 with negligible differences in
+        # the assimilation (float16 with rounding changed the results)
+        self.state_membres = [x.astype(np.float32) for x in self.state_membres]
 
     def rm_forz(self):
         self.forcing = None
