@@ -207,9 +207,6 @@ def gexpit(xt, bPmin, bPmax):
 
 def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
 
-    if cfg.seed is not None:
-        np.random.seed(cfg.seed)
-
     if perturbation_strategy == "normal":
         noise = np.random.normal(mean, std_dev, 1)
         noise = np.repeat(noise, n_steps)
@@ -233,9 +230,6 @@ def create_noise(perturbation_strategy, n_steps, mean, std_dev, var):
 
 
 def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
-
-    if cfg.seed is not None:
-        np.random.seed(cfg.seed)
 
     # Retrieve posterior timeseries
     post_mean = posteriors[var_tmp + "_noise_mean"].to_numpy()
@@ -281,9 +275,6 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
 
         mean, std_dev = post_mean_vals[n], post_post_std_dev[n]
         n_steps = counts[0]
-
-        if cfg.seed is not None:
-            np.random.seed(cfg.seed)
 
         if perturbation_strategy == "normal":
             noise = np.random.normal(mean, std_dev, 1)

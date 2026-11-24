@@ -47,6 +47,12 @@ def mean_daily(var_df_hourly):
 
 def cell_assimilation(lat_idx, lon_idx):
 
+    # Seed once per cell, not on every draw (that gave every member the same
+    # perturbation). It depends only on the cell, so the results do not
+    # depend on the parallelization or on how cells are split among workers.
+    if cfg.seed is not None:
+        np.random.seed([cfg.seed, int(lat_idx), int(lon_idx)])
+
     save_ensemble = cfg.save_ensemble
     real_time_restart = cfg.real_time_restart
 
