@@ -1582,7 +1582,10 @@ def spatial_assim(
                 updated_pars = flt.transform_space(updated_pars, "from_normal")
 
             Ensemble.iter_update(step, updated_pars, create=True, iteration=j)
-            Ensemble.update_iter_restarts()
+            # As in the non-spatial IES: every iteration restarts from the
+            # end of the previous window; keep the new restarts only at the end
+            if j == cfg.max_iterations - 1:
+                Ensemble.update_iter_restarts()
 
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
