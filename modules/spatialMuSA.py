@@ -305,13 +305,11 @@ def calculate_coords():
 
     else:
         pass
-    # Order to help PD, look into other ordering algos
-    orderows = np.lexsort(coords.T[::-1])
 
-    return coords, orderows
+    return coords
 
 
-def save_distance(d, orderows, prior_id):
+def save_distance(d, prior_id):
 
     spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
     # mask = cfg.nc_maks_path
@@ -319,8 +317,6 @@ def save_distance(d, orderows, prior_id):
     name_dist = "dist_" + str(prior_id) + ".nc"
     name_dist = os.path.join(spatial_propagation_storage_path, name_dist)
 
-    # recover distance matrix original/complete structure
-    d = d[:, orderows][orderows]
     """
     if mask:  # remove cells out of mask
         mask = nc.Dataset(mask)
@@ -347,7 +343,7 @@ def save_distance(d, orderows, prior_id):
         zlib=True,
         complevel=4,
         fletcher32=True,
-        chunksizes=(len(orderows), 1),
+        chunksizes=(d.shape[0], 1),
     )
 
     distnc[:, :] = d
@@ -406,7 +402,7 @@ def _cholesky_factor(C):
     return np.linalg.cholesky(C)
 
 
-def GSC(mu, sigma, rho, orderows):
+def GSC(mu, sigma, rho):
 
     N = cfg.ensemble_members
     mask = cfg.nc_maks_path
@@ -493,10 +489,6 @@ def GSC(mu, sigma, rho, orderows):
     x = mu + S @ z
     n_lats, n_lons = ifn.get_dims()
 
-    # reorder
-    oldorder = np.where(np.arange(0, n)[:, None] == orderows[None, :])[1]
-    x = x[oldorder, :]
-
     if mask:  # recover original structure
 
         mask = nc.Dataset(mask)
@@ -524,7 +516,7 @@ def get_rho(prior_id):
     if c.count(c[0]) == len(c):  # save memory if all c are the same
         c = [c[0]]
 
-    coords, orderows = calculate_coords()
+    coords = calculate_coords()
 
     if cfg.distance_mat_calc == "Sparse":
 
@@ -557,7 +549,6 @@ def get_rho(prior_id):
         rho_spar = lil_matrix((coords.shape[0], coords.shape[0]))
         rho_spar = [rho_spar.copy() for _ in range(len(c))]
 
-        ids = np.argsort(orderows)  # ids to recover distance mat geometry
         dist_nc = nc.Dataset(name_dist, "a")
 
         # loop over rows to avoid calculate all distances
@@ -565,11 +556,9 @@ def get_rho(prior_id):
         for n in range(coords.shape[0]):
             print(n)
 
-            tmp_row = coords[orderows[n], :][np.newaxis, :]
+            tmp_row = coords[n, :][np.newaxis, :]
 
-            tmp_dis = distance.cdist(
-                coords[orderows, :], tmp_row, cfg.dist_algo
-            )
+            tmp_dis = distance.cdist(coords, tmp_row, cfg.dist_algo)
 
             # compute GC row by row
             rho_tmp = [GC(tmp_dis, c[nn]) for nn in range(len(c))]
@@ -580,20 +569,17 @@ def get_rho(prior_id):
 
             # Saves row distances in the netcdf
             tmp_dis[tmp_dis > max(c) * 2] = np.nan
-            dist_nc["Dist"][:, ids[n]] = tmp_dis[orderows]
-            # d = d[:, orderows][orderows]
+            dist_nc["Dist"][:, n] = tmp_dis
         dist_nc.close()
 
         # transform frmo lil_mat to csc to perform the chol latter
         rho = [csc_array(nn) for nn in rho_spar]
     elif cfg.distance_mat_calc == "Regular":
 
-        d = distance.cdist(
-            coords[orderows, :], coords[orderows, :], cfg.dist_algo
-        )
+        d = distance.cdist(coords, coords, cfg.dist_algo)
 
         d[d > max(c) * 2] = np.nan
-        save_distance(d, orderows, prior_id)
+        save_distance(d, prior_id)
 
         # Transform to sparse matrix
         rho = [csc_array(GC(d, c_par)) for c_par in c]
@@ -601,7 +587,7 @@ def get_rho(prior_id):
     elif cfg.distance_mat_calc == "KDtree":
         # raise Exception('KDtree implementation not finished yet')
 
-        A = cKDTree(coords[orderows, :])
+        A = cKDTree(coords)
 
         d = A.sparse_distance_matrix(
             A, max(c) * 2, p=2.0, output_type="coo_matrix"
@@ -618,7 +604,6 @@ def get_rho(prior_id):
             rho[i] = csc_array(rho[i])
 
         d = csc_array(d)
-        d = d[:, orderows][orderows]  # ORDER complete matrix
 
         # SAVEMATRAIXHERE
         # create netcdf to save distances line by line
@@ -658,7 +643,7 @@ def get_rho(prior_id):
     else:
         raise Exception("No valid distance_mat_calc")
 
-    return rho, orderows
+    return rho
 
 
 def create_corelated_nc(prior_id):
@@ -733,16 +718,16 @@ def create_corelated_nc(prior_id):
     time.units = "days since Jan 01, 0001"
     levels.units = "members"
 
-    rho, orderows = get_rho(prior_id)
+    rho = get_rho(prior_id)
     # add GSC maps
     for count, var in enumerate(vars_to_perturbate):
 
         mu = mean_errors[var]
         sigma = sd_errors[var]
         if cfg.c.count(cfg.c[0]) == len(cfg.c):  # save memory if all c are =
-            gsc_arr = GSC(mu, sigma, rho[0], orderows)
+            gsc_arr = GSC(mu, sigma, rho[0])
         else:
-            gsc_arr = GSC(mu, sigma, rho[count], orderows)
+            gsc_arr = GSC(mu, sigma, rho[count])
 
         if perturbation_strategy[count] == "lognormal":
             gsc_arr = np.exp(gsc_arr)
