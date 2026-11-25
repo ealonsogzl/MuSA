@@ -89,6 +89,7 @@ class SnowEnsemble:
 
         # Inicialice prior weights = 1
         self.wgth = np.ones(self.members) / self.members
+        self.lowNeff = False
 
         # Inicialice step value
         self.step = -1
