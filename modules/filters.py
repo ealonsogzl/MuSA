@@ -1729,7 +1729,7 @@ def implement_assimilation(Ensemble, step):
             noise_ens_temp = np.vstack(noise_ens_temp)
 
             noise_ens_temp = transform_space(
-                noise_ens_temp[:, 1][np.newaxis, :],
+                noise_ens_temp[:, 0][np.newaxis, :],
                 "to_normal",
                 pert_stra=cfg.perturbation_strategy[cont],
                 vari=var_p,
@@ -1754,7 +1754,7 @@ def implement_assimilation(Ensemble, step):
             noise_ens_temp = np.vstack(noise_ens_temp)
 
             noise_ens_temp = transform_space(
-                noise_ens_temp[:, 1][np.newaxis, :],
+                noise_ens_temp[:, 0][np.newaxis, :],
                 "to_normal",
                 pert_stra=cfg.perturbation_strategy[cont],
                 vari=var_p,
