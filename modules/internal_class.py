@@ -125,6 +125,7 @@ class SnowEnsemble:
     ):
 
         self.step = step
+        self.wgth = np.ones(self.members) / self.members  # prior weights
         self.observations = observations_sbst.copy()
         self.errors = error_sbst.copy()
         self.forcing = forcing_sbst.copy()
