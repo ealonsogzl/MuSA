@@ -49,6 +49,16 @@ def pre_cheks():
     This function is a kind of helper, which tries to find problems in
     the configuration (it will be improved with time).
     """
+    if (
+        cfg.implementation == "Spatial_propagation"
+        and cfg.da_algorithm == "ES"
+        and cfg.max_iterations != 1
+    ):
+        raise Exception(
+            "Spatial_propagation runs max_iterations iterations: set "
+            "max_iterations = 1 for ES (or use IES)"
+        )
+
     if cfg.load_prev_run and cfg.implementation == "Spatial_propagation":
         raise Exception(
             "Disable Spatial_propagation if load_prev_run is "
