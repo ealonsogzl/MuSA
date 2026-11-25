@@ -80,6 +80,34 @@ def pre_cheks():
     if cfg.spatial_in_mem and cfg.parallelization == "HPC.array":
         raise Exception("spatial_in_mem not compatible with HPC.array")
 
+    if len(cfg.obs_error_var_names) < len(cfg.var_to_assim):
+        raise Exception(
+            "obs_error_var_names needs one name per var_to_assim (they are "
+            "also the DA_Results columns of the errors)"
+        )
+
+    if len(cfg.season_rejuvenation) != len(cfg.vars_to_perturbate):
+        raise Exception(
+            "season_rejuvenation needs one value per vars_to_perturbate"
+        )
+
+    if cfg.implementation == "Spatial_propagation" and len(cfg.c) not in (
+        1,
+        len(cfg.vars_to_perturbate),
+    ):
+        raise Exception(
+            "c needs one cut-off distance per vars_to_perturbate (or one "
+            "for all of them)"
+        )
+
+    missing = [v for v in cfg.var_to_assim if v not in model.model_columns]
+    if missing:
+        raise Exception(
+            "{} not simulated by {}, var_to_assim from {}".format(
+                missing, cfg.numerical_model, list(model.model_columns)
+            )
+        )
+
 
 def last_line(filename):
     with open(filename, "r") as file:

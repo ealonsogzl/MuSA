@@ -85,7 +85,8 @@ burn_in = 0.1  # discard the first x proportion of samples
 # the observations.
 r_cov = [0.04]
 add_dynamic_noise = False
-# var_to_assim from "snd", "SWE", "Tsrf","fSCA", "SCA", "alb", "LE", "H"
+# var_to_assim from "snd", "SWE", "Tsrf","fSCA", "alb", "LE", "H" (depending on
+# the model, see model_columns in its modules/*_tools.py)
 var_to_assim = ["snd"]
 
 # DA second order variables and/or statistics (experimental)
