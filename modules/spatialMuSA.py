@@ -1190,8 +1190,11 @@ def create_ensemble_cell(
         return None
 
     if ifn.forcing_check(main_forcing):
-        print("NA's found in: " + str(lat_idx) + "," + str(lon_idx))
-        return None
+        # The other cells would wait forever for the ensemble of this one
+        raise Exception(
+            "NA's found in: {},{}. Spatial_propagation needs the forcing "
+            "of every cell of the mask".format(lat_idx, lon_idx)
+        )
 
     if step == 0:
 
