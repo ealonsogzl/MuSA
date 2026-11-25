@@ -435,11 +435,11 @@ def get_shape_from_noise(noise_dict, wgth, lowNeff):
         if perturbation_strategy[count] == "lognormal":
             var_temp = np.log(var_temp)
 
-        if perturbation_strategy[count] == [
+        if perturbation_strategy[count] in [
             "logitnormal_mult",
             "logitnormal_adi",
         ]:
-            var_temp = glogit(var_temp, upper_bounds[var], lower_bounds[var])
+            var_temp = glogit(var_temp, lower_bounds[var], upper_bounds[var])
 
         # reduce the timeserie to its mean
 
@@ -475,14 +475,14 @@ def redraw(func_shape):
             # re-draw in log-space
             new_pert = np.exp(new_pert)
 
-        if perturbation_strategy[count] == [
+        if perturbation_strategy[count] in [
             "logitnormal_mult",
             "logitnormal_adi",
         ]:
 
             varindict = cfg.vars_to_perturbate[count]
             new_pert = gexpit(
-                new_pert, upper_bounds[varindict], lower_bounds[varindict]
+                new_pert, lower_bounds[varindict], upper_bounds[varindict]
             )
 
         storage[count] = new_pert
