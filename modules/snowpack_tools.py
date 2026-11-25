@@ -668,6 +668,16 @@ def write_nlst(wd_path, params=None, step=None):
     else:
         write_profile = False
 
+    # SNOWPACK tstep (min); PSUM is re-accumulated over the same period (s)
+    calc_step = getattr(cfg, "snowpack_tstep", 60)
+    psum_period = int(round(calc_step * 60))
+    if psum_period <= 0 or cfg.dt % psum_period != 0:
+        raise Exception(
+            f"snowpack_tstep = {calc_step} min must divide the"
+            "forcing "
+            f"timestep dt = {cfg.dt} s exactly"
+        )
+
     content = f"""[General]
     BUFFER_SIZE = 370
     BUFF_BEFORE = 1.5
@@ -718,7 +728,7 @@ def write_nlst(wd_path, params=None, step=None):
     OUT_STAB = FALSE
     
     [Snowpack]
-    CALCULATION_STEP_LENGTH = 60.000
+    CALCULATION_STEP_LENGTH = {calc_step:.3f}
     ROUGHNESS_LENGTH = 0.001
     HEIGHT_OF_METEO_VALUES = 2.0
     HEIGHT_OF_WIND_VALUE = 10.0
@@ -739,8 +749,8 @@ def write_nlst(wd_path, params=None, step=None):
     MINIMUM_L_ELEMENT = 0.02
 
     [Interpolations1D]
-    PSUM::RESAMPLE1 = ACCUMULATE
-    PSUM::ARG1::PERIOD = 3600
+    PSUM::resample = accumulate
+    PSUM::accumulate::period = {psum_period}
     """
     filename = Path(os.path.join(wd_path, "io_justacell.ini"))
     with open(filename, "w") as f:

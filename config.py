@@ -326,6 +326,10 @@ SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 post_profile = True
 pro_domains = 10
 
+# SNOWPACK internal timestep (CALCULATION_STEP_LENGTH) in min
+# It must divide the forcing timestep (dt) exactly, e.g. 60, 30 , 15 min
+snowpack_tstep = 60
+
 # -----------------------------------
 # SMRT configuration
 # -----------------------------------
