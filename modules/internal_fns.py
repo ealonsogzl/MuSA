@@ -365,7 +365,7 @@ def get_dates_obs():
     elif type(dates_obs) is str:
 
         dates_obs = pd.read_csv(dates_obs, header=None)
-        dates_obs = dates_obs.iloc[:, 0].tolist()
+        dates_obs = sorted(dates_obs.iloc[:, 0].tolist())
         dates_obs = np.asarray(
             [
                 dt.datetime.strptime(date, "%Y-%m-%d %H:%M")
