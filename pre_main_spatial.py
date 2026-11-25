@@ -47,11 +47,13 @@ def main():
         ids = np.arange(0, len(ini_DA_window))
         ids = ids % HPC_task_number == HPC_task_id
 
-        spM.generate_prior_maps_onenode(ini_DA_window[ids])
+        for id_win in np.flatnonzero(ids):
+            spM.create_corelated_nc(id_win)
 
-        dist_name = os.path.join(cfg.spatial_propagation_storage_path,
-                                 'dist_0.nc')
-        ifn.change_chunk_size_nccopy(dist_name)
+        if ids[0]:  # only the task that wrote dist_0.nc
+            dist_name = os.path.join(cfg.spatial_propagation_storage_path,
+                                     'dist_0.nc')
+            ifn.change_chunk_size_nccopy(dist_name)
 
 
 if __name__ == "__main__":

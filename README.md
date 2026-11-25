@@ -124,6 +124,8 @@ python pre_main_spatial.py
 python main.py
 ```
 
+With `parallelization = "HPC.array"`, `pre_main_spatial.py` takes two arguments, the number of tasks and the task id (from 1): `python pre_main_spatial.py 1 1` generates all the prior maps in one process, and running `python pre_main_spatial.py njobs task_id` in `njobs` tasks splits the DA windows among them.
+
 ### How to cite and license
 This software is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
