@@ -1536,6 +1536,9 @@ def implement_assimilation(Ensemble, step):
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
+            # No observations: the posterior is the prior
+            post_sample = get_parameters(Ensemble, 0)
+            Ensemble.state_members_mcmc = Ensemble.state_membres.copy()
             pass
 
         else:
@@ -1611,6 +1614,9 @@ def implement_assimilation(Ensemble, step):
         if np.isnan(Ensemble.observations).all():
 
             Ensemble.iter_update(create=False)
+            # No observations: the posterior is the prior
+            post_sample = get_parameters(Ensemble, 0)
+            Ensemble.state_members_mcmc = Ensemble.state_membres.copy()
             pass
 
         else:
