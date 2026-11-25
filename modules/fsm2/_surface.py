@@ -217,7 +217,8 @@ def srfb(params, cveg, Ds1, dt, fcans, fsnow, gs1, ks1, lveg, LW, Ps, Qa,
         Kh = VKMAN * ustar * (vegh - d)
         rd = (
             math.log((zT1 - d) / (vegh - d)) / (VKMAN * ustar)
-            + vegh * (math.exp(params.wcan * (1.0 - zh[0] / vegh)) - 1.0)
+            # as in FSM2/src/SRFEBAL.F90
+            + vegh * (math.exp(params.wcan * (1.0 - zh[0] / vegh) - 1.0))
             / (params.wcan * Kh)
         )
         ro = math.log(zT1 / zh[0]) / (VKMAN * ustar)
@@ -254,7 +255,8 @@ def srfb(params, cveg, Ds1, dt, fcans, fsnow, gs1, ks1, lveg, LW, Ps, Qa,
                     )
                     / (VKMAN * ustar)
                     + vegh
-                    * (math.exp(params.wcan * (1.0 - zh[0] / vegh)) - 1.0)
+                    # as in FSM2/src/SRFEBAL.F90
+                    * (math.exp(params.wcan * (1.0 - zh[0] / vegh) - 1.0))
                     / (params.wcan * Kh)
                 )
                 ro = (
@@ -302,7 +304,7 @@ def srfb(params, cveg, Ds1, dt, fcans, fsnow, gs1, ks1, lveg, LW, Ps, Qa,
                 + vegh * math.exp(params.wcan)
                 * (
                     math.exp(-params.wcan * params.hbas / vegh)
-                    - math.exp(-params.wcan * zh[n] / vegh)
+                    - math.exp(-params.wcan * zh[n])  # as in SRFEBAL.F90
                 )
                 / (params.wcan * Kh)
             )
@@ -749,9 +751,9 @@ def srfb(params, cveg, Ds1, dt, fcans, fsnow, gs1, ks1, lveg, LW, Ps, Qa,
                 math.log(params.zsub / z0g)
                 - psim(params.zsub, rL) + psim(z0g, rL)
             )
-            / (
-                math.log(zU1 / z0g)
-                - psim(zU1, rL) + psim(z0g, rL)
+            / (  # zU as in FSM2/src/SRFEBAL.F90
+                math.log(zU / z0g)
+                - psim(zU, rL) + psim(z0g, rL)
             )
         )
         rd = (
