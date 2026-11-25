@@ -1271,6 +1271,39 @@ def create_ensemble_cell(
         ifn.io_write(name_ensemble_end, Ensemble)
 
 
+# With HPC.array, a task that fails leaves a mark so that the other tasks
+# stop instead of waiting forever for its ensembles. Marks of previous runs
+# are ignored: those of another job array (Slurm/PBS job id) or, without a
+# job id, those older than the start of this task.
+RUN_START = time.time()
+RUN_ID = os.environ.get("SLURM_ARRAY_JOB_ID") or os.environ.get(
+    "PBS_JOBID", ""
+).split("[")[0]
+
+
+def mark_failed_task(HPC_task_id):
+    name = "failed_task_{}".format(HPC_task_id)
+    with open(os.path.join(cfg.save_ensemble_path, name), "w") as f:
+        f.write(RUN_ID)
+
+
+def check_failed_tasks():
+    marks = glob.glob(os.path.join(cfg.save_ensemble_path, "failed_task_*"))
+    for f in marks:
+        try:
+            with open(f) as fid:
+                same_run = fid.read() == RUN_ID
+            newer = os.path.getmtime(f) >= RUN_START
+        except OSError:
+            continue
+        if same_run if RUN_ID else newer:
+            raise Exception(
+                "Another HPC.array task failed ({}), see its log".format(
+                    os.path.basename(f)
+                )
+            )
+
+
 def wait_for_ensembles(step, HPC_task_id, j=None):
 
     grid = ifn.expand_grid()
@@ -1283,6 +1316,7 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
             cfg.output_path, "{step}_{j}it*.pkl.blp".format(step=step, j=j)
         )
         while len(glob.glob(pattern)) != len(grid):
+            check_failed_tasks()
             time.sleep(2)
         return
 
@@ -1337,6 +1371,7 @@ def wait_for_ensembles(step, HPC_task_id, j=None):
             break
 
         else:
+            check_failed_tasks()
             time.sleep(2)
             if j is None:
                 files = glob.glob(

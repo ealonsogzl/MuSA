@@ -360,4 +360,12 @@ if __name__ == "__main__":
     check_platform()
     ifn.pre_cheks()
 
-    MuSA()
+    try:
+        MuSA()
+    except Exception:
+        if (
+            cfg.implementation == "Spatial_propagation"
+            and cfg.parallelization == "HPC.array"
+        ):
+            spM.mark_failed_task(sys.argv[3])
+        raise
