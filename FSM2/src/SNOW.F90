@@ -451,6 +451,7 @@ if (snd > 0) then  ! Existing or new snowpack
   do n = 1, Nsnow
     ksat(n) = 0.31*(rho_wat*g/mu_wat)*Rgrn(n)**2*exp(-7.8*Sice(n)/(rho_wat*Dsnw(n)))
     phi(n) = 1 - Sice(n)/(rho_ice*Dsnw(n))
+    if (phi(n) < 0) phi(n) = 0
     thetar(n) = Wirr*phi(n)
     thetaw(n) = Sliq(n)/(rho_wat*Dsnw(n))
     if (thetaw(n)>phi(n)) then

@@ -396,6 +396,8 @@ def snow(params, dt, drip, Esrf, Gsrf, ksnow, ksoil, Melt, Rf, Sf, Ta,
                         * math.exp(-7.8 * Sice[n] / (RHO_WAT * Dsnw[n]))
                     )
                     phi[n] = 1.0 - Sice[n] / (RHO_ICE * Dsnw[n])
+                    if phi[n] < 0.0:
+                        phi[n] = 0.0
                     thetar[n] = params.Wirr * phi[n]
                     thetaw[n] = Sliq[n] / (RHO_WAT * Dsnw[n])
                     if thetaw[n] > phi[n]:
