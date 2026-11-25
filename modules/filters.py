@@ -328,7 +328,7 @@ def ProPBS(obs, pred, R, priormean, priorcov, proposal):
         Phip = -0.5 * np.sum((A.T) * B.T, 1)
 
         print("propbsing")
-        Phi = Phid + Phi0 - Phip
+        Phi = np.ravel(Phid) + Phi0 - Phip
         Phimax = Phi.max()
         Phis = Phi - Phimax  # Scaled to avoid numerical overflow
         # See e.g. Chopin and Papaspiliopoulos (2020) book on SMC
@@ -1180,6 +1180,11 @@ def implement_assimilation(Ensemble, step):
                 # exit if not collapsed
                 if Neff / Ensemble.members > cfg.Neffthrs:
                     Ensemble.wgth = wgth
+                    if j == 0:  # the prior ensemble is kept
+                        Ensemble.iter_update(create=False)
+                        Ensemble.out_members_iter_temporal = (
+                            Ensemble.out_members.copy()
+                        )
                     break
 
                 resampled_particles = resampled_indexes(wgth)
