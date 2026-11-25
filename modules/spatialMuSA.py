@@ -1069,8 +1069,9 @@ def add_local_obs(Ensemble, neig_obs, neig_pred_obs, neig_r_cov):
     observations_sbst_masked, predicted, r_cov = flt.tidy_obs_pred_rcov(
         predicted, observations, errors
     )
+    r_cov = np.atleast_1d(r_cov)  # 0-d with a single observation
 
-    if neig_obs != []:
+    if len(neig_obs) > 0:
 
         neig_obs = np.concatenate((neig_obs, observations_sbst_masked), axis=0)
         neig_pred_obs = np.concatenate((neig_pred_obs, predicted), axis=0)
@@ -1102,7 +1103,7 @@ def add_local_coords(Ensemble, curren_lat, current_lon, neig_lat, neig_long):
     else:
         n = np.logical_not(np.isnan(Ensemble.observations)).sum()
 
-    if neig_lat != []:
+    if len(neig_lat) > 0:
         neig_lat = np.concatenate(
             (neig_lat, np.repeat(curren_lat, n)[:, np.newaxis])
         )
@@ -1405,7 +1406,7 @@ def spatial_assim(
 
         # in case var_to_prop != var_to_assim, get_neig_info gets only the neigborhood obs and not the local observation:
         # add the local observations and coordinates in case some variables are not spatially propagated.
-        if cfg.var_to_prop != cfg.var_to_assim:
+        if set(cfg.var_to_prop) != set(cfg.var_to_assim):
 
             neig_obs, neig_pred_obs, neig_r_cov = add_local_obs(
                 Ensemble, neig_obs, neig_pred_obs, neig_r_cov
