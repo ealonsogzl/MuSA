@@ -1275,7 +1275,9 @@ def store_sim(
             sim_stat["mean"].loc[rowIndex, name_col] = d1.mean
             sim_stat["std"].loc[rowIndex, name_col] = d1.std
         else:
-            perc = d1.quantile([0, 0.25, 0.5, 0.75, 1]).values
+            perc = ifn.weighted_quantile(
+                col_arr, pesos, [0, 0.25, 0.5, 0.75, 1]
+            )
             sim_stat["min"].loc[rowIndex, name_col] = perc[0, :]
             sim_stat["Q1"].loc[rowIndex, name_col] = perc[1, :]
             sim_stat["median"].loc[rowIndex, name_col] = perc[2, :]

@@ -910,3 +910,56 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
         shutil.rmtree(os.path.split(temp_dest)[0], ignore_errors=True)
     except TypeError:
         pass
+
+
+def weighted_quantile(data, weights, probs):
+    """
+    Weighted quantiles of every column of data (members x columns), the
+    same as DescrStatsW(data, weights=weights).quantile(probs).values
+    (SAS definition, same arithmetic: weights of tied values summed with
+    Kahan summation as pandas groupby, NaN values ignored), but vectorized
+    over the columns instead of a pandas groupby per column.
+    """
+    x = np.asarray(data, dtype=float)
+    w = np.asarray(weights, dtype=float)[:, np.newaxis]
+    w = np.broadcast_to(w, x.shape)
+    order = np.argsort(x, axis=0, kind="stable")  # NaN last, ties in order
+    xs = np.take_along_axis(x, order, axis=0)
+    ws = np.take_along_axis(w, order, axis=0)
+    n, m = x.shape
+    col = np.arange(m)
+
+    # distinct values and cumulative sum of their summed weights
+    values = np.full((n, m), np.nan)
+    cweights = np.full((n, m), np.nan)
+    ngroups = np.zeros(m, dtype=int)
+    gsum = np.zeros(m)  # Kahan sum of the current group
+    comp = np.zeros(m)
+    csum = np.zeros(m)
+    for k in range(n):
+        valid = ~np.isnan(xs[k])
+        new = valid & ((xs[k] != xs[k - 1]) if k > 0 else True)
+        close = new & (ngroups > 0)  # close the previous group
+        csum = np.where(close, csum + gsum, csum)
+        cweights[ngroups[close] - 1, col[close]] = csum[close]
+        values[ngroups[new], col[new]] = xs[k, new]
+        ngroups = ngroups + new
+        gsum = np.where(new, 0.0, gsum)
+        comp = np.where(new, 0.0, comp)
+        y = ws[k] - comp
+        t = gsum + y
+        comp = np.where(valid, (t - gsum) - y, comp)
+        gsum = np.where(valid, t, gsum)
+    csum = csum + gsum  # close the last group
+    cweights[ngroups - 1, col] = csum
+
+    out = np.empty((len(probs), m))
+    for i, p in enumerate(probs):
+        target = p * csum
+        ii = np.sum(cweights < target, axis=0)  # np.searchsorted, left
+        res = values[ii, col]
+        nxt = np.minimum(ii + 1, n - 1)
+        exact = np.abs(target - cweights[ii, col]) < 1e-10
+        exact &= ii < ngroups - 1
+        out[i] = np.where(exact, (res + values[nxt, col]) / 2, res)
+    return out
