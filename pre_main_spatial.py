@@ -27,9 +27,7 @@ def main():
     ini_DA_window = spM.domain_steps()
 
     if cfg.parallelization == "multiprocessing":
-        if cfg.MPI:
-            raise Exception('MPI not suppoted yet for pre_main_spatial.py')
-        # Sample prior parameters
+        # Sample prior parameters (in this process, also with MPI = True)
         spM.generate_prior_maps_onenode(ini_DA_window)
 
     elif cfg.parallelization == "HPC.array":
