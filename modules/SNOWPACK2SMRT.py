@@ -43,8 +43,11 @@ def run_SMRT(rows, statedataframe, k):
         rhosnw = rhosnw[~np.isnan(rhosnw)]
 
         # prepare inputs
-
-        thickness = Dsnw
+        # SNOWPACK gives the height of the top of each element above the
+        # ground (bottom to top); SMRT wants thicknesses from top to bottom
+        thickness = np.diff(Dsnw, prepend=0.0)[::-1]
+        rhosnw, Rgrnm, lWE = rhosnw[::-1], Rgrnm[::-1], lWE[::-1]
+        tsnow = tsnow[::-1]
         corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrnm
         temperature = tsnow
         density = rhosnw
@@ -69,7 +72,7 @@ def run_SMRT(rows, statedataframe, k):
             microstructure_model="exponential",
             density=density,
             temperature=temperature,
-            volumetric_liquid_water=lWE / 1000.0,
+            volumetric_liquid_water=lWE,  # fraction (/100 in snowpack_tools)
             corr_length=corr_length,
             substrate=substrate,
         )
@@ -103,8 +106,9 @@ def run_SMRT(rows, statedataframe, k):
         results_list.append(flat_values)
 
     # store results
+    # same index as the state (it starts at 1 after the first window)
     results_df = pd.DataFrame(
-        np.nan, index=range(len(statedataframe)), columns=names
+        np.nan, index=statedataframe.index, columns=names
     )
     for i, row in enumerate(rows):
         results_df.iloc[row] = results_list[i]
