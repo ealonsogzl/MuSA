@@ -108,7 +108,8 @@ def run_SMRT(rows, statedataframe, k):
             result = m.run(radiometer, snowpack, parallel_computation="none")
 
         # outputs
-        result = result.Tb()
+        # same order as the column names: frequency, theta, polarization
+        result = result.Tb().transpose("frequency", "theta", "polarization")
 
         # Flatten the array
         flat_values = result.values.flatten()
