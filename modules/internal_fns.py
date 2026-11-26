@@ -59,6 +59,15 @@ def pre_cheks():
             "max_iterations = 1 for ES (or use IES)"
         )
 
+    if cfg.implementation == "Spatial_propagation" and (
+        cfg.parallelization not in ("multiprocessing", "HPC.array")
+    ):
+        raise Exception(
+            "Spatial_propagation runs with parallelization = "
+            '"multiprocessing" or "HPC.array" (nprocess = 1 to run in '
+            "sequence); it did nothing with " + str(cfg.parallelization)
+        )
+
     if cfg.load_prev_run and cfg.implementation == "Spatial_propagation":
         raise Exception(
             "Disable Spatial_propagation if load_prev_run is "
