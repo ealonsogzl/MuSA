@@ -112,6 +112,16 @@ def cell_assimilation(lat_idx, lon_idx):
         ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
         return None
 
+    # load_prev_run: no posterior to reconstruct if the previous run of the
+    # cell was an open loop (no observations), run the open loop again
+    if cfg.load_prev_run:
+        prev = os.path.join(
+            cfg.output_path, "cell_{}_{}.pkl.blp".format(lat_idx, lon_idx)
+        )
+        if not isinstance(ifn.io_read(prev), dict):
+            ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
+            return None
+
     # Inicialice results dataframes
     # TODO: make function
     DA_Results = model.init_result(time_dict["del_t"], DA=True)  # DA parameter
