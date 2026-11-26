@@ -678,6 +678,9 @@ def write_nlst(wd_path, params=None, step=None):
             f"timestep dt = {cfg.dt} s exactly"
         )
 
+    # one output per forcing time step (4.1666e-2 days with dt = 3600 s)
+    out_days = "{:.6g}".format(4.1666e-2 * cfg.dt / 3600)
+
     content = f"""[General]
     BUFFER_SIZE = 370
     BUFF_BEFORE = 1.5
@@ -707,12 +710,12 @@ def write_nlst(wd_path, params=None, step=None):
     SNOW_DAYS_BETWEEN = 9999.000000
     FIRST_BACKUP = 9999.000000
     PROF_WRITE = {write_profile}
-    PROF_DAYS_BETWEEN = 4.1666e-2
+    PROF_DAYS_BETWEEN = {out_days}
     TS_WRITE = TRUE
     TS_FORMAT = SMET
     ACDD_WRITE = FALSE
     TS_START = 0
-    TS_DAYS_BETWEEN = 4.1666e-2
+    TS_DAYS_BETWEEN = {out_days}
     AVGSUM_TIME_SERIES = TRUE
     CUMSUM_MASS = FALSE
     PRECIP_RATES = FALSE
