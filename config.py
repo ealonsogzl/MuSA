@@ -138,8 +138,11 @@ nprocess = 6
 # what you're doing.
 numpy_threads = 1
 
-# number of cells to be solved per processor at each iteration of the pool
-cells_per_process = 20  # None is 1
+# number of cells to be solved per processor at each iteration of the pool.
+# A new pool is created at each iteration (lower values restart the processes
+# more often); each process reads the forcing of about cells_per_process / 4
+# cells at once (higher values read it faster)
+cells_per_process = 50  # None is 1
 # maximun number of seconds each pool is killed before try again
 timeout = None  # None is inf
 

@@ -319,8 +319,20 @@ def pool_wrap(func, inputs, nprocess, timeout=None):
             return pool.starmap(func, inputs, timeout=timeout)
 
     else:
-        with mp.Pool(processes=nprocess) as pool:
-            async_result = pool.starmap_async(func, inputs)
+        # Cells per task as the default of starmap (4 tasks per process).
+        # With multiprocessing each process gets them consecutive (the order
+        # of expand_grid), so it reads their forcing in one pass. HPC.array
+        # tasks get every n-th cell: one cell per pass, as before.
+        chunksize = max(1, -(-len(inputs) // (4 * nprocess)))
+        block = chunksize if cfg.parallelization == "multiprocessing" else 1
+        with mp.Pool(
+            processes=nprocess,
+            initializer=set_forcing_block,
+            initargs=(block,),
+        ) as pool:
+            async_result = pool.starmap_async(
+                func, inputs, chunksize=chunksize
+            )
             try:
                 return async_result.get(timeout=timeout)
 
@@ -584,6 +596,35 @@ def _forcing_cache_key(nc_forcing_path, lat_idx, lon_idx, date_ini, date_end):
 # primed cell is kept so long sequential runs do not accumulate memory.
 _FORCING_CACHE = {}
 
+# cache_forcing_arrays() reads, in each pass over the files, the forcing of
+# the next _FORCING_BLOCK_CELLS cells in the order of expand_grid (latitude
+# first, then longitude): opening the files costs much more than reading them.
+# safe_pool sets it to the number of consecutive cells that each process gets;
+# 1 (the default) reads one cell per pass. Only the last block is kept.
+_FORCING_BLOCK = {}
+_FORCING_BLOCK_CELLS = 1
+
+
+def set_forcing_block(ncells):
+    """Cells read per pass over the forcing files (pool initializer)."""
+    global _FORCING_BLOCK_CELLS
+    _FORCING_BLOCK_CELLS = max(1, int(ncells))
+
+
+def _forcing_block_window(lat_idx, lon_idx, n_lat, n_lon, ncells):
+    """
+    Rectangle (lat0, lat1, lon0, lon1) with the next ncells cells from
+    (lat_idx, lon_idx) in the order of expand_grid. Short columns
+    (n_lat < ncells) take whole columns of the next longitudes; otherwise
+    only the rest of the column, so the block never exceeds 3 * ncells cells.
+    """
+    if n_lat >= ncells:
+        return lat_idx, min(lat_idx + ncells, n_lat), lon_idx, lon_idx + 1
+    rest = max(0, ncells - (n_lat - lat_idx))
+    lon1 = min(lon_idx + 1 + -(-rest // n_lat), n_lon)
+    lat0 = lat_idx if lon1 == lon_idx + 1 else 0
+    return lat0, n_lat, lon_idx, lon1
+
 
 def cache_forcing_arrays(
     nc_forcing_path, lat_idx, lon_idx, nc_var_names, date_ini, date_end
@@ -639,28 +680,44 @@ def cache_forcing_arrays(
         ] = (arrays, missing)
         return arrays
 
-    # The files share the same schema; use the first one to discard the
-    # variables that this dataset does not provide.
-    with nc.Dataset(files[0]) as first:
-        available = [name for name in var_names if name in first.variables]
-    missing.difference_update(available)
+    block_key = (
+        nc_forcing_path, str(date_ini), str(date_end), tuple(var_names),
+    )
+    block = _FORCING_BLOCK.get(block_key)
+    if block is None or not (
+        block[0] <= lat_idx < block[1] and block[2] <= lon_idx < block[3]
+    ):
+        # The files share the same schema; use the first one to discard the
+        # variables that this dataset does not provide.
+        with nc.Dataset(files[0]) as first:
+            available = [n for n in var_names if n in first.variables]
+            shape = first.variables[available[0]].shape if available else ()
+        if available:
+            lat0, lat1, lon0, lon1 = _forcing_block_window(
+                lat_idx, lon_idx, shape[1], shape[2], _FORCING_BLOCK_CELLS
+            )
+        else:
+            lat0, lat1, lon0, lon1 = lat_idx, lat_idx + 1, lon_idx, lon_idx + 1
 
-    data = {name: [] for name in available}
+        data = {name: [] for name in available}
 
-    for ncfile in files:
-        with nc.Dataset(ncfile) as data_temp:
-            # Same values as np.ma.getdata(): _FillValue is not masked out.
-            data_temp.set_auto_mask(False)
-            for name in available:
-                data[name].append(
-                    data_temp.variables[name][:, lat_idx, lon_idx]
-                )
+        for ncfile in files:
+            with nc.Dataset(ncfile) as data_temp:
+                # Same values as np.ma.getdata(): _FillValue is not masked.
+                data_temp.set_auto_mask(False)
+                for name in available:
+                    data[name].append(
+                        data_temp.variables[name][:, lat0:lat1, lon0:lon1]
+                    )
 
-    for name in available:
-        chunks = data[name]
-        array_nc = (
-            np.concatenate(chunks) if len(chunks) > 1 else np.asarray(chunks[0])
-        )
+        data = {name: np.concatenate(data[name]) for name in available}
+        block = (lat0, lat1, lon0, lon1, data)
+        _FORCING_BLOCK.clear()
+        _FORCING_BLOCK[block_key] = block
+
+    missing.difference_update(block[4])
+    for name, data_block in block[4].items():
+        array_nc = data_block[:, lat_idx - block[0], lon_idx - block[2]].copy()
 
         if len(del_t) != len(array_nc):
             raise Exception("date_end - date_ini longuer than forcing")

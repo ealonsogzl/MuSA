@@ -81,6 +81,10 @@ def MuSA():
 
             print("Running MuSA: Sequentially")
 
+            # the cells come in the order of expand_grid: read their forcing
+            # in blocks, as each process of the pools does
+            ifn.set_forcing_block(cfg.cells_per_process or 1)
+
             for row in range(grid.shape[0]):
 
                 lat_idx = grid[row, 0]
