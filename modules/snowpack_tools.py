@@ -59,7 +59,7 @@ def model_copy(y_id, x_id):
     if os.path.exists(final_directory):
         shutil.rmtree(final_directory, ignore_errors=True)
 
-    os.mkdir(final_directory)
+    os.makedirs(final_directory)  # also tmp_path/token
     os.mkdir(os.path.join(final_directory, "input"))
     os.mkdir(os.path.join(final_directory, "output"))
     os.mkdir(os.path.join(final_directory, "RESTARTDATA"))
