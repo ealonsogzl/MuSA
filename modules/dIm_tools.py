@@ -40,7 +40,9 @@ def prepare_forz(forcing_sbst):
         forcing_sbst["Ta"].values, forcing_sbst["Prec"].values
     )
 
-    return Temp - cnt.KELVING_CONVER, Sf * cfg.dt, forcing_sbst["DMF"].values
+    # DMF is per hour (constants.py: 3.0 / 24), the melt per time step
+    DMF = forcing_sbst["DMF"].values * (cfg.dt / 3600)
+    return Temp - cnt.KELVING_CONVER, Sf * cfg.dt, DMF
 
 
 @nb.njit(fastmath=True, cache=True)
