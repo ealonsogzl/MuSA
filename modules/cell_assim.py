@@ -107,8 +107,13 @@ def cell_assimilation(lat_idx, lon_idx):
 
     time_dict = ifn.simulation_steps(observations, dates_obs)
 
-    # If the cell has no valid observations, run the open-loop simulation.
-    if np.isnan(observations).all() and not cfg.load_prev_run:
+    # If the cell has no valid observations, run the open-loop simulation
+    # (not with real_time_restart: the ensemble is needed for the restart)
+    if (
+        np.isnan(observations).all()
+        and not cfg.load_prev_run
+        and not real_time_restart
+    ):
         ifn.run_model_openloop(lat_idx, lon_idx, main_forcing, filename)
         return None
 
