@@ -987,13 +987,20 @@ def profile_to_subdomains(
 
     # variables.discard(thickness_prefix)
 
+    # numpy arrays instead of df.iterrows() and per-row pandas selections
+    # (same operations and sums, much faster)
+    thickness_all = df[thickness_cols].to_numpy(dtype=float)
+    vals_all = {
+        var: df[var_cols[var]].to_numpy(dtype=float) for var in variables
+    }
+
     outputs = []
 
-    for timestamp, row in df.iterrows():
+    for i in range(len(df)):
 
         out = {}
 
-        thickness = row[thickness_cols].values.astype(float)
+        thickness = thickness_all[i]
         thickness = thickness[np.isfinite(thickness)]
         n = len(thickness)
 
@@ -1012,36 +1019,25 @@ def profile_to_subdomains(
 
         for var in variables:
 
-            vals = row[var_cols[var]].values.astype(float)[:n]
+            vals = vals_all[var][i][:n]
+            m = len(vals)  # layers with values
+            t, b = thickness[:m], bottom[:m]
+            dz = t - b
+            valid = ~np.isnan(vals)
+
+            # overlap of each layer (columns) with each subdomain (rows)
+            overlap = np.minimum(t, bounds[1:, None]) - np.maximum(
+                b, bounds[:-1, None]
+            )
 
             for j in range(n_subdomains):
 
-                z0, z1 = bounds[j], bounds[j + 1]
+                sel = valid & (overlap[j] > 1e-9)
 
-                overlap_vals, overlap_weights, overlap_frac = [], [], []
-
-                for v, b, t in zip(vals, bottom, thickness):
-
-                    if np.isnan(v):
-                        continue
-                    dz = t - b
-                    overlap = max(0, min(t, z1) - max(b, z0))
-
-                    if overlap > 1e-9:
-                        overlap_vals.append(v)
-                        overlap_weights.append(overlap)
-                        overlap_frac.append(overlap / dz)
-
-                if len(overlap_vals) == 0:
-
-                    sum_v = np.nan
-                else:
-
-                    overlap_vals = np.asarray(overlap_vals)
-
-                    sum_v = np.sum(overlap_vals * overlap_frac)
-
-                    out[f"{var}_sub{j+1}"] = sum_v
+                if sel.any():
+                    out[f"{var}_sub{j+1}"] = np.sum(
+                        vals[sel] * (overlap[j][sel] / dz[sel])
+                    )
 
         outputs.append(out)
 
