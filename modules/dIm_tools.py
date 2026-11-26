@@ -20,10 +20,6 @@ import warnings
 import modules.internal_fns as ifn
 from statsmodels.stats.weightstats import DescrStatsW
 
-if cfg.DAsord:
-    from modules.user_optional_fns import snd_ord
-
-
 model_columns = ["SWE", "snd", "fSCA"]
 
 if cfg.DAsord:
@@ -86,7 +82,13 @@ def model_run(forcing_sbst, init=None):
 
     # add optional variables
     if cfg.DAsord:
-        Results = snd_ord(Results)
+        Results = ifn.second_order(
+            Results,
+            forcing_sbst["year"],
+            forcing_sbst["month"],
+            forcing_sbst["day"],
+            forcing_sbst["hours"],
+        )
 
     return Results, init
 

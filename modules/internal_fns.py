@@ -303,6 +303,36 @@ def downcast_output(output):
     return output
 
 
+def second_order(state, year, month, day, hour):
+    """
+    DAsord: add the variables cfg.DAord_names to a model output with
+    snd_ord (modules/user_optional_fns.py), which can compute anything from
+    the output of the model. The outputs do not keep the time, so snd_ord also
+    gets the year, month, day and hour of each row as columns (int64: the
+    forcing may keep them as small integers, e.g. int16); they are removed
+    afterwards, as any other column that is not in DAord_names.
+    """
+    from modules.user_optional_fns import snd_ord
+
+    df = state.copy()
+    for name, values in zip(
+        ("year", "month", "day", "hour"), (year, month, day, hour)
+    ):
+        df[name] = np.asarray(values).astype("int64")
+
+    df = snd_ord(df)
+
+    missing = [name for name in cfg.DAord_names if name not in df.columns]
+    if missing:
+        raise Exception(
+            "DAsord: snd_ord (modules/user_optional_fns.py) did not add "
+            + ", ".join(missing)
+            + " (DAord_names)"
+        )
+
+    return df[list(state.columns) + list(cfg.DAord_names)]
+
+
 def chunker(seq, size):
     """Split a list into chunks of size `size`."""
     return [seq[i : i + size] for i in range(0, len(seq), size)]

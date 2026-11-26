@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 import config as cfg
+import modules.internal_fns as ifn
 
 from modules.fsm2 import (
     Condiciones,
@@ -79,8 +80,6 @@ if cfg.run_smrt:
     model_columns.extend(smrt.return_col_names())
 
 if cfg.DAsord:
-    from modules.user_optional_fns import snd_ord
-
     model_columns.extend(cfg.DAord_names)
 
 model_columns = tuple(model_columns)
@@ -292,7 +291,13 @@ def model_run(forcing_df, init=None):
     state = _state_dataframe(simulacion)
 
     if cfg.DAsord:
-        state = snd_ord(state)
+        state = ifn.second_order(
+            state,
+            forcing_df["year"],
+            forcing_df["month"],
+            forcing_df["day"],
+            forcing_df["hours"],
+        )
 
     if state.isnull().values.any():
         raise Exception(

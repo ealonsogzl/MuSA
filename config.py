@@ -89,9 +89,12 @@ add_dynamic_noise = False
 # the model, see model_columns in its modules/*_tools.py)
 var_to_assim = ["snd"]
 
-# DA second order variables and/or statistics (experimental)
+# DA second order variables and/or statistics (experimental): DAord_names are
+# computed from the output of the model (any model) by snd_ord in
+# modules/user_optional_fns.py, and can be used in var_to_assim. The example
+# there gives snow_days (days with snow since the beginning of the season)
 DAsord = False
-DAord_names = ["Ampli"]
+DAord_names = ["snow_days"]
 
 # vars_to_perturbate from "SW", "LW", "Prec", "Ta", "RH", "Ua", "PS
 vars_to_perturbate = ["Ta", "Prec"]
