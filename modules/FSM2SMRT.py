@@ -89,7 +89,8 @@ def run_SMRT(rows, statedataframe, k):
             microstructure_model="exponential",
             density=density,
             temperature=temperature,
-            volumetric_liquid_water=lWE / 1000.0,
+            # fraction: Sliq (kg/m^2) / 1000 is metres of water, per layer m
+            volumetric_liquid_water=lWE / 1000.0 / Dsnw,
             corr_length=corr_length,
             substrate=substrate,
         )
