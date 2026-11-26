@@ -145,7 +145,10 @@ class SnowEnsemble:
         # create temporal FSM2
         self.temp_dest = model.model_copy(self.lat_idx, self.lon_idx)
 
-        model.model_forcing_wrt(forcing_sbst, self.temp_dest, self.step)
+        # FSM2 and SNOWPACK read the restart (dump) only if step != 0: with
+        # real_time_restart the open loop starts from it too, as the members
+        ol_step = 1 if self.real_time_restart else self.step
+        model.model_forcing_wrt(forcing_sbst, self.temp_dest, ol_step)
 
         # Write init or dump file from previous run if step != 0 or self.real_time_restart
         if cfg.numerical_model in ["FSM2", "SNOWPACK"]:
@@ -153,7 +156,9 @@ class SnowEnsemble:
             if step == 0 and self.real_time_restart:
                 model.write_dump(self.origin_dump[-1], self.temp_dest)
             elif step != 0:
-                model.write_dump(self.origin_dump[step - 1], self.temp_dest)
+                # last open-loop dump (also after a real_time_restart, when
+                # origin_dump keeps the dumps of the previous run)
+                model.write_dump(self.origin_dump[-1], self.temp_dest)
             else:
                 pass
 
@@ -162,7 +167,7 @@ class SnowEnsemble:
 
             # read model outputs
             origin_state_tmp, origin_dump_tmp = model.model_read_output(
-                self.temp_dest, self.step
+                self.temp_dest, ol_step  # as written (SNOWPACK overlap row)
             )
 
             if cfg.run_smrt:
@@ -177,7 +182,7 @@ class SnowEnsemble:
                 )
             elif step != 0:
                 origin_state_tmp, origin_dump_tmp = model.model_run(
-                    forcing_sbst, self.origin_dump[step - 1]
+                    forcing_sbst, self.origin_dump[-1]  # as above
                 )
             else:
                 origin_state_tmp, origin_dump_tmp = model.model_run(
@@ -282,8 +287,9 @@ class SnowEnsemble:
 
                 model.model_run(self.temp_dest)
 
+                # same step as written (SNOWPACK drops the overlap row)
                 state_tmp, dump_tmp = model.model_read_output(
-                    self.temp_dest, self.step
+                    self.temp_dest, 1 if self.real_time_restart else self.step
                 )
 
                 if cfg.run_smrt:
@@ -365,8 +371,10 @@ class SnowEnsemble:
 
                     model.model_run(self.temp_dest)
 
+                    # same step as written (SNOWPACK drops the overlap row)
                     state_tmp, dump_tmp = model.model_read_output(
-                        self.temp_dest, self.step
+                        self.temp_dest,
+                        1 if self.real_time_restart else self.step,
                     )
 
                     if cfg.run_smrt:
