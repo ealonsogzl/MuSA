@@ -516,14 +516,10 @@ def mcmc(Ensemble, observations_sbst_masked, R, chain_len, adaptive, histcov):
             )
 
         elif cfg.numerical_model in ["FSM2mem", "dIm", "snow17"]:
-            if cfg.numerical_model == "FSM2mem":
-                init_state = init_conditions
-            else:
-                init_state = temp_dest
-
+            # state at the end of the previous window (also dIm, snow17)
             if Ensemble.step != 0:
                 state_tmp, dump_tmp = model.model_run(
-                    forcing_mcmcstep, init_state
+                    forcing_mcmcstep, init_conditions
                 )
             else:
                 state_tmp, dump_tmp = model.model_run(forcing_mcmcstep)
@@ -1582,7 +1578,6 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.iter_update(
                     step, updated_pars, create=True, iteration=j
                 )
-            Ensemble.update_iter_restarts()
             # Run the MCMC
             accepted, mcmc_storage = mcmc(
                 Ensemble,
@@ -1609,6 +1604,9 @@ def implement_assimilation(Ensemble, step):
             post_sample = transform_space(post_sample, "from_normal")
 
             Ensemble.create_MCMC(post_sample, step)
+            # after the MCMC: it starts from the states at the beginning of
+            # the window, as the IES iterations
+            Ensemble.update_iter_restarts()
 
     elif da_algorithm in ["IES-MCMC_AI"]:
         if np.isnan(Ensemble.observations).all():
@@ -1660,7 +1658,6 @@ def implement_assimilation(Ensemble, step):
                 Ensemble.iter_update(
                     step, updated_pars, create=True, iteration=j
                 )
-            Ensemble.update_iter_restarts()
             # MCMC starting point
             list_state = Ensemble.state_membres
 
@@ -1711,6 +1708,9 @@ def implement_assimilation(Ensemble, step):
             post_sample = transform_space(post_sample, "from_normal")
 
             Ensemble.create_MCMC(post_sample, step)
+            # after the MCMC: it starts from the states at the beginning of
+            # the window, as the IES iterations
+            Ensemble.update_iter_restarts()
 
     else:
         raise Exception("Assim not implemented")
