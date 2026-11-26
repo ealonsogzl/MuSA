@@ -40,10 +40,11 @@ def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat
     day = forcing_sbst["day"].values
     hours = forcing_sbst["hours"].values
 
+    step = timedelta(seconds=cfg.dt)  # also with dt != 3600
     time = np.arange(
         datetime(year[0], month[0], day[0], hours[0]),
-        datetime(year[-1], month[-1], day[-1], hours[-1]) + timedelta(hours=1),
-        timedelta(hours=1),
+        datetime(year[-1], month[-1], day[-1], hours[-1]) + step,
+        step,
     ).astype(datetime)
 
     time_jday = np.array([x.timetuple()[-2] for x in time])
