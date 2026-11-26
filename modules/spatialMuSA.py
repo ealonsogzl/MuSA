@@ -780,7 +780,8 @@ def generate_prior_maps(GSC_filenames, ini_DA_window):
 def read_parameter(GSC_filename, lat_idx, lon_idx, var_tmp, mbr):
 
     f = nc.Dataset(GSC_filename)
-    parameter = f.variables[var_tmp][:, lat_idx, lon_idx, mbr]
+    # plain array (dIm and snow17 numba functions reject masked arrays)
+    parameter = np.ma.getdata(f.variables[var_tmp][:, lat_idx, lon_idx, mbr])
     f.close()
     return parameter
 
