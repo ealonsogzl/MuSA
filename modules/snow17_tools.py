@@ -16,6 +16,8 @@ import copy
 import pdcast as pdc
 import warnings
 import modules.internal_fns as ifn
+import modules.met_tools as met
+import netCDF4 as nc
 from statsmodels.stats.weightstats import DescrStatsW
 from modules.snow17 import snow17
 from datetime import datetime, timedelta
@@ -361,8 +363,9 @@ def forcing_table(lat_idx, lon_idx, step=0):
         _forcing_names = [
             forcing_var_names["Precip_var_name"],
             forcing_var_names["Temp_var_name"],
-            forcing_var_names["Press_var_name"],
         ]
+        if forcing_var_names["Press_var_name"] != "from_DEM":
+            _forcing_names.append(forcing_var_names["Press_var_name"])
         _forcing_names.extend(
             name
             for name in param_var_names.values()
@@ -395,14 +398,19 @@ def forcing_table(lat_idx, lon_idx, step=0):
             date_end,
         )
 
-        press = ifn.nc_array_forcing(
-            nc_forcing_path,
-            lat_idx,
-            lon_idx,
-            forcing_var_names["Press_var_name"],
-            date_ini,
-            date_end,
-        )
+        if forcing_var_names["Press_var_name"] == "from_DEM":  # as FSM2
+            with nc.Dataset(cfg.dem_path) as dem:
+                topo = dem.variables[cfg.nc_dem_varname][lat_idx, lon_idx]
+            press = np.full_like(temp, met.pres_from_dem(topo))
+        else:
+            press = ifn.nc_array_forcing(
+                nc_forcing_path,
+                lat_idx,
+                lon_idx,
+                forcing_var_names["Press_var_name"],
+                date_ini,
+                date_end,
+            )
         try:
             XLAT = ifn.nc_array_forcing(
                 nc_forcing_path,
