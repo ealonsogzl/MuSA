@@ -4,7 +4,7 @@ The Multiple Snow Assimilation System (MuSA), is a flexible data  assimilation t
 
 In its current version, it also offers support for FSM2mem (FSM2 in Python/Numba, run in memory without the Fortran executable), SNOWPACK (it needs the `snowpack` executable in the path), the Snow17 model and a simple temperature index model (`numerical_model` = `"FSM2"`, `"FSM2mem"`, `"SNOWPACK"`, `"snow17"` or `"dIm"` in [config.py](config.py)). Potentially other numerical models could be implemented (not necessarily limited to snow models).
 
-![alt text](https://github.com/ealonsogzl/MuSA/blob/master/img/PBS_animation.gif)
+![alt text](img/PBS_animation.gif)
 <em> Figure 1: Comparison between open loop and updated simulation after assimilating UAV snow depth retrievals at 5m resolution </em>
 ### Inputs  
   
@@ -73,7 +73,7 @@ my_cell = io_read("./DATA/RESULTS/cell_latid_lonid.pkl.blp")
 
 **lonid** and **latid** are the longitude and latitude ids of each cell of the simulation.
 
-Additionally it is possible to store the ensembles generated for each cell. This is an optional feature as it may be a bit memory consuming. However It may be useful in some circumstances specially for advanced users. The ensembles will be stored in the same format, and will containing [Ensemble objects](https://github.com/ealonsogzl/MuSA/blob/master/modules/internal_class.py).
+Additionally it is possible to store the ensembles generated for each cell. This is an optional feature as it may be a bit memory consuming. However It may be useful in some circumstances specially for advanced users. The ensembles will be stored in the same format, and will containing [Ensemble objects](modules/internal_class.py).
 
 ### Usage
 
@@ -98,7 +98,7 @@ python main.py
 
 On Windows MuSA compiles FSM2 natively with gfortran. WSL, Git Bash, `make` or a Unix shell are not required. The executable, the gfortran runtime DLLs and the `spawn` multiprocessing start method are handled automatically, so `python main.py` works exactly as on Linux. Activating the environment is still recommended, but MuSA also works when the environment Python is called directly.
 
-MPI is optional. If MPI is activated in the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file:
+MPI is optional. If MPI is activated in the [config.py](config.py) file:
 
 ```
 conda activate MuSA
@@ -107,7 +107,7 @@ mpiexec -n nprocess python -m mpi4py.futures main.py
 
 Where nprocess is the number of threads to be deployed. `mpi4py` and an MPI implementation are already included in the conda environment (on HPC clusters you may prefer to link it to the system MPI, see the [conda-forge documentation](https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries)); the default `multiprocessing` parallelization needs neither and is fully supported on Windows.
 
-These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](https://github.com/ealonsogzl/MuSA/blob/master/config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](https://github.com/ealonsogzl/MuSA/blob/master/constants.py) file. To run a simulation without data assimilation, use `implementation = "distributed"` (or `"point_scale"`) together with `da_algorithm = "deterministic_OL"`.
+These commands should run the reproducible example included in the repository. This example contains all the information needed by MuSA. It is composed of a few cells containing meteorological forcing and drone SfM derived snowdepth information. To change the configuration of MuSA, you should modify the [config.py](config.py) file. Also it is possible to modify the way MuSA generates the ensemble by modifying the [constants.py](constants.py) file. To run a simulation without data assimilation, use `implementation = "distributed"` (or `"point_scale"`) together with `da_algorithm = "deterministic_OL"`.
 Example scripts are also provided to run MuSA in distributed supercomputing facilities using [PBS](run_PBS.sh) (Portable Batch System, not Particle Batch Smoother :wink:) or [Slurm](run_slurm.sh) job arrays. The cells of the domain are split among `njobs` array tasks, and each task runs on one node with `nprocs` multiprocessing workers:
 
 ```
