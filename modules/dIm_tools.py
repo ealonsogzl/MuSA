@@ -44,7 +44,7 @@ def prepare_forz(forcing_sbst):
 
 
 @nb.njit(fastmath=True, cache=True)
-def dIm(Temp, Sf, DMF, cSWE):
+def dIm(Temp, Sf, DMF, cSWE, fix_density):
     # Initialize arrays with zeros
     n = len(Temp)
     SWE = np.zeros(n, dtype=np.float32)
@@ -59,7 +59,7 @@ def dIm(Temp, Sf, DMF, cSWE):
 
         SWE[timestep] = cSWE
 
-    snd = SWE / cnt.FIX_density / 1000
+    snd = SWE / fix_density / 1000
     fsca = snd / (snd + 0.1)
 
     snd = snd.astype("float32")
@@ -76,7 +76,8 @@ def model_run(forcing_sbst, init=None):
     else:
         cSWE = init
 
-    SWE, HS, fSCA = dIm(Temp, Sf, DMF, cSWE)
+    # constants as arguments: numba cache=True freezes global values
+    SWE, HS, fSCA = dIm(Temp, Sf, DMF, cSWE, cnt.FIX_density)
     init = SWE[-1]
 
     Results = pd.DataFrame({"SWE": SWE, "snd": HS, "fSCA": fSCA})
