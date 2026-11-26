@@ -15,6 +15,7 @@ from smrt import make_snowpack, make_model, make_soil, sensor_list
 def run_SMRT(rows, statedataframe, k):
 
     results_list = []
+    names = return_col_names()  # also without observation rows
 
     for row in rows:
 
