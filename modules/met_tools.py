@@ -235,8 +235,9 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
     post_mean = posteriors[var_tmp + "_noise_mean"].to_numpy()
     post_std_dev = posteriors[var_tmp + "_noise_sd"].to_numpy()
 
-    # take unique values (assim steps)
-    post_mean_vals = np.unique(post_mean)
+    # take unique values (assim steps), in time order (np.unique sorts them)
+    _, first = np.unique(post_mean, return_index=True)
+    post_mean_vals = post_mean[np.sort(first)]
     # NOTE: the standard deviations can be 0, since they can be collapsed
     # ensembles. Thus npunique is not safe. The trick is done through the
     # averages, which are very unlikely (impossible in practice) to
@@ -274,7 +275,7 @@ def create_noise_from_posterior(posteriors, perturbation_strategy, var_tmp):
     for n in range(post_mean_vals.size):  # loop over DAW
 
         mean, std_dev = post_mean_vals[n], post_post_std_dev[n]
-        n_steps = counts[0]
+        n_steps = counts[n]
 
         if perturbation_strategy == "normal":
             noise = np.random.normal(mean, std_dev, 1)
