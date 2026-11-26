@@ -902,6 +902,12 @@ def run_model_openloop(lat_idx, lon_idx, main_forcing, filename):
         state = model.model_read_output(temp_dest, 0, read_dump=False)
     else:
         raise Exception("Numerical model not implemented")
+    if cfg.run_smrt:  # Tb columns, NaN without observations
+        if cfg.numerical_model == "SNOWPACK":
+            import modules.SNOWPACK2SMRT as smrt
+        else:
+            import modules.FSM2SMRT as smrt
+        state = smrt.run_SMRT([], state, real_forcing["k"].values[0])
     state.columns = list(model.model_columns)
 
     del_t = generate_dates(
