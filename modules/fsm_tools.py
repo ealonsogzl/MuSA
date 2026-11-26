@@ -27,8 +27,6 @@ import netCDF4 as nc
 import modules.internal_fns as ifn
 from statsmodels.stats.weightstats import DescrStatsW
 
-if cfg.DAsord:
-    from modules.user_optional_fns import snd_ord
 if cfg.run_smrt:
     import modules.FSM2SMRT as smrt
 # TODO: homogenize documentation format
@@ -590,9 +588,12 @@ def model_read_output(fsm_path, step, read_dump=True):
 
     data = np.fromfile(state_dir, dtype=dt)
     state = pd.DataFrame(data)
-    # add optional variables
+    # add optional variables (time of each row from the driving file)
     if cfg.DAsord:
-        state = snd_ord(state)
+        met = np.fromfile(os.path.join(fsm_path, "input.bin"), _MET_DTYPE)
+        state = ifn.second_order(
+            state, met["year"], met["month"], met["day"], met["hour"]
+        )
 
     if state.isnull().values.any():
         error_dir = shutil.copytree(

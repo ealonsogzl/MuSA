@@ -8,9 +8,9 @@ authors:
   given-names: "Kristoffer"
   orcid: "https://orcid.org/0000-0002-2475-3731"
 title: "MuSA: The Multiple Snow Assimilation system"
-version: 2.2
-doi: 10.5281/zenodo.14065646
-date-released: 2024-11-11
+version: 2.4
+doi: 10.5281/zenodo.7014569
+date-released: 2026-11-26
 url: "https://github.com/ealonsogzl/MuSA"
 preferred-citation:
   type: article

@@ -24,8 +24,6 @@ import netCDF4 as nc
 import modules.internal_fns as ifn
 from statsmodels.stats.weightstats import DescrStatsW
 
-if cfg.DAsord:
-    from modules.user_optional_fns import snd_ord
 if cfg.run_smrt:
     import modules.SNOWPACK2SMRT as smrt
 # TODO: homogenize documentation format
@@ -1065,6 +1063,10 @@ def model_read_output(wd_path, step, read_dump=True):
     state = read_smet(files[0], variables=["HS_mod", "SWE"])
     # Traslate into MuSA (vars and units)
     state.columns = ["snd", "SWE"]
+    if cfg.DAsord:  # time of each row, for the second order variables
+        stamps = pd.to_datetime(
+            read_smet(files[0], variables=["timestamp"])["timestamp"]
+        )
 
     if cfg.post_profile:
 
@@ -1150,7 +1152,14 @@ def model_read_output(wd_path, step, read_dump=True):
         state = state.iloc[1:]
     # add optional variables
     if cfg.DAsord:
-        state = snd_ord(state)
+        stamps = stamps.iloc[len(stamps) - len(state):]  # same rows
+        state = ifn.second_order(
+            state,
+            stamps.dt.year,
+            stamps.dt.month,
+            stamps.dt.day,
+            stamps.dt.hour,
+        )
 
     if read_dump:
         directory = os.path.join(wd_path, "RESTARTDATA/")
