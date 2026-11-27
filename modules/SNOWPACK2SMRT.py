@@ -89,8 +89,28 @@ def run_SMRT(rows, statedataframe, k):
             result = m.run(radiometer, snowpack, parallel_computation="none")
 
         # outputs
-        # same order as the column names: frequency, theta, polarization
-        result = result.Tb().transpose("frequency", "theta", "polarization")
+        # same order as the column names: frequency, theta, polarization.
+        # SMRT drops the dimensions of length 1 (a single frequency, angle
+        # or polarization), so they are restored before transposing
+        result = result.Tb()
+        for dim, values in (
+            ("frequency", radiometer.frequency),
+            ("theta", radiometer.theta_deg),
+            ("polarization", radiometer.polarization),
+        ):
+            if dim in result.dims:
+                continue
+            if dim in result.coords:    # kept as a coordinate
+                result = result.expand_dims(dim)
+            else:
+                result = result.expand_dims({dim: np.atleast_1d(values)})
+        result = result.transpose("frequency", "theta", "polarization")
+
+        # SMRT always returns V polarization before H; keep the sensor order,
+        # as in return_col_names (the state columns are relabelled by position)
+        result = result.sel(
+            polarization=list(np.atleast_1d(radiometer.polarization))
+        )
 
         # Flatten the array
         flat_values = result.values.flatten()
@@ -132,9 +152,10 @@ def return_col_names():
 
     names = [
         f"{int(round(f/1e9))}{p}_i{int(round(t))}"
-        for f in radiometer.frequency
-        for t in radiometer.theta_deg
-        for p in radiometer.polarization
+        # at_least1d: SMRT stores a single frequency as a scalar
+        for f in np.atleast_1d(radiometer.frequency)
+        for t in np.atleast_1d(radiometer.theta_deg)
+        for p in np.atleast_1d(radiometer.polarization)
     ]
 
     return names

@@ -342,6 +342,16 @@ snowpack_tstep = 60
 # -----------------------------------
 
 run_smrt = False
+# SMRT passive mode usage needs at least:
+# frequency: frequency in Hz 
+# theta: viewing angle or list of viewing angles in degrees from vertical
+#
+# active mode needs at least:
+# active mode needs at least (still to be implemented in MuSA):
+# frequency: frequency in Hz
+# theta_inc: incident angle in degrees from the vertical
+#
+# More on SMRT: https://github.com/smrt-model/smrt/blob/v1.7.3/smrt/core/sensor.py
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
 
 # -----------------------------------
