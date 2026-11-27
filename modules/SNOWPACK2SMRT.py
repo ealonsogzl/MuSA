@@ -53,9 +53,9 @@ def run_SMRT(rows, statedataframe, k):
         corr_length = k * (4 / 3) * (1 - rhosnw / 917.0) * Rgrnm
         temperature = tsnow
         density = rhosnw
-        # Soil
-
-        substrate = su.make_substrate(sensor, temperature=273.15)
+        # Soil, at the temperature of the top soil element of SNOWPACK
+        Tsoil = statedataframe["Tsoil1"].values[row]
+        substrate = su.make_substrate(sensor, temperature=Tsoil)
 
         temperature[lWE > 0.0] = 273.15
         temperature[temperature > 273.15] = 273.15
@@ -89,7 +89,8 @@ def run_SMRT(rows, statedataframe, k):
 
     statedataframe = statedataframe.join(results_df)
 
-    cols = statedataframe.filter(like="layer").columns
+    # profile columns and Tsoil1 (not in the state of SNOWPACK)
+    cols = statedataframe.filter(regex=r"layer|^Tsoil1$").columns
     statedataframe = statedataframe.drop(columns=cols)
 
     return statedataframe

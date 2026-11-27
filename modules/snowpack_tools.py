@@ -41,6 +41,13 @@ if cfg.DAsord:
 
 model_columns = tuple(model_columns)
 
+# Soil under the snow, as in FSM2: 4 layers (thickness in m, top to bottom),
+# initial temperature (K) and fraction of saturation. The bottom of the soil
+# is insulated (SOIL_FLUX = TRUE, GEO_HEAT = 0), so no TSG is needed
+SOIL_DZ = (0.1, 0.2, 0.4, 0.8)
+SOIL_T0 = 285.0
+SOIL_FSAT = 0.5
+
 
 def model_copy(y_id, x_id):
 
@@ -349,7 +356,6 @@ def model_forcing_wrt(forcing_df, wd_path, step=0):
         ret_fr=True,
     )
     temp_forz_def.insert(4, "PSUM_PH", rain_fr)
-    temp_forz_def.insert(4, "TSG", np.full_like(rain_fr, 273.15))
 
     temp_forz_def["Prec"] = temp_forz_def["Prec"] * cfg.dt
     temp_forz_def["RH"] = temp_forz_def["RH"] / 100
@@ -422,7 +428,7 @@ def write_smet(
 
     # NumPy es más rápido que iterar sobre filas pandas
     values = (
-        df[["TSG", "PSUM_PH", "SW", "LW", "Prec", "Ta", "RH", "Ua", "Ps"]]
+        df[["PSUM_PH", "SW", "LW", "Prec", "Ta", "RH", "Ua", "Ps"]]
         .fillna(-999)
         .to_numpy(dtype=np.float64)
     )
@@ -437,7 +443,7 @@ def write_smet(
         f"altitude = {altitude}\n"
         "nodata = -999\n"
         f"tz = {timezone}\n"
-        "fields = timestamp TSG PSUM_PH ISWR ILWR PSUM TA RH VW P\n"
+        "fields = timestamp PSUM_PH ISWR ILWR PSUM TA RH VW P\n"
         "[DATA]\n"
     )
 
@@ -451,7 +457,6 @@ def write_smet(
             np.column_stack((timestamps, values)),
             fmt=[
                 "%s",  # timestamp
-                "%.2f",  # TSG
                 "%.1f",  # PSUM_PH
                 "%.1f",  # ISWR
                 "%.2f",  # ILWR
@@ -629,6 +634,24 @@ def write_empty_smet(
             "%Y-%m-%dT%H:%M:%S",
         ).strftime("%Y-%m-%dT%H:%M:%S")
 
+    # Soil layers (bottom to top) with the soil of FSM2 (FSM2.F90), from
+    # the clay and sand fractions of constants.py
+    fcly, fsnd = cnt.fcly, cnt.fsnd
+    Vsat = 0.505 - 0.037 * fcly - 0.142 * fsnd  # porosity
+    hcap_soil = (2.128 * fcly + 2.385 * fsnd) * 1e6 / (fcly + fsnd)  # J/K/m3
+    rho_s = 2650.0  # density of the soil minerals (kg/m3)
+    k_s = 1.16**fcly * 1.57 ** (1 - fcly)  # their conductivity (W/m/K)
+    c_s = hcap_soil / ((1 - Vsat) * rho_s)  # same dry heat capacity as FSM2
+    f_s = round(1 - Vsat, 4)
+    f_w = round(SOIL_FSAT * Vsat, 4)
+    f_v = round(1 - f_s - f_w, 4)
+    soil = "".join(
+        f"{profile_date} {dz:.3f} {SOIL_T0:.3f} 0.0000 {f_w:.4f} {f_v:.4f} "
+        f"{f_s:.4f} {rho_s:.1f} {k_s:.4f} {c_s:.2f} "
+        "10000 0.00 0.0 0.0 0 0.0 1 0 0\n"
+        for dz in SOIL_DZ[::-1]
+    )
+
     header = f"""SMET 1.1 ASCII
 [HEADER]
 station_id       = justacell
@@ -642,7 +665,7 @@ ProfileDate      = {profile_date}
 HS_Last          = 0.0000
 SlopeAngle       = 0.0
 SlopeAzi         = 0.0
-nSoilLayerData   = 0
+nSoilLayerData   = {len(SOIL_DZ)}
 nSnowLayerData   = 0
 SoilAlbedo       = 0.09
 BareSoil_z0      = 0.200
@@ -656,7 +679,7 @@ fields           = timestamp Layer_Thick  T  Vol_Frac_I  Vol_Frac_W  Vol_Frac_V 
 [DATA]
 """
 
-    Path(output_file).write_text(header, encoding="utf-8")
+    Path(output_file).write_text(header + soil, encoding="utf-8")
 
 
 def write_nlst(wd_path, params=None, step=None):
@@ -739,7 +762,9 @@ def write_nlst(wd_path, params=None, step=None):
     CANOPY = FALSE
     MEAS_TSS = FALSE
     CHANGE_BC = FALSE
-    SNP_SOIL = FALSE
+    SNP_SOIL = TRUE
+    SOIL_FLUX = TRUE
+    GEO_HEAT = 0.0
     
     [SnowpackAdvanced]
     FIXED_POSITIONS = 0.25 0.5 1.0 -0.25 -0.10
@@ -1042,6 +1067,30 @@ def profile_to_subdomains(
     return pd.DataFrame(outputs, index=df.index)
 
 
+def drop_soil(df, height="Dsnw", snow_only=()):
+    """
+    Remove the soil from a profile of read_snowpack_profile. Below the snow,
+    the height has n_soil + 1 values (bottom of the soil and top of each soil
+    element) and the other variables n_soil values, except the snow only
+    variables of the .pro (e.g. grain size, 0535), given in snow_only. The
+    snow layers are renumbered from 1, as without soil.
+    """
+    n_soil = len(SOIL_DZ)
+    layer_pattern = re.compile(r"(.+)_layer(\d+)$")
+    drop, rename = [], {}
+    for col in df.columns:
+        m = layer_pattern.match(col)
+        if m is None or m.group(1) in snow_only:
+            continue
+        k = int(m.group(2)) - n_soil - (m.group(1) == height)
+        if k < 1:
+            drop.append(col)
+        else:
+            rename[col] = f"{m.group(1)}_layer{k}"
+
+    return df.drop(columns=drop).rename(columns=rename)
+
+
 def model_read_output(wd_path, step, read_dump=True):
     """
     Read snowpack outputs and return it in a dataframe
@@ -1082,6 +1131,7 @@ def model_read_output(wd_path, step, read_dump=True):
                 "0502": "rhosnw",
             },
         )
+        df = drop_soil(df)
 
         D = df.filter(regex=r"^Dsnw_layer") / 100
         # Espesor de cada capa
@@ -1143,6 +1193,10 @@ def model_read_output(wd_path, step, read_dump=True):
 
         cols = df.filter(like="lWE_layer").columns
         df[cols] = df[cols] / 100
+
+        # temperature of the top soil element (K), for the SMRT substrate
+        df["Tsoil1"] = df[f"Tsnow_layer{len(SOIL_DZ)}"]
+        df = drop_soil(df, snow_only=("Rgrnm",))
 
         state = pd.concat(
             [state.reset_index(drop=True), df.reset_index(drop=True)], axis=1
