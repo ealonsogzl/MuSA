@@ -9,7 +9,7 @@ Note that not all the options will be used in all the experimental setups.
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
 numerical_model = (
-    "SNOWPACK"  # model to use from FSM2, FSM2mem, SNOWPACK, dIm or snow17
+    "FSM2"  # model to use from FSM2, FSM2mem, SNOWPACK, dIm or snow17
 )
 dt = 3600  # timestep in seconds
 # -----------------------------------
@@ -59,7 +59,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = "AdaPBS"
+da_algorithm = "PBS"
 # If da_DAW = None, the assimilation window will be the season for the smoothers
 # or 1 observation for the filters. Otherwise, it will be the number
 # of time steps chosen by the user. WARNING: Highly experimental. Results may
@@ -70,7 +70,7 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 10
+ensemble_members = 100
 Neffthrs = 0.1  # Low Neff threshold
 # MCMC parameters
 chain_len = 20000  # Length of the mcmc
@@ -331,11 +331,11 @@ SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 # -----------------------------------
 
 post_profile = True
-pro_domains = 5
+pro_domains = 10
 
 # SNOWPACK internal timestep (CALCULATION_STEP_LENGTH) in min
 # It must divide the forcing timestep (dt) exactly, e.g. 60, 30 , 15 min
-snowpack_tstep = 30
+snowpack_tstep = 60
 
 # -----------------------------------
 # SMRT configuration
