@@ -8,10 +8,11 @@ result.
 
 Passive sensors give brightness temperatures (K), columns <GHz><pol>_i<angle>
 (e.g. 36V_i55). Active sensors give backscatter (dB), columns
-<GHz><pol_inc><pol>_i<angle> (e.g. 5VH_i35: emitted V, received H).
+<GHz><pol><pol>_i<angle> (e.g. 5VV_i35), copolarization only (VV, HH).
 """
 
 import numpy as np
+import xarray as xr
 import config as cfg
 from smrt import make_soil, sensor_list  # noqa: F401 (used by eval)
 
@@ -32,10 +33,27 @@ SIGMA_DB_MIN = -150.0
 def get_sensor():
     """Sensor from cfg.SMRT_sensor_list, e.g. 
     "passive(...)" or "active(...)" """
-    return eval("sensor_list.{}".format(cfg.SMRT_sensor_list))
+    sensor = eval("sensor_list.{}".format(cfg.SMRT_sensor_list))
+    if is_active(sensor):
+        _copol(sensor)  # stops here if the sensor is not co-polarized
+    return sensor
 
 def is_active(sensor):
     return sensor.mode == "A"
+
+def _copol(sensor):
+    """Polarizations of an active sensor, used only as co-polarized pairs
+    (VV, HH). Cross-polarization (VH, HV) is not supported yet"""
+    pol_inc = [str(p) for p in np.atleast_1d(sensor.polarization_inc)]
+    pol = [str(p) for p in np.atleast_1d(sensor.polarization)]
+    if pol_inc != pol:
+        raise Exception(
+            "Active SMRT sensors: only co-polarization (VV, HH) is supported. "
+            "Use the same polarization_inc and polarization, e.g. "
+            "polarization_inc='V', polarization='V' for VV. "
+            f"Got polarization_inc={pol_inc}, polarization={pol}"
+        )
+    return pol
 
 
 def make_substrate(sensor, temperature):
@@ -84,11 +102,10 @@ def column_names(sensor):
     axes = dict(_axes(sensor))
     if is_active(sensor):
         return [
-            f"{int(round(f/1e9))}{pi}{p}_i{int(round(t))}"
+            f"{int(round(f/1e9))}{p}{p}_i{int(round(t))}"
             for f in axes["frequency"]
             for t in axes["theta_inc"]
-            for pi in axes["polarization_inc"]
-            for p in axes["polarization"]
+            for p in _copol(sensor)
         ]
 
     return [
@@ -119,8 +136,14 @@ def result_values(result, sensor):
     # same order as the column names. The polarizations are also selected
     # by name: SMRT always returns V before H, and in active mode, adds a
     # third Stokes component (U) that is not a channel
-    out = out.transpose(*[dim for dim, _ in axes])
-    out = out.sel({dim: values for dim, values in axes if "polarization" in dim})
+    if is_active(sensor):
+        # co-polarized pairs only: (V, V), (H, H)
+        pol = xr.DataArray(_copol(sensor), dims="copol")
+        out = out.sel(polarization_inc=pol, polarization=pol)
+        out = out.transpose("frequency", "theta_inc", "copol")
+    else:
+        out = out.transpose(*[dim for dim, _ in axes])
+        out = out.sel(polarization=axes[-1][1])
 
     values = out.values.flatten()
     if is_active(sensor) and not np.all(
