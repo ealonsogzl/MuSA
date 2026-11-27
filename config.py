@@ -347,6 +347,7 @@ run_smrt = False
 # theta: viewing angle or list of viewing angles in degrees from vertical
 #
 # active mode needs at least:
+# active mode needs at least (still to be implemented in MuSA):
 # frequency: frequency in Hz
 # theta_inc: incident angle in degrees from the vertical
 #
