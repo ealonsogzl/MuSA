@@ -357,13 +357,10 @@ run_smrt = False
 # frequency: frequency in Hz
 # theta_inc: incident angle in degrees from the vertical
 # Optional: polarization_inc (emitted) and polarization (received), both
-# ["V", "H"] by default
+# ["V", "H"] by default. So far, only co-polarization (VV, HH) is supported.
 # Columns: <GHz><pol_inc><pol>_i<angle>, e.g.
-# "active(frequency=5.405e9, theta_inc=35)" -> 5VV_i35, 5VH_i35, 5HV_i35, 5HH_i35
-#  "active(frequency=5.405e9, theta_inc=35, polarization_inc='V', polarization='V')" -> 5VV_i35
-# Cross-polarization (VH, HV) only comes from multiple scattering in the snow
-# (IBA + DORT); it can be zero, and the run then stops with an error. Work in progress.
-#
+# "active(frequency=5.405e9, theta_inc=35)" -> 5VV_i35, 5HH_i35
+# "active(frequency=5.405e9, theta_inc=35, polarization_inc='V', polarization='V')" -> 5VV_i35
 # The GHz are rounded (18.7 -> 19, 10.65 -> 11) and the columns are ordered by
 # frequency, angle and polarization(s) as given here. To assimilate them, use
 # these names in var_to_assim and in the observation files (in K or dB).
