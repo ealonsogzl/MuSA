@@ -67,7 +67,7 @@ def run_SMRT(rows, statedataframe, k):
         temperature = tsnow
         density = rhosnw
 
-        substrate = su.make_substrate(temperature=Tsoil[0])
+        substrate = su.make_substrate(sensor, temperature=Tsoil[0])
 
         # SMRT requires the temperature of snow layer to be 273.15
         # or higher if there is liquid water in the snowpack. Since we are in

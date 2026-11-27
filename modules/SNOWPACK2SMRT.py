@@ -55,7 +55,7 @@ def run_SMRT(rows, statedataframe, k):
         density = rhosnw
         # Soil
 
-        substrate = su.make_substrate(temperature=273.15)
+        substrate = su.make_substrate(sensor, temperature=273.15)
 
         temperature[lWE > 0.0] = 273.15
         temperature[temperature > 273.15] = 273.15

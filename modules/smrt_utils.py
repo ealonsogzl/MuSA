@@ -22,6 +22,7 @@ DEFAULT_SOIL = {
     "clay": 0.3,
     "drymatter": 1100,
     "roughness_rms": 5e-3,
+    "corr_length": 5e-2,
 }
 
 # Below this value, SMRT gives zero backscatter (i.e. -200 dB for 0)
@@ -37,19 +38,27 @@ def is_active(sensor):
     return sensor.mode == "A"
 
 
-def make_substrate(temperature):
+def make_substrate(sensor, temperature):
     """Soil under the snow from cfg.SMRT_soil. The temperature (K) comes
-    from each model"""
+    from each model. Passive: soil_wegmuller; Active: iem_fung92"""
     soil = {**DEFAULT_SOIL, **getattr(cfg, "SMRT_soil", {})}
-    return make_soil(
-        "soil_wegmuller",
-        "soil_permittivity_dobson85_peplinski95",
+    common = dict(
         temperature=temperature,
         moisture=soil["moisture"],
         sand=soil["sand"],
         clay=soil["clay"],
         drymatter=soil["drymatter"],
         roughness_rms=soil["roughness_rms"],
+    )
+    if is_active(sensor):
+        return make_soil(
+            "iem_fung92",
+            "soil_permittivity_dobson85_peplinski95",
+            corr_length=soil["corr_length"],
+            **common,
+        )
+    return make_soil(
+        "soil_wegmuller", "soil_permittivity_dobson85_peplinski95", **common
     )
 
 
