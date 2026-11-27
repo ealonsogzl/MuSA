@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import config as cfg
 from modules.threading_utils import threadpool_limits_safe
-from smrt import make_snowpack, make_model
+from smrt import make_snowpack
 import modules.smrt_utils as su
 
 
@@ -90,7 +90,7 @@ def run_SMRT(rows, statedataframe, k):
         )
 
         # create the model
-        m = make_model("iba", "dort")
+        m = su.make_em_model()
         # run the model
         with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
             result = m.run(sensor, snowpack, parallel_computation="none")

@@ -368,6 +368,16 @@ run_smrt = False
 # More on SMRT: https://github.com/smrt-model/smrt/blob/v1.7.3/smrt/core/sensor.py
 
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
+# Electromagnetic model of the snow (solver: DORT). Matters for layers denser
+# than about 458 kg m-3 (half the ice density), see Picard et al. 2022,
+# doi:10.5194/tc-16-3861-2022:
+# "iba": IBA. Not valid for those layers (SMRT warns)
+# "iba_dense": IBA modelling those layers as air in ice. Tb and backscatter
+#   jump when a layer crosses 458 kg m-3
+# "symsce_torquato21": symmetric SCE, valid and continuous at all
+#   densities, but different from IBA at all densities (e.g. -20 to -40 K)
+# ATTENTION this is very experimental as it still uses DORT solver (!!)
+SMRT_emmodel = "iba"
 
 # Soil under the snow, permittivity from Dobson85/Peplinski95: 
 # soil_wegmuller for passive sensors, iem_fung92 (rough-surface backscatter) for active.

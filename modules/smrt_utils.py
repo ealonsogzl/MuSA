@@ -14,7 +14,7 @@ Passive sensors give brightness temperatures (K), columns <GHz><pol>_i<angle>
 import numpy as np
 import xarray as xr
 import config as cfg
-from smrt import make_soil, sensor_list  # noqa: F401 (used by eval)
+from smrt import make_model, make_soil, sensor_list  # noqa: F401 (sensor list used by eval)
 
 # Soil used before cfg.SMRT_soil existed; also fills keys missing from it
 DEFAULT_SOIL = {
@@ -38,8 +38,10 @@ def get_sensor():
         _copol(sensor)  # stops here if the sensor is not co-polarized
     return sensor
 
+
 def is_active(sensor):
     return sensor.mode == "A"
+
 
 def _copol(sensor):
     """Polarizations of an active sensor, used only as co-polarized pairs
@@ -54,6 +56,32 @@ def _copol(sensor):
             f"Got polarization_inc={pol_inc}, polarization={pol}"
         )
     return pol
+
+
+def make_em_model():
+    """Electromagnetic model (cfg.SMRT_emmodel, "iba" if not set) for now with the
+    DORT solver:
+    "iba": IBA, default. Not valid for layers denser than about
+        458 kg m-3 (half the ice density); SMRT warns.
+    "iba_dense": IBA with dense_snow_correction="auto": those layers are
+        modelled as air in ice. Tb and sigma0 jump when a layer crosses
+        458 kg m-3.
+    "symsce_torquato21": symmetric SCE, valid and continuous at all
+        densities, but differs from IBA. Work in progress.
+    See Picard et al. 2022, doi:10.5194/tc-16-3861-2022"""
+    name = getattr(cfg, "SMRT_emmodel", "iba")
+    if name == "iba":
+        return make_model("iba", "dort")
+    if name == "iba_dense":
+        return make_model(
+            "iba", "dort", emmodel_options=dict(dense_snow_correction="auto")
+        )
+    if name == "symsce_torquato21":
+        return make_model("symsce_torquato21", "dort")
+    raise Exception(
+        f"SMRT_emmodel = {name!r} not supported. "
+        'Use "iba", "iba_dense" or "symsce_torquato21"'
+    )
 
 
 def make_substrate(sensor, temperature):
