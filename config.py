@@ -337,6 +337,26 @@ pro_domains = 10
 # It must divide the forcing timestep (dt) exactly, e.g. 60, 30 , 15 min
 snowpack_tstep = 60
 
+# Parameterizations, see SNOWPACK documentation (keys of its .ini file)
+# turbulent exchange: RICHARDSON, NEUTRAL, MO_LOG_LINEAR, MO_HOLTSLAG,
+# MO_STEARNS, MO_MICHLMAYR, MO_SCHLOEGL_UNI, MO_SCHLOEGL_MULTI,
+# MO_SCHLOEGL_MULTI_OFFSET
+ATMOSPHERIC_STABILITY = "MO_HOLTSLAG"
+# new snow density: LEHNING_NEW, LEHNING_OLD, BELLAIRE, ZWART, PAHAUT, NIED,
+# VANKAMPENHOUT
+HN_DENSITY_PARAMETERIZATION = "LEHNING_NEW"
+VISCOSITY_MODEL = "DEFAULT"  # snow settling   : DEFAULT, KOJIMA, CALIBRATION
+METAMORPHISM_MODEL = "DEFAULT"  # metamorphism : DEFAULT, NIED
+# snow albedo: LEHNING_0, LEHNING_1, LEHNING_2, SCHMUCKI_GSZ, SCHMUCKI_OGS
+ALBEDO_PARAMETERIZATION = "LEHNING_2"
+# snow and soil hydraulics: BUCKET, NIED (snow only) or RICHARDSEQUATION
+# (RICHARDSEQUATION in the snow needs it in the soil too, about 2x slower)
+WATERTRANSPORTMODEL_SNOW = "BUCKET"
+WATERTRANSPORTMODEL_SOIL = "BUCKET"
+# soil evaporation: EVAP_RESISTANCE, EVAP_RELATIVE_HUMIDITY, NONE
+SOIL_EVAP_MODEL = "EVAP_RESISTANCE"
+SNOW_EROSION = True  # wind erosion of the snow surface : True, False
+
 # -----------------------------------
 # SMRT configuration
 # -----------------------------------
