@@ -9,7 +9,7 @@ Note that not all the options will be used in all the experimental setups.
 # Note: It is possible to implement any other model,
 # not necessarily limited to snow. See modules.*_tools.py for examples
 numerical_model = (
-    "FSM2"  # model to use from FSM2, FSM2mem, SNOWPACK, dIm or snow17
+    "SNOWPACK"  # model to use from FSM2, FSM2mem, SNOWPACK, dIm or snow17
 )
 dt = 3600  # timestep in seconds
 # -----------------------------------
@@ -59,7 +59,7 @@ real_time_restart = False
 load_prev_run = False
 # da_algorithm from PF, EnKF, IEnKF, PBS, ES, IES, deterministic_OL,
 # IES-MCMC_AI, IES-MCMC, AdaPBS, ProPBS or PIES
-da_algorithm = "PBS"
+da_algorithm = "AdaPBS"
 # If da_DAW = None, the assimilation window will be the season for the smoothers
 # or 1 observation for the filters. Otherwise, it will be the number
 # of time steps chosen by the user. WARNING: Highly experimental. Results may
@@ -70,7 +70,7 @@ max_iterations = 4  # IEnKF, IES, IES-MCMC and AdaPBS
 # resampling_algorithm from "bootstrapping", residual_resample,
 # stratified_resample,  systematic_resample, no_resampling
 resampling_algorithm = "no_resampling"
-ensemble_members = 100
+ensemble_members = 10
 Neffthrs = 0.1  # Low Neff threshold
 # MCMC parameters
 chain_len = 20000  # Length of the mcmc
@@ -331,29 +331,47 @@ SNFRAC = 3  # snow cover fraction           : 1, 2, 3
 # -----------------------------------
 
 post_profile = True
-pro_domains = 10
+pro_domains = 5
 
 # SNOWPACK internal timestep (CALCULATION_STEP_LENGTH) in min
 # It must divide the forcing timestep (dt) exactly, e.g. 60, 30 , 15 min
-snowpack_tstep = 60
+snowpack_tstep = 30
 
 # -----------------------------------
 # SMRT configuration
 # -----------------------------------
 
 run_smrt = False
-# SMRT passive mode usage needs at least:
-# frequency: frequency in Hz 
-# theta: viewing angle or list of viewing angles in degrees from vertical
+
+# Any smrt.sensor_list sensor, passive or active (one per run). Each value 
+# can be a single value or a list.
 #
-# active mode needs at least:
-# active mode needs at least (still to be implemented in MuSA):
+# Passive mode gives brightness temperatures (K) and needs at least:
+# frequency: frequency in Hz
+# theta: viewing angle or list of viewing angles in degrees from vertical
+# Optional: polarization (default ["V", "H"])
+# Columns: <GHz><pol>_i<angle>, e.g.
+# "passive(frequency=36.5e9, theta=55)" -> 36V_i55, 36H_i55
+# 
+# Active mode gives backscatter (dB) and needs at least:
 # frequency: frequency in Hz
 # theta_inc: incident angle in degrees from the vertical
+# Optional: polarization_inc (emitted) and polarization (received), both
+# ["V", "H"] by default
+# Columns: <GHz><pol_inc><pol>_i<angle>, e.g.
+# "active(frequency=5.405e9, theta_inc=35)" -> 5VV_i35, 5VH_i35, 5HV_i35, 5HH_i35
+#  "active(frequency=5.405e9, theta_inc=35, polarization_inc='V', polarization='V')" -> 5VV_i35
+# Cross-polarization (VH, HV) only comes from multiple scattering in the snow
+# (IBA + DORT); it can be zero, and the run then stops with an error. Work in progress.
+#
+# The GHz are rounded (18.7 -> 19, 10.65 -> 11) and the columns are ordered by
+# frequency, angle and polarization(s) as given here. To assimilate them, use
+# these names in var_to_assim and in the observation files (in K or dB).
 #
 # More on SMRT: https://github.com/smrt-model/smrt/blob/v1.7.3/smrt/core/sensor.py
+
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
-# Soil under the snow (soil_wegmuller, permittivity from Dobson85/Peplinski95).
+
 # Soil under the snow, permittivity from Dobson85/Peplinski95: 
 # soil_wegmuller for passive sensors, iem_fung92 (rough-surface backscatter) for active.
 # The soil temperature is not set here: FSM2 uses its first soil layer, and
