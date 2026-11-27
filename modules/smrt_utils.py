@@ -12,12 +12,35 @@ Passive sensors give brightness temperatures (K), columns <GHz><pol>_i<angle>
 
 import numpy as np
 import config as cfg
-from smrt import sensor_list  # noqa: F401 (used by eval)
+from smrt import make_soil, sensor_list  # noqa: F401 (used by eval)
 
+# Soil used before cfg.SMRT_soil existed; also fills keys missing from it
+DEFAULT_SOIL = {
+    "moisture": 0.20435,
+    "sand": 0.6,
+    "clay": 0.3,
+    "drymatter": 1100,
+    "roughness_rms": 5e-3,
+}
 
 def get_sensor():
     """Sensor from cfg.SMRT_sensor_list, e.g. "passive(...)" """
     return eval("sensor_list.{}".format(cfg.SMRT_sensor_list))
+
+def make_substrate(temperature):
+    """Soil under the snow from cfg.SMRT_soil. The temperature (K) comes
+    from each model"""
+    soil = {**DEFAULT_SOIL, **getattr(cfg, "SMRT_soil", {})}
+    return make_soil(
+        "soil_wegmuller",
+        "soil_permittivity_dobson85_peplinski95",
+        temperature=temperature,
+        moisture=soil["moisture"],
+        sand=soil["sand"],
+        clay=soil["clay"],
+        drymatter=soil["drymatter"],
+        roughness_rms=soil["roughness_rms"],
+    )
 
 
 def _axes(sensor):

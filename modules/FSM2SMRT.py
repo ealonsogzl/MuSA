@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import config as cfg
 from modules.threading_utils import threadpool_limits_safe
-from smrt import make_snowpack, make_model, make_soil
+from smrt import make_snowpack, make_model
 import modules.smrt_utils as su
 
 
@@ -67,16 +67,7 @@ def run_SMRT(rows, statedataframe, k):
         temperature = tsnow
         density = rhosnw
 
-        substrate = make_soil(
-            "soil_wegmuller",
-            "soil_permittivity_dobson85_peplinski95",
-            temperature=Tsoil[0],
-            moisture=0.20435,
-            sand=0.6,
-            clay=0.3,
-            drymatter=1100,
-            roughness_rms=5e-3,
-        )
+        substrate = su.make_substrate(temperature=Tsoil[0])
 
         # SMRT requires the temperature of snow layer to be 273.15
         # or higher if there is liquid water in the snowpack. Since we are in

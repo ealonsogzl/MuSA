@@ -353,6 +353,16 @@ run_smrt = False
 #
 # More on SMRT: https://github.com/smrt-model/smrt/blob/v1.7.3/smrt/core/sensor.py
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
+# Soil under the snow (soil_wegmuller, permittivity from Dobson85/Peplinski95).
+# The soil temperature is not set here: FSM2 uses its first soil layer, and
+# SNOWPACK 273.15 K
+SMRT_soil = {
+    "moisture": 0.20435,  # volumetric (m3 m-3)
+    "sand": 0.6,  # fraction
+    "clay": 0.3,  # fraction
+    "drymatter": 1100,  # kg m-3
+    "roughness_rms": 5e-3  # m
+}
 
 # -----------------------------------
 # Export option

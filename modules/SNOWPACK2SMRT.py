@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import config as cfg
 from modules.threading_utils import threadpool_limits_safe
-from smrt import make_snowpack, make_model, make_soil
+from smrt import make_snowpack, make_model
 import modules.smrt_utils as su
 
 
@@ -55,16 +55,7 @@ def run_SMRT(rows, statedataframe, k):
         density = rhosnw
         # Soil
 
-        substrate = make_soil(
-            "soil_wegmuller",
-            "soil_permittivity_dobson85_peplinski95",
-            temperature=273.15,
-            moisture=0.20435,
-            sand=0.6,
-            clay=0.3,
-            drymatter=1100,
-            roughness_rms=5e-3,
-        )
+        substrate = su.make_substrate(temperature=273.15)
 
         temperature[lWE > 0.0] = 273.15
         temperature[temperature > 273.15] = 273.15
