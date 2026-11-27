@@ -89,6 +89,12 @@ Additionally it is possible to store the ensembles generated for each cell. This
 
 ### Usage
 
+#### Branches
+- `main`: stable versions. Each release is tagged (`vX.Y.Z`) and archived in [Zenodo](https://doi.org/10.5281/zenodo.7014569).
+- `dev`: development version (default branch). Pull requests should target `dev`.
+
+To get the latest stable version: `git clone -b main https://github.com/ealonsogzl/MuSA.git`, or download a [release](https://github.com/ealonsogzl/MuSA/releases).
+
 MuSA runs natively on GNU/Linux, macOS and Windows. MuSA relies on python3 with the usual scientific libraries (numpy, pandas, scipy...) and netCDF4 installed. You will also need to have gfortran in the path (or installed in the active conda environment). The easiest way to do this is to generate a dedicated conda environment with the [MuSAenv.yml](MuSAenv.yml) file of the repository. The same file works on every platform and already includes gfortran:
 
 ```
