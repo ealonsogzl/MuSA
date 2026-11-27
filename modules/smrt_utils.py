@@ -58,7 +58,7 @@ def _copol(sensor):
     return pol
 
 
-def make_em_model():
+def make_em_model(snowpack):
     """Electromagnetic model (cfg.SMRT_emmodel, "iba" if not set) for now with the
     DORT solver:
     "iba": IBA, default. Not valid for layers denser than about
@@ -70,18 +70,22 @@ def make_em_model():
         densities, but differs from IBA. Work in progress.
     See Picard et al. 2022, doi:10.5194/tc-16-3861-2022"""
     name = getattr(cfg, "SMRT_emmodel", "iba")
-    if name == "iba":
-        return make_model("iba", "dort")
-    if name == "iba_dense":
-        return make_model(
-            "iba", "dort", emmodel_options=dict(dense_snow_correction="auto")
+    if name not in ("iba", "iba_dense", "symsce_torquato21"):
+        raise Exception(
+            f"SMRT_emmodel = {name!r} not supported. "
+            'Use "iba", "iba_dense" or "symsce_torquato21"'
         )
     if name == "symsce_torquato21":
         return make_model("symsce_torquato21", "dort")
-    raise Exception(
-        f"SMRT_emmodel = {name!r} not supported. "
-        'Use "iba", "iba_dense" or "symsce_torquato21"'
-    )
+    # Without snow, make_snowpack adds a transparent layer: plain IBA then
+    if name == "iba_dense" and all(
+        layer.emmodel is None for layer in snowpack.layers
+    ):
+        return make_model(
+            "iba", "dort", emmodel_options=dict(dense_snow_correction="auto")
+        )
+    return make_model("iba", "dort")
+    
 
 
 def make_substrate(sensor, temperature):

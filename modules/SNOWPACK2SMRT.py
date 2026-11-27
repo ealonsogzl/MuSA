@@ -71,7 +71,7 @@ def run_SMRT(rows, statedataframe, k):
         )
 
         # create the model
-        m = su.make_em_model()
+        m = su.make_em_model(snowpack)
         # run the model
         with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
             result = m.run(sensor, snowpack, parallel_computation="none")
