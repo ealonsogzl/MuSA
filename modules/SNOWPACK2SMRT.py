@@ -9,13 +9,15 @@ import pandas as pd
 import numpy as np
 import config as cfg
 from modules.threading_utils import threadpool_limits_safe
-from smrt import make_snowpack, make_model, make_soil, sensor_list
+from smrt import make_snowpack, make_model
+import modules.smrt_utils as su
 
 
 def run_SMRT(rows, statedataframe, k):
 
     results_list = []
-    names = return_col_names()  # also without observation rows
+    sensor = su.get_sensor()
+    names = su.column_names(sensor)  # also without observation rows
 
     for row in rows:
 
@@ -53,16 +55,7 @@ def run_SMRT(rows, statedataframe, k):
         density = rhosnw
         # Soil
 
-        substrate = make_soil(
-            "soil_wegmuller",
-            "soil_permittivity_dobson85_peplinski95",
-            temperature=273.15,
-            moisture=0.20435,
-            sand=0.6,
-            clay=0.3,
-            drymatter=1100,
-            roughness_rms=5e-3,
-        )
+        substrate = su.make_substrate(sensor, temperature=273.15)
 
         temperature[lWE > 0.0] = 273.15
         temperature[temperature > 273.15] = 273.15
@@ -77,54 +70,14 @@ def run_SMRT(rows, statedataframe, k):
             substrate=substrate,
         )
 
-        # create the sensor
-        radiometer_str = "sensor_list.{cfgsensorlist}".format(
-            cfgsensorlist=cfg.SMRT_sensor_list
-        )
-        radiometer = eval(radiometer_str)
         # create the model
         m = make_model("iba", "dort")
         # run the model
         with threadpool_limits_safe(limits=cfg.numpy_threads, user_api="blas"):
-            result = m.run(radiometer, snowpack, parallel_computation="none")
+            result = m.run(sensor, snowpack, parallel_computation="none")
 
-        # outputs
-        # same order as the column names: frequency, theta, polarization.
-        # SMRT drops the dimensions of length 1 (a single frequency, angle
-        # or polarization), so they are restored before transposing
-        result = result.Tb()
-        for dim, values in (
-            ("frequency", radiometer.frequency),
-            ("theta", radiometer.theta_deg),
-            ("polarization", radiometer.polarization),
-        ):
-            if dim in result.dims:
-                continue
-            if dim in result.coords:    # kept as a coordinate
-                result = result.expand_dims(dim)
-            else:
-                result = result.expand_dims({dim: np.atleast_1d(values)})
-        result = result.transpose("frequency", "theta", "polarization")
-
-        # SMRT always returns V polarization before H; keep the sensor order,
-        # as in return_col_names (the state columns are relabelled by position)
-        result = result.sel(
-            polarization=list(np.atleast_1d(radiometer.polarization))
-        )
-
-        # Flatten the array
-        flat_values = result.values.flatten()
-
-        # Convert to numpy arrays
-        flat_values = np.array(flat_values)
-        names = [
-            f"{int(round(f/1e9))}{p}_i{int(round(t))}"
-            for f in result.frequency.values
-            for t in result.theta.values
-            for p in result.polarization.values
-        ]
-
-        results_list.append(flat_values)
+        # outputs, in the order of column names
+        results_list.append(su.result_values(result, sensor))
 
     # store results
     # same index as the state (it starts at 1 after the first window)
@@ -144,18 +97,4 @@ def run_SMRT(rows, statedataframe, k):
 
 def return_col_names():
 
-    # create the sensor
-    radiometer_str = "sensor_list.{cfgsensorlist}".format(
-        cfgsensorlist=cfg.SMRT_sensor_list
-    )
-    radiometer = eval(radiometer_str)
-
-    names = [
-        f"{int(round(f/1e9))}{p}_i{int(round(t))}"
-        # at_least1d: SMRT stores a single frequency as a scalar
-        for f in np.atleast_1d(radiometer.frequency)
-        for t in np.atleast_1d(radiometer.theta_deg)
-        for p in np.atleast_1d(radiometer.polarization)
-    ]
-
-    return names
+    return su.column_names(su.get_sensor())

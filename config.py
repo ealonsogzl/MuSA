@@ -342,17 +342,48 @@ snowpack_tstep = 60
 # -----------------------------------
 
 run_smrt = False
-# SMRT passive mode usage needs at least:
-# frequency: frequency in Hz 
-# theta: viewing angle or list of viewing angles in degrees from vertical
+
+# Any smrt.sensor_list sensor, passive or active (one per run). Each value 
+# can be a single value or a list.
 #
-# active mode needs at least:
-# active mode needs at least (still to be implemented in MuSA):
+# Passive mode gives brightness temperatures (K) and needs at least:
+# frequency: frequency in Hz
+# theta: viewing angle or list of viewing angles in degrees from vertical
+# Optional: polarization (default ["V", "H"])
+# Columns: <GHz><pol>_i<angle>, e.g.
+# "passive(frequency=36.5e9, theta=55)" -> 36V_i55, 36H_i55
+# 
+# Active mode gives backscatter (dB) and needs at least:
 # frequency: frequency in Hz
 # theta_inc: incident angle in degrees from the vertical
+# Optional: polarization_inc (emitted) and polarization (received), both
+# ["V", "H"] by default
+# Columns: <GHz><pol_inc><pol>_i<angle>, e.g.
+# "active(frequency=5.405e9, theta_inc=35)" -> 5VV_i35, 5VH_i35, 5HV_i35, 5HH_i35
+#  "active(frequency=5.405e9, theta_inc=35, polarization_inc='V', polarization='V')" -> 5VV_i35
+# Cross-polarization (VH, HV) only comes from multiple scattering in the snow
+# (IBA + DORT); it can be zero, and the run then stops with an error. Work in progress.
+#
+# The GHz are rounded (18.7 -> 19, 10.65 -> 11) and the columns are ordered by
+# frequency, angle and polarization(s) as given here. To assimilate them, use
+# these names in var_to_assim and in the observation files (in K or dB).
 #
 # More on SMRT: https://github.com/smrt-model/smrt/blob/v1.7.3/smrt/core/sensor.py
+
 SMRT_sensor_list = "passive(frequency=[10.65e9, 18.7e9, 21e9, 36.5e9], theta=[30, 40, 50, 60])"
+
+# Soil under the snow, permittivity from Dobson85/Peplinski95: 
+# soil_wegmuller for passive sensors, iem_fung92 (rough-surface backscatter) for active.
+# The soil temperature is not set here: FSM2 uses its first soil layer, and
+# SNOWPACK 273.15 K
+SMRT_soil = {
+    "moisture": 0.20435,  # volumetric (m3 m-3)
+    "sand": 0.6,  # fraction
+    "clay": 0.3,  # fraction
+    "drymatter": 1100,  # kg m-3
+    "roughness_rms": 5e-3,  # m
+    "corr_length": 5e-2,  # m, surface correlation length (active only)
+}
 
 # -----------------------------------
 # Export option
