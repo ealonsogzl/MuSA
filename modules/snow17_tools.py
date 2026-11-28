@@ -44,7 +44,8 @@ def prepare_forz(forcing_sbst):  # time, prec, tair, p_atm, lat
         step,
     ).astype(datetime)
 
-    time_jday = np.array([x.timetuple()[-2] for x in time])
+    # day of the year, vectorized (same as timetuple().tm_yday)
+    time_jday = pd.DatetimeIndex(time).dayofyear.to_numpy().astype(np.int64)
 
     Temp = forcing_sbst["Ta"].values
     prec = forcing_sbst["Prec"].values
