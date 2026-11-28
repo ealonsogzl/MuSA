@@ -1524,12 +1524,6 @@ def spatial_assim(
 
                 updated_pars = flt.transform_space(updated_pars, "from_normal")
 
-            Ensemble.iter_update(step, updated_pars, create=True, iteration=j)
-            # As in the non-spatial IES: every iteration restarts from the
-            # end of the previous window; keep the new restarts only at the end
-            if j == cfg.max_iterations - 1:
-                Ensemble.update_iter_restarts()
-
     except Exception as ex:  # if any error, dont update
         # TODO: Fix this except. guess al possible errors
         print(
@@ -1540,6 +1534,16 @@ def spatial_assim(
 
         save_space_flag = False
         Ensemble.iter_update(create=False)
+
+    # Run the members with the updated parameters out of the try: if the
+    # model fails, the ensemble is left half updated (results with NaN or a
+    # crash later), so stop as the other implementations do
+    if save_space_flag:
+        Ensemble.iter_update(step, updated_pars, create=True, iteration=j)
+        # As in the non-spatial IES: every iteration restarts from the
+        # end of the previous window; keep the new restarts only at the end
+        if j == cfg.max_iterations - 1:
+            Ensemble.update_iter_restarts()
 
     # Save updated ensemble
     if j < cfg.max_iterations - 1 and save_space_flag:
