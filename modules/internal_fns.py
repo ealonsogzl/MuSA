@@ -541,6 +541,19 @@ def obs_array(dates_obs, lat_idx, lon_idx):
 
         with nc.Dataset(ncfile) as ds:
 
+            # Clear message instead of a KeyError if a variable is missing
+            names = list(obs_var_names)
+            if r_cov == "dynamic_error":
+                names = names + list(cfg.obs_error_var_names)
+            missing = [name for name in names if name not in ds.variables]
+            if missing:
+                raise Exception(
+                    "{} not found in {} (obs_var_names, and "
+                    "obs_error_var_names with r_cov = 'dynamic_error')".format(
+                        missing, ncfile
+                    )
+                )
+
             # Observaciones
             for var in obs_var_names:
 
