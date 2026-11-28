@@ -146,7 +146,8 @@ numpy_threads = 1
 # more often); each process reads the forcing of about cells_per_process / 4
 # cells at once (higher values read it faster)
 cells_per_process = 50  # None is 1
-# maximun number of seconds each pool is killed before try again
+# maximun number of seconds each pool (a chunk of cells_per_process * nprocess
+# cells, not a single cell) is killed before try again (3 times at most)
 timeout = None  # None is inf
 
 aws_lat = 4735225.54  # Latitude in case of point_scale

@@ -415,6 +415,11 @@ def safe_pool(func, inputs, nprocess, in_mem=False):
         chunk_input = list(zip(*chunk_args))
 
         # Retry loop en caso de freeze
+        # timeout is for the whole chunk, not per cell: a chunk that times
+        # out again and again is not frozen, it needs more time. Give up
+        # then instead of restarting it forever
+        max_attempts = 3
+        attempt = 0
         while True:
             try:
                 # Ejecuta el pool y recoge resultados
@@ -434,6 +439,16 @@ def safe_pool(func, inputs, nprocess, in_mem=False):
                 break  # chunk completado → siguiente chunk
 
             except TimeoutError:
+                attempt = attempt + 1
+                if attempt >= max_attempts:
+                    raise Exception(
+                        "Chunk {} ({} cells) did not finish in timeout = {} "
+                        "s, {} times in a row. timeout is the maximum time "
+                        "of a whole chunk of cells_per_process * nprocess "
+                        "cells: increase it or set timeout = None".format(
+                            chunk_id, len(chunk_input), timeout, max_attempts
+                        )
+                    )
                 print("Pool frozen. Restarting chunk", chunk_id)
                 time.sleep(2)
                 continue
