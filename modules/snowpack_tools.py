@@ -690,7 +690,7 @@ def write_nlst(wd_path, params=None, step=None):
         write_profile = False
 
     # SNOWPACK tstep (min); PSUM is re-accumulated over the same period (s)
-    calc_step = getattr(cfg, "snowpack_tstep", 60)
+    calc_step = getattr(cfg, "snowpack_tstep", 15)
     psum_period = int(round(calc_step * 60))
     if psum_period <= 0 or cfg.dt % psum_period != 0:
         raise Exception(

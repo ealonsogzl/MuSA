@@ -335,7 +335,10 @@ pro_domains = 10
 
 # SNOWPACK internal timestep (CALCULATION_STEP_LENGTH) in min
 # It must divide the forcing timestep (dt) exactly, e.g. 60, 30 , 15 min
-snowpack_tstep = 60
+# 15 min as in the SNOWPACK examples: with 60 min the temperature of the new
+# snow can oscillate (e.g. -50 C with the air at 0 C) and SNOWPACK may stop
+# ("Temperature out of bound at beginning of iteration")
+snowpack_tstep = 15
 
 # Parameterizations, see SNOWPACK documentation (keys of its .ini file)
 # turbulent exchange: RICHARDSON, NEUTRAL, MO_LOG_LINEAR, MO_HOLTSLAG,
