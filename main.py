@@ -182,6 +182,10 @@ def MuSA():
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
 
+            if cfg.restart_run and prev_step >= len(ini_DA_window):
+                print("The simulation already finished, nothing to restart")
+                return None
+
             # DA_loop
             # create a pool inside each task
             # this enumerate is unnecesary
@@ -189,6 +193,8 @@ def MuSA():
 
                 if cfg.restart_run and step < prev_step:
                     continue
+                # A restart from here creates the prior ensembles again
+                logging.info(f"step: {step} - j: 0")
 
                 # create prior Ensembles
                 inputs = [
@@ -206,7 +212,8 @@ def MuSA():
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
-                    if cfg.restart_run and j < prev_j:
+                    # only the iterations of the step that was interrupted
+                    if cfg.restart_run and step == prev_step and j < prev_j:
                         continue
                     # add info to log
                     logging.info(f"step: {step} - j: {j}")
@@ -236,6 +243,8 @@ def MuSA():
             else:
                 inputs = [grid[:, 0], grid[:, 1]]
                 ifn.safe_pool(spM.collect_results, inputs, nprocess)
+                # Finished: a restart_run has nothing left to do
+                logging.info(f"step: {len(ini_DA_window)} - j: 0")
 
         elif cfg.parallelization == "multiprocessing":
 
@@ -264,6 +273,10 @@ def MuSA():
             # get timestep of GSC maps
             ini_DA_window = spM.domain_steps()
 
+            if cfg.restart_run and prev_step >= len(ini_DA_window):
+                print("The simulation already finished, nothing to restart")
+                return None
+
             # DA loop
             iteration_sims = list()
             count = 0
@@ -271,6 +284,8 @@ def MuSA():
 
                 if cfg.restart_run and step < prev_step:
                     continue
+                # A restart from here creates the prior ensembles again
+                logging.info(f"step: {step} - j: 0")
 
                 # create prior Ensembles
                 inputs = [
@@ -298,7 +313,8 @@ def MuSA():
 
                 for j in range(cfg.max_iterations):  # Run spatial assim
 
-                    if cfg.restart_run and j < prev_j:
+                    # only the iterations of the step that was interrupted
+                    if cfg.restart_run and step == prev_step and j < prev_j:
                         continue
                     # add info to log
                     logging.info(f"step: {step} - j: {j}")
@@ -337,6 +353,8 @@ def MuSA():
             inputs = [grid[:, 0], grid[:, 1], [iteration_sims] * len(ids)]
 
             ifn.safe_pool(spM.collect_results, inputs, nprocess)
+            # Finished: a restart_run has nothing left to do
+            logging.info(f"step: {len(ini_DA_window)} - j: 0")
 
     else:
         raise Exception("Choose an available implementation")
