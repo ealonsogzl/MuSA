@@ -78,6 +78,12 @@ def pre_cheks():
     if cfg.timeout and cfg.MPI:
         warnings.warn("timeout is ignored with MPI")
 
+    if cfg.ensemble_members < 2 and cfg.da_algorithm != "deterministic_OL":
+        raise Exception(
+            "ensemble_members must be at least 2: one member has no "
+            "ensemble spread to assimilate the observations"
+        )
+
     if cfg.parallelization == "HPC.array" and cfg.numerical_model == "FSM2":
         fsm_filename = model.model_binary_path()
         if os.path.isfile(fsm_filename):
