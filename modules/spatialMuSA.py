@@ -288,6 +288,15 @@ def calculate_coords():
         mask.close()
         coords = coords[mask_value == 1, :]
 
+    if cfg.dimension_reduction in ["PCA", "LMDS"] and (
+        cfg.dim_num > coords.shape[1]
+    ):
+        raise Exception(
+            "dim_num = {dim} but only {n} topographic dimensions are used "
+            "(topographic_features): the dimension reduction needs "
+            "dim_num <= {n}".format(dim=cfg.dim_num, n=coords.shape[1])
+        )
+
     if cfg.dimension_reduction == "PCA":
 
         x_scaled = StandardScaler().fit_transform(coords)
@@ -300,6 +309,13 @@ def calculate_coords():
             int(coords.shape[0] * 0.1),
             replace=False,
         )
+        # n landmarks span at most n - 1 dimensions
+        if len(lands) <= cfg.dim_num:
+            raise Exception(
+                "LMDS takes 10% of the cells as landmarks: {n} landmarks "
+                "cannot give dim_num = {dim} dimensions. Reduce dim_num or "
+                "use PCA".format(n=len(lands), dim=cfg.dim_num)
+            )
         Dl2 = distance.cdist(coords[lands, :], coords, cfg.dist_algo)
         coords = landmark_MDS(Dl2, lands, cfg.dim_num)
 
