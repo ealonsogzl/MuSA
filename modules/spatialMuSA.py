@@ -648,6 +648,12 @@ def get_rho(prior_id):
 
 def create_corelated_nc(prior_id):
 
+    # Seed once per prior map, as cell_assimilation does per cell. It depends
+    # only on the DA window, so the maps do not depend on how the windows are
+    # split among HPC.array tasks.
+    if cfg.seed is not None:
+        np.random.seed([cfg.seed, int(prior_id)])
+
     vars_to_perturbate = cfg.vars_to_perturbate
     perturbation_strategy = cfg.perturbation_strategy
     spatial_propagation_storage_path = cfg.spatial_propagation_storage_path
