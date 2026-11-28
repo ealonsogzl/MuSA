@@ -348,8 +348,10 @@ def pool_wrap(func, inputs, nprocess, timeout=None):
         with MPIPoolExecutor() as pool:
             # list: get the results here, so that an error in a worker stops
             # MuSA as with multiprocessing (nobody reads a lazy iterator
-            # when in_mem = False, and its errors were lost)
-            return list(pool.starmap(func, inputs, timeout=timeout))
+            # when in_mem = False, and its errors were lost). No timeout:
+            # it is ignored with MPI (see pre_cheks), the pool cannot kill
+            # its workers
+            return list(pool.starmap(func, inputs))
 
     else:
         # Cells per task as the default of starmap (4 tasks per process).
