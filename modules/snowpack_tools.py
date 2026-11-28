@@ -58,8 +58,9 @@ def model_copy(y_id, x_id):
         final_directory = os.path.join(tmp_dir, (str(y_id) + "_" + str(x_id)))
     else:
         token = secrets.token_urlsafe(16)  # safe path to run multiple sesions
+        # absolute: the model is run with cwd = final_directory
         final_directory = os.path.join(
-            to_directory, token, (str(y_id) + "_" + str(x_id))
+            os.path.abspath(to_directory), token, (str(y_id) + "_" + str(x_id))
         )
     if os.path.exists(final_directory):
         shutil.rmtree(final_directory, ignore_errors=True)
