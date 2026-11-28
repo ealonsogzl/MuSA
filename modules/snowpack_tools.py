@@ -1144,8 +1144,10 @@ def model_read_output(wd_path, step, read_dump=True):
         # Espesor de cada capa
         thick = D.diff(axis=1)
 
-        # La primera capa va desde el suelo
-        thick.iloc[:, 0] = D.iloc[:, 0]
+        # La primera capa va desde el suelo (no snow layer at all if there
+        # is no snow in the whole run, e.g. a summer window of PF/EnKF)
+        if D.shape[1] > 0:
+            thick.iloc[:, 0] = D.iloc[:, 0]
         rho = df.filter(regex=r"^rhosnw_layer")
 
         SWE = pd.DataFrame(
@@ -1159,8 +1161,11 @@ def model_read_output(wd_path, step, read_dump=True):
         domains = profile_to_subdomains(df, n_subdomains=cfg.pro_domains)
         domains = domains.drop(columns=domains.filter(regex="Dsnw").columns)
 
-        # Si no snow, SWE = 0
-        domains = domains.fillna(0)
+        # Si no snow, SWE = 0 (all the subdomains, also without snow in the
+        # whole run)
+        domains = domains.reindex(
+            columns=[f"SWE_sub{i}" for i in range(1, cfg.pro_domains + 1)]
+        ).fillna(0)
 
         state = pd.concat(
             [state.reset_index(drop=True), domains.reset_index(drop=True)],
